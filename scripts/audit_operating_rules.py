@@ -47,6 +47,12 @@ PHRASES = [
     "node_modules/next/dist/docs/",
     "fixed non-secret values stay literal",
     "must stay synchronized with the validation it actually performs",
+    # Phase 0.3: Windows dynamic port exclusions can swallow the 5532x range.
+    "net stop winnat",
+    # Phase 0.3: a clean CLI exit is not evidence of a reachable stack.
+    "Container health is not host-port reachability",
+    # Phase 0.3: CRLF must not turn a valid table into a false failure.
+    "The table check is line-ending tolerant",
 ]
 
 RESULTS = []
@@ -76,7 +82,9 @@ def check_duplicates(doc):
 
 
 def check_table(doc):
-    lines = [ln for ln in doc.split("\n") if ln.strip().startswith("|")]
+    # Tolerate CRLF: a trailing \r defeats the separator regex below, which
+    # would report a malformed table for a file that is otherwise correct.
+    lines = [ln.rstrip("\r") for ln in doc.split("\n") if ln.strip().startswith("|")]
     if len(lines) < 3:
         return False, "table has %d rows, expected >= 3" % len(lines)
     width = lines[0].count("|")

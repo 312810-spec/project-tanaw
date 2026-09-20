@@ -22,6 +22,19 @@ Another local Supabase project on this machine owns the default 5432x range, so 
 
 Do not return Project TANAW to the 5432x range without first checking which project owns those ports on the host.
 
+**Host port availability is not the same as port configuration.** `config.toml` fixes the 5532x ports, but Windows dynamically reserves broad slices of the ephemeral port space for Hyper-V/WSL2 when Docker Desktop runs. One observed dynamic exclusion covering `55292-55391` swallowed every TANAW port at once. Docker then fails with `bind: An attempt was made to access a socket in a way forbidden by its access permissions` — even though `config.toml` is correct and the port looks free to an ordinary port probe.
+
+The remedy, from an elevated prompt:
+
+```
+net stop winnat
+net start winnat
+```
+
+This restarts the Windows NAT driver and re-allocates the dynamic ranges, moving them off 5532x. Confirm afterwards with `netsh interface ipv4 show excludedportrange protocol=tcp`; only the administered ranges should remain.
+
+Do not change TANAW's 5532x ports to dodge a host exclusion, and do not rewrite host-wide or other-project configuration to make Project TANAW work (see §10). The permanent range stands; the host reservation is the thing to fix.
+
 ---
 
 ## 2. Local-first development target
@@ -161,6 +174,10 @@ A documented policy and a mechanically enforced control are not the same thing.
 If enforcement has not been verified, describe the rule as an operator or project policy rather than claiming that tooling blocks it.
 
 This applies to the project's own checks as much as to third-party tooling: audit and verification documentation must stay synchronized with the validation it actually performs. Phase 0.1 shipped a check labeled "sections 1-12" that in fact validated sections 1–14 — a false statement about a control, exactly what this section forbids. Audit labels, messages, and counts are part of the verification claim and must describe the real behavior.
+
+**Container health is not host-port reachability.** During local bring-up, `supabase status` exited 0 and every container reported `healthy` while all five port-publishing containers carried their binding in `HostConfig.PortBindings` with no active mapping in `NetworkSettings.Ports` — nothing was listening on 55321. The CLI reports container state, not whether the host port is actually served, so its clean exit is not evidence of a reachable stack. A local bring-up is verified only by inspecting the runtime bindings (`docker inspect <container> --format '{{json .NetworkSettings.Ports}}'`) and by an independent TCP or HTTP probe against the published port. Both are required; neither alone is sufficient.
+
+The table check is line-ending tolerant. A trailing carriage return defeats the separator pattern `^\|[\s:|-]+\|$`, which made a perfectly valid §1 table report as malformed — a false failure in this very gate, surfaced when a tool rewrote the rules file with CRLF. `check_table` therefore strips a trailing `\r` before validating. A control that fails on an irrelevant line ending is a control that teaches people to ignore it.
 
 When a workaround is required, follow:
 
