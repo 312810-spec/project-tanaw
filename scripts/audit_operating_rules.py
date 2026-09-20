@@ -37,11 +37,16 @@ EVIDENCE = (
     "District MEA Packet → Division Outputs"
 )
 
+# Each recorded lesson is a required literal: once a workaround is folded into
+# this document, the audit verifies it stays present, so it cannot be silently
+# dropped by a later edit.
 PHRASES = [
     "Missing is not zero",
     "Submitted is not approved",
     "Next.js 16",
     "node_modules/next/dist/docs/",
+    "fixed non-secret values stay literal",
+    "must stay synchronized with the validation it actually performs",
 ]
 
 RESULTS = []

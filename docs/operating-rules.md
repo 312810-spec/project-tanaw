@@ -104,6 +104,8 @@ Supabase publishable and legacy anon keys are client-safe by design. Authorizati
 
 `.env.local` must remain gitignored.
 
+In `.env.example` and any committed template, fixed non-secret values stay literal — only genuinely variable values use a placeholder. Wrapping a known constant in placeholder syntax (as Phase 0.1 did with `NEXT_PUBLIC_SUPABASE_URL=<http://127.0.0.1:55321>`) makes every copy of the template fail on first use, because the value it is "asking for" is already known. Recorded so the same defect is not reshipped.
+
 Do not claim that the secrets-guard hook mechanically enforces these rules until its behavior has been verified during Phase 0.1.
 
 ---
@@ -157,6 +159,8 @@ Do not state that a hook, Claude Code setting, permission rule, MCP configuratio
 A documented policy and a mechanically enforced control are not the same thing.
 
 If enforcement has not been verified, describe the rule as an operator or project policy rather than claiming that tooling blocks it.
+
+This applies to the project's own checks as much as to third-party tooling: audit and verification documentation must stay synchronized with the validation it actually performs. Phase 0.1 shipped a check labeled "sections 1-12" that in fact validated sections 1–14 — a false statement about a control, exactly what this section forbids. Audit labels, messages, and counts are part of the verification claim and must describe the real behavior.
 
 When a workaround is required, follow:
 
