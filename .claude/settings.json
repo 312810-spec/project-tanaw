@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/secrets-guard.mjs\""
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/nextjs-docs-nudge.mjs\""
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "ask": [
+      "Bash(git push:*)",
+      "Bash(git push --force*)",
+      "Bash(supabase db reset*)",
+      "Bash(supabase migration rm:*)",
+      "Bash(supabase migration delete:*)"
+    ],
+    "deny": [
+      "Bash(supabase db reset --linked*)",
+      "Bash(supabase db reset --linked)",
+      "Bash(supabase db push --linked*)",
+      "Bash(supabase db pull --linked*)",
+      "Bash(supabase production*)"
+    ]
+  }
+}
