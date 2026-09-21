@@ -8,6 +8,7 @@ The checks a wave must pass before its commit:
   3. hook syntax             .claude/hooks/*.mjs parse cleanly
   4. typecheck               build readiness; --noEmit writes no artifacts
   5. git hygiene             .env.local ignored, .env.example tracked, no leftovers
+  6. local stack reachability the two-part section 11 bring-up check, or SKIP
 
 Read-only: writes no files and mutates no repository state, so it is safe to
 run at any point in a wave (see docs/wave-workflow.md, step D).
@@ -130,6 +131,35 @@ def check_typecheck():
     return True, "tsc --noEmit clean"
 
 
+STACK = os.path.join(ROOT, "scripts", "verify_local_stack.py")
+
+
+def check_stack():
+    """operating-rules.md 11: runtime bindings AND an independent probe.
+
+    The Phase 0.3 bring-up reported healthy containers with a clean CLI exit
+    while no host port was served. Container health is not host-port
+    reachability, so this check demands both halves and fails on either.
+
+    Exit 2 means "no project containers to verify" -- a stopped stack, not a
+    broken one. That is a SKIP, not a failure, so this gate stays safe to run
+    on a checkout where the stack was never started.
+    """
+    if not shutil.which("docker"):
+        return None, "docker not on PATH; skipped (no stack to verify)"
+    proc = subprocess.run(
+        [sys.executable, STACK], cwd=ROOT, capture_output=True, text=True
+    )
+    detail = (proc.stdout or proc.stderr).strip().splitlines()
+    summary = [ln for ln in detail if ln.startswith(("TOTAL:", "SKIP", "FAIL"))]
+    text = summary[-1] if summary else (
+        detail[-1] if detail else "exit %s with no output" % proc.returncode
+    )
+    if proc.returncode == 2:
+        return None, "skipped - %s" % text.split("  ", 1)[-1][:120]
+    return proc.returncode == 0, text
+
+
 def check_hygiene(untracked):
     """Policies stated in operating-rules sections 3 and 7, mechanically checked."""
     problems = []
@@ -167,18 +197,28 @@ def main():
         ("hook syntax", check_hooks),
         ("typescript typecheck", check_typecheck),
         ("git hygiene", lambda: check_hygiene(untracked)),
+        ("local stack reachability", check_stack),
     ]
 
+    skipped = []
     for name, fn in checks:
         try:
             ok, detail = fn()
         except Exception as exc:  # a crashed check is a failure, never a skip
             ok, detail = False, "check raised %s: %s" % (type(exc).__name__, exc)
+        if ok is None:  # an explicit SKIP: nothing to verify, not a pass
+            skipped.append(name)
+            print("SKIP  %s: %s" % (name, detail))
+            continue
         record(name, ok, detail)
 
     print("\n%d untracked non-ignored file(s) in the working tree" % len(untracked))
-    passed = len(checks) - len(FAILURES)
-    print("TOTAL: %d PASS / %d FAIL" % (passed, len(FAILURES)))
+    passed = len(checks) - len(skipped) - len(FAILURES)
+    print("TOTAL: %d PASS / %d FAIL / %d SKIP"
+          % (passed, len(FAILURES), len(skipped)))
+    if skipped:
+        print("SKIPPED (nothing to verify, not a pass): %s"
+              % ", ".join(skipped))
     return 1 if FAILURES else 0
 
 

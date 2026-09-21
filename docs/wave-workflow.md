@@ -30,9 +30,15 @@ npm run verify
 ```
 
 Runs, in order: the operating-rules audit, a repo-wide secret scan, hook syntax
-checks, a TypeScript typecheck, and git hygiene (`.env.local` ignored,
-`.env.example` tracked, no leftover artifacts). It is **read-only** — it writes
-no files and mutates no repository state — so it is safe to run at any point.
+checks, a TypeScript typecheck, git hygiene (`.env.local` ignored,
+`.env.example` tracked, no leftover artifacts), and local stack reachability
+(runtime bindings plus independent probes, per operating-rules §11). It is
+**read-only** — it writes no files and mutates no repository state — so it is
+safe to run at any point.
+
+The stack check reports **SKIP**, not PASS, when no `project-tanaw-*` container
+exists: it detects a half-published stack, and a skipped check must never be
+counted as a pass it did not earn.
 
 When app code or configuration changed, also run:
 

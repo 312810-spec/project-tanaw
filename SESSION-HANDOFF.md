@@ -11,9 +11,9 @@ Updated at the end of every wave.
 |---|---|
 | Repository | `312810-spec/project-tanaw` |
 | Branch | `main` (local — **never pushed**) |
-| HEAD | the Phase 0.3 commit; confirm with `git log --oneline -1` |
-| Known-good prior baseline | `e2eb5ef` — Phase 0.2 verification gates |
-| Working tree | clean after the Phase 0.3 commit |
+| HEAD | the Phase 0.4 commit; confirm with `git log --oneline -1` |
+| Known-good prior baseline | `aca8d03` — Phase 0.3 local Supabase bring-up |
+| Working tree | clean after the Phase 0.4 commit |
 | Local stack | **running** — API `127.0.0.1:55321`, DB `55322`, Studio `55323`. If ports go unreachable after a Docker/Windows restart, see operating-rules §1 before assuming a config defect. |
 | Backend target | LOCAL Supabase — `http://127.0.0.1:55321` (permanent 5532x range) |
 | Next.js | `16.3.5` — consult `node_modules/next/dist/docs/` before version-sensitive code |
@@ -39,7 +39,7 @@ committed, executable controls:
 - Documented the wave lifecycle in `docs/wave-workflow.md`.
 - Created this handoff.
 
-**Phase 0.3** (current HEAD) — local Supabase bring-up on the 5532x range:
+**Phase 0.3** (`aca8d03`) — local Supabase bring-up on the 5532x range:
 
 - Local stack is **running and independently verified reachable**. See
   "Verification state" below — both the runtime port bindings and live probes,
@@ -50,6 +50,31 @@ committed, executable controls:
   operating-rules **§1** and **§11** as enforced audit literals. Two of the
   three are the kind of defect that silently looks successful, which is why
   they are registered rather than merely described.
+
+**Phase 0.4** (current HEAD) — the bring-up verification itself became a
+committed control:
+
+- Added `scripts/verify_local_stack.py`, exposed as `npm run verify:stack` and
+  wired into `npm run verify` as its sixth check. It runs **both** halves of
+  the operating-rules §11 requirement — runtime binding inspection
+  (`NetworkSettings.Ports`) and an independent TCP/HTTP probe — for the five
+  runtime-published ports, and fails if either half fails.
+- The silent failure Phase 0.3 exposed by hand is now caught mechanically.
+  Verified three ways: a live positive run (10/10), a **live negative test**
+  (stopped Inbucket → the gate failed on 55324 alone and exited 1, then passed
+  again after restart), and a simulated negative run reproducing the exact
+  Phase 0.3 state — healthy containers, empty `NetworkSettings.Ports`,
+  10/10 sub-checks failing.
+- Boundaries stated in the tool itself, because §11 forbids overstating a
+  control: only the five runtime-published ports are required (55320 shadow
+  and 55329 pooler are not probed), and the gate **SKIPs** when no project
+  container exists — it detects a *half-published* stack, not a stopped one.
+  A skip is reported as a skip, never as a pass.
+- `supabase status` is deliberately not called by the gate: it prints
+  `SECRET_KEY`, `SERVICE_ROLE_KEY`, and the JWT to stdout. The gate reaches
+  the same information through read-only `docker inspect`.
+- One literal registered in `scripts/audit_operating_rules.py`
+  (`npm run verify:stack`) so the §11 update cannot be silently dropped.
 
 ---
 
@@ -81,7 +106,18 @@ committed, executable controls:
 | Hook syntax | `npm run verify` | both hooks parse cleanly |
 | TypeScript | `npm run verify` / `npm run typecheck` | exit 0 |
 | Git hygiene | `npm run verify` | `.env.local` ignored, `.env.example` tracked, no leftovers |
+| Local stack reachability | `npm run verify` / `npm run verify:stack` | 10/10 — bindings and probes both green |
 | Production build | `npm run build` | exit 0 — static `/` and `/_not-found` |
+
+Gate self-verification (Phase 0.4), run against the real stack:
+
+| Test | Result |
+|---|---|
+| Live positive run | 10/10 PASS, exit 0 |
+| Live negative (Inbucket stopped) | failed on 55324 alone — both binding and probe — exit 1; 8/10 |
+| Live negative recovery | restarted container → 10/10 PASS, exit 0 |
+| Simulated Phase 0.3 state (healthy containers, empty `NetworkSettings.Ports`) | 10/10 sub-checks FAIL, exit 1 |
+| Docker absent / no containers | SKIP (exit 2), reported as skip not pass |
 
 Local Supabase stack (Phase 0.3), verified **after** the bring-up:
 
@@ -135,12 +171,9 @@ Local Supabase stack (Phase 0.3), verified **after** the bring-up:
 
 ## Next wave
 
-Phase 0.4 is **not started** and is **not authorized** by this handoff. These are
+Phase 0.5 is **not started** and is **not authorized** by this handoff. These are
 candidates for the owner to confirm, not a plan:
 
-- Bring-up reachability gate: a read-only script that inspects the runtime port
-  bindings and probes the 5532x ports, so `npm run verify` can catch the exact
-  silent failure Phase 0.3 exposed. Currently performed manually.
 - First migration (local only): written and reviewed before application, per
   operating-rules §6. `supabase/migrations/` does not exist yet.
 - Supabase browser/server client foundation — `@supabase/ssr` and

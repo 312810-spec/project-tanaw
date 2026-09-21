@@ -53,6 +53,8 @@ PHRASES = [
     "Container health is not host-port reachability",
     # Phase 0.3: CRLF must not turn a valid table into a false failure.
     "The table check is line-ending tolerant",
+    # Phase 0.4: the section 11 bring-up check is now executed, not manual.
+    "npm run verify:stack",
 ]
 
 RESULTS = []
