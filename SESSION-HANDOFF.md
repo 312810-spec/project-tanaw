@@ -179,6 +179,8 @@ Both are on `origin/main`, which matches `HEAD` exactly (0 ahead, 0 behind).
   documentation corrections only** — no probe logic changed.
 - Phase 0.6B introduced **no** migrations, schema, Auth, RLS, middleware/Proxy,
   or UI changes, and no dependency or package changes.
+- Atria-only execution was maintained throughout the wave; no Claude-family
+  model or other provider was selected, invoked, or used as a fallback.
 - Lesson #6 remains **OWNER-GATED and NOT IMPLEMENTED**; this wave did not touch
   it.
 
