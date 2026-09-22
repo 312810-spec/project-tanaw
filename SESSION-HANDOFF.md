@@ -10,10 +10,10 @@ Updated at the end of every wave.
 | Field | Value |
 |---|---|
 | Repository | `312810-spec/project-tanaw` |
-| Branch | `main` (local — **never pushed**) |
-| HEAD | `3540188` — Phase 0.4. Phase 0.6A changes are staged on top and **uncommitted**; confirm with `git log --oneline -1` |
+| Branch | `main` (**pushed** — origin/main tracks HEAD) |
+| HEAD | `7f5eff5` — the Phase 0.6A memory-only commit; confirm with `git log --oneline -1` |
 | Known-good prior baseline | `aca8d03` — Phase 0.3 local Supabase bring-up |
-| Working tree | **not clean** — five staged files: four Phase 0.6A implementation/audit files plus this handoff; no commit has been made |
+| Working tree | **clean** — Phase 0.6A is committed and pushed |
 | Local stack | **running** — API `127.0.0.1:55321`, DB `55322`, Studio `55323`. If ports go unreachable after a Docker/Windows restart, see operating-rules §1 before assuming a config defect. |
 | Backend target | LOCAL Supabase — `http://127.0.0.1:55321` (permanent 5532x range) |
 | Next.js | `16.3.5` — consult `node_modules/next/dist/docs/` before version-sensitive code |
@@ -51,7 +51,7 @@ committed, executable controls:
   three are the kind of defect that silently looks successful, which is why
   they are registered rather than merely described.
 
-**Phase 0.4** (current HEAD) — the bring-up verification itself became a
+**Phase 0.4** (`3540188`) — the bring-up verification itself became a
 committed control:
 
 - Added `scripts/verify_local_stack.py`, exposed as `npm run verify:stack` and
@@ -80,22 +80,29 @@ committed control:
 the audit examined the Phase 0.1–0.4 baseline against the operating rules and
 the wave workflow and produced no code changes.
 
-**Phase 0.6A** — implementation attempted, **staged, and uncommitted**. Not
-complete. This handoff does not authorize committing it.
+**Phase 0.6A** — **complete, committed, and pushed.** Two commits, in this
+order:
 
-- Staged (all new files): `.claude/agents/tanaw-reviewer.md`,
-  `.claude/skills/frontend-design/SKILL.md`,
-  `.claude/skills/frontend-design/LICENSE.txt`,
-  `.claude/skills/frontend-design/PROVENANCE.md`.
+1. `dda366f` — `feat: add read-only tanaw-reviewer and opt-in design skill`
+   (implementation): `.claude/agents/tanaw-reviewer.md`,
+   `.claude/skills/frontend-design/SKILL.md`,
+   `.claude/skills/frontend-design/LICENSE.txt`,
+   `.claude/skills/frontend-design/PROVENANCE.md`.
+2. `7f5eff5` — `docs: record Phase 0.6A verification state, blocker verdicts,
+   and commit separation` (memory-only): `SESSION-HANDOFF.md`.
+
+Both are on `origin/main`, which matches `HEAD` exactly (0 ahead, 0 behind).
+
 - The reviewer agent implements wave step **F (Review)** from
   `docs/wave-workflow.md` as a project-local, read-only, advisory agent
-  (`tools: Read, Grep, Glob`, `permissionMode: plan`).
+  (`tools: Read, Grep, Glob`, `permissionMode: plan`). It carries **no pinned
+  model** — see "Recorded issues and workarounds" #6 for why.
 - The `frontend-design` skill is vendored as an explicitly opt-in reference:
   it declares `disable-model-invocation: true` in its frontmatter, the single
   deliberate change from upstream. That is a declaration of opt-in intent,
   **not** a verified enforcement — no mechanism in this repo tests it, so per
   operating-rules §11 it is policy, not a control.
-  **License provenance resolved this wave.** The upstream is the local
+  **License provenance resolved.** The upstream is the local
   `claude-plugins-official` marketplace plugin `frontend-design` (author
   declared as Anthropic in its `plugin.json`). `LICENSE.txt` is verified
   **byte-identical** to the upstream original (sha256 `0d542e0c…` both sides),
@@ -108,10 +115,7 @@ complete. This handoff does not authorize committing it.
   `model: sonnet` frontmatter line was removed because the session's API gateway
   rejects that model with HTTP 400. See "Recorded issues and workarounds" #6.
 
-Next checkpoint remains subject to **owner authorization**. Commit readiness is
-assessed in the wave report, not here.
-
-**Final staged-scope audit (this wave).** Both blockers adjudicated:
+**Final staged-scope audit.** Both blockers adjudicated:
 
 - **Blocker A (LICENSE) — RESOLVED.** Re-verified against the authoritative
   upstream: `LICENSE.txt` is byte-identical (sha256 `0d542e0c…`) and terminates
@@ -120,21 +124,23 @@ assessed in the wave report, not here.
   invented.
 - **Blocker B (Lesson #6) — PROPOSED, NOT IMPLEMENTED, and remains
   owner-gated.** `docs/operating-rules.md` and
-  `scripts/audit_operating_rules.py` are **unchanged** this wave (verified: zero
-  diff against HEAD). `PHRASES` still ends at `"npm run verify:stack"` (Phase
-  0.4). The proposed §11 wording and its literal are in the wave report.
+  `scripts/audit_operating_rules.py` are **unchanged** (verified: zero diff
+  from the `3540188` baseline to `7f5eff5`). `PHRASES` still ends at
+  `"npm run verify:stack"` (Phase 0.4). The proposed §11 wording and its
+  literal are in the wave report.
 
-**Commits must be separated.** Project TANAW now isolates memory/handoff changes
-into their own commit. The current staged scope is mixed and must not be
-committed as one commit:
+**Commit separation, as executed.** Project TANAW isolates memory/handoff
+changes into their own commit. Phase 0.6A was committed in that separated form
+and both commits are pushed:
 
-- *Implementation/audit commit:* `.claude/agents/tanaw-reviewer.md`,
+- *Implementation/audit commit:* `dda366f` — `.claude/agents/tanaw-reviewer.md`,
   `.claude/skills/frontend-design/SKILL.md`,
   `.claude/skills/frontend-design/LICENSE.txt`,
   `.claude/skills/frontend-design/PROVENANCE.md`.
-- *Memory-only commit:* `SESSION-HANDOFF.md` alone.
+- *Memory-only commit:* `7f5eff5` — `SESSION-HANDOFF.md` alone.
 
-Neither commit is authorized by this handoff.
+This standing rule continues to apply to future waves: never combine an
+implementation commit and a memory commit.
 
 ---
 
@@ -288,19 +294,27 @@ Local Supabase stack (Phase 0.3), verified **after** the bring-up:
 10. **This handoff described a superseded staged count.** The working-tree row
     said "exactly three staged Phase 0.6A files," which was accurate early in the
     wave before the scope expanded.
-    *Fix:* the row now states five staged files — four implementation/audit files
-    plus this handoff.
+    *Fix:* the row then stated five staged files — four implementation/audit
+    files plus this handoff. **That five-file staged state was itself
+    transient:** it was subsequently committed and pushed as the two separated
+    commits `dda366f` (implementation) and `7f5eff5` (memory-only), so the
+    working tree is now clean and no files remain staged.
     *Record:* staged-scope counts go stale the moment the scope changes; a
     handoff that states a count must be re-read against `git status` at the end
-    of the wave, not written once mid-wave.
+    of the wave, not written once mid-wave. The same applies to commit state —
+    a handoff written before the commits land must be reconciled against the
+    actual post-commit repository, or it preserves a truthful-but-superseded
+    snapshot that a later session could mistake for current.
 
 ---
 
 ## Next wave
 
-Phase 0.6A is **staged but uncommitted** and is **not authorized** to be
-committed by this handoff. The owner decides. These are candidates for the owner
-to confirm, not a plan:
+Phase 0.6A is **complete, committed, and pushed**; there is nothing pending
+authorization from it. The one remaining owner-gated item is Lesson #6 (see
+"Recorded issues and workarounds" #6), which is a standalone governance decision
+and does not block the work below. These are candidates for the owner to
+confirm, not a plan:
 
 - First migration (local only): written and reviewed before application, per
   operating-rules §6. `supabase/migrations/` does not exist yet.
@@ -313,7 +327,9 @@ to confirm, not a plan:
 
 ## Explicit non-goals
 
-No push to GitHub. No Vercel deployment. No hosted Supabase changes. No full
+No push to GitHub without explicit owner authorization (the Phase 0.6A push was
+authorized and completed; `git push` remains an approval-gated action in
+`.claude/settings.json`). No Vercel deployment. No hosted Supabase changes. No full
 SMEA feature implementation, dashboards, or ECR processing. No authentication or
 data-model work beyond genuine foundation requirements. No large dependency
 additions. No speculative directories or abstractions.
