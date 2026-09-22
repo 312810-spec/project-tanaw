@@ -3,11 +3,21 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Project TANAW brand tokens — DepEd-inspired blue with a gold accent. */
+  --color-brand: #1b3a8c;
+  --color-brand-strong: #14296b;
+  --color-brand-soft: #e8edf9;
+  --color-gold: #c9a227;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-brand: var(--color-brand);
+  --color-brand-strong: var(--color-brand-strong);
+  --color-brand-soft: var(--color-brand-soft);
+  --color-gold: var(--color-gold);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -16,11 +26,25 @@
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+
+    /* Lift the brand on dark backgrounds so contrast is preserved. */
+    --color-brand: #5a7fe0;
+    --color-brand-strong: #8aa5ee;
+    --color-brand-soft: #141d33;
+    --color-gold: #e6c35c;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Visible keyboard focus for the interactive elements this shell exposes. */
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
