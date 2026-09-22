@@ -11,9 +11,9 @@ Updated at the end of every wave.
 |---|---|
 | Repository | `312810-spec/project-tanaw` |
 | Branch | `main` (**pushed** — origin/main tracks HEAD) |
-| HEAD | `7f5eff5` — the Phase 0.6A memory-only commit; confirm with `git log --oneline -1` |
+| HEAD | `0b0ef07` — the Phase 0.6B governance-record commit; confirm with `git log --oneline -1` |
 | Known-good prior baseline | `aca8d03` — Phase 0.3 local Supabase bring-up |
-| Working tree | **clean** — Phase 0.6A is committed and pushed |
+| Working tree | **clean** — Phase 0.6B is committed and pushed |
 | Local stack | **running** — API `127.0.0.1:55321`, DB `55322`, Studio `55323`. If ports go unreachable after a Docker/Windows restart, see operating-rules §1 before assuming a config defect. |
 | Backend target | LOCAL Supabase — `http://127.0.0.1:55321` (permanent 5532x range) |
 | Next.js | `16.3.5` — consult `node_modules/next/dist/docs/` before version-sensitive code |
@@ -141,6 +141,46 @@ and both commits are pushed:
 
 This standing rule continues to apply to future waves: never combine an
 implementation commit and a memory commit.
+
+**Phase 0.6B** — **complete, committed, and pushed.** Two commits, in this
+order, both separate per the rule above:
+
+1. `3a836bd` — `feat: add Supabase client foundation and local connectivity
+   probe` (implementation): `utils/supabase/client.ts`,
+   `utils/supabase/server.ts`, `app/api/supabase-health/route.ts`.
+2. `0b0ef07` — `docs: record Phase 0.6B connectivity findings` (memory-only):
+   `docs/operating-rules.md`.
+
+Both are on `origin/main`, which matches `HEAD` exactly (0 ahead, 0 behind).
+
+- The Supabase client foundation uses `@supabase/ssr` 0.12.7 with the
+  non-deprecated `getAll`/`setAll` cookie interface. Browser client
+  (`createSupabaseBrowserClient`) and server client
+  (`createSupabaseServerClient`) are both request-scoped factories, not
+  module-scope singletons. Only the **publishable (anon) key** is used anywhere;
+  no `service_role` and no `sb_secret_*` value exists in the wave.
+- `app/api/supabase-health/route.ts` is a **read-only PostgREST reachability
+  probe, not a key-validation mechanism.** It queries a deliberately
+  non-existent relation (`_tanaw_connectivity_probe`) and treats a truthy
+  `error.code` as proof that PostgREST answered. It mutates nothing, creates no
+  schema, and returns only `{ reachable, detail }` — no URL, key, cookie, or raw
+  database error reaches the response.
+- **Verified live during review:** `npm run build` exit 0 with the route
+  registered as `ƒ /api/supabase-health` (dynamic); the endpoint returned
+  `{"reachable":true}` against the live stack and `{"reachable":false}` against
+  a genuinely dead host.
+- **Three findings were found by independent review, corrected, and recorded**
+  in operating-rules §8 (see "Recorded issues and workarounds" #11, #12, #13):
+  the probe's comments misattributed the response to PostgreSQL `42P01` when the
+  actual behavior is `PGRST205`; the comments overstated the probe as proof of
+  key validity when a wrong key also answers structurally (`PGRST301`); and
+  `NEXT_PUBLIC_*` values are inlined at build time, so a runtime override is
+  silently ignored by an already-built artifact. All three were **comment /
+  documentation corrections only** — no probe logic changed.
+- Phase 0.6B introduced **no** migrations, schema, Auth, RLS, middleware/Proxy,
+  or UI changes, and no dependency or package changes.
+- Lesson #6 remains **OWNER-GATED and NOT IMPLEMENTED**; this wave did not touch
+  it.
 
 ---
 
@@ -305,23 +345,56 @@ Local Supabase stack (Phase 0.3), verified **after** the bring-up:
     a handoff written before the commits land must be reconciled against the
     actual post-commit repository, or it preserves a truthful-but-superseded
     snapshot that a later session could mistake for current.
+11. **The connectivity probe's comments named the wrong error.** They attributed
+    the non-existent-relation response to PostgreSQL `42P01` (`undefined_table`).
+    PostgREST actually resolves the relation through its **schema cache** and
+    answers `PGRST205` (HTTP 404) *before* PostgreSQL is reached, so `42P01`
+    never occurs on this path.
+    *Fix:* comments corrected in `app/api/supabase-health/route.ts` to describe
+    the schema-cache mechanism. No probe logic changed — the code already tests
+    a truthy `error.code`, which matched `PGRST205` all along.
+    *Record:* prefer testing a **property** (a truthy structured error code) over
+    naming a specific error constant, so the code stays correct when the
+    underlying error changes. Recorded in operating-rules §8.
+12. **The probe conflated reachability with key validity.** Its comments claimed
+    the structured answer proved the gateway "accepted the publishable key."
+    Verified false: a **deliberately wrong key** is also answered structurally —
+    `PGRST301`, HTTP 401 — with a truthy code, so the probe reports
+    `reachable: true` either way. A green probe proves the endpoint answered; it
+    does not prove the key is valid.
+    *Fix:* comments corrected to make the distinction explicit. The endpoint was
+    deliberately **not** broadened into a key-validation endpoint.
+    *Record:* a wrong publishable key can hide behind a green health check; a
+    future "reachable but failing" diagnosis should check the key
+    (`supabase status`) rather than assume RLS or the stack is at fault.
+    Recorded in operating-rules §8.
+13. **`NEXT_PUBLIC_*` values are inlined at build time.** A dead-stack endpoint
+    test that overrode `NEXT_PUBLIC_SUPABASE_URL` at process start still hit the
+    live stack: the built artifact had already baked in the live value and
+    silently ignored the override, so the test looked like a pass for the wrong
+    reason.
+    *Workaround:* rebuild (`npm run build`) with the intended environment value
+    before exercising an environment-dependent route; never treat a runtime
+    override as sufficient evidence about an already-built artifact.
+    *Record:* recorded in operating-rules §8.
 
 ---
 
 ## Next wave
 
-Phase 0.6A is **complete, committed, and pushed**; there is nothing pending
+Phase 0.6B is **complete, committed, and pushed**; there is nothing pending
 authorization from it. The one remaining owner-gated item is Lesson #6 (see
 "Recorded issues and workarounds" #6), which is a standalone governance decision
 and does not block the work below. These are candidates for the owner to
 confirm, not a plan:
 
 - First migration (local only): written and reviewed before application, per
-  operating-rules §6. `supabase/migrations/` does not exist yet.
-- Supabase browser/server client foundation — `@supabase/ssr` and
-  `@supabase/supabase-js` are already dependencies but unused.
+  operating-rules §6. `supabase/migrations/` does not exist yet. No tables back
+  the health probe — it deliberately queries a relation it does not create.
 - Replace the stock Create Next App landing page and `metadata` ("Create Next
   App") with Project TANAW identity.
+- Consume the client foundation: the browser and server clients exist but are
+  not yet imported by any component or route other than the health probe.
 
 ---
 
