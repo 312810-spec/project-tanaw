@@ -11,9 +11,9 @@ Updated at the end of every wave.
 |---|---|
 | Repository | `312810-spec/project-tanaw` |
 | Branch | `main` (local — **never pushed**) |
-| HEAD | the Phase 0.4 commit; confirm with `git log --oneline -1` |
+| HEAD | `3540188` — Phase 0.4. Phase 0.6A changes are staged on top and **uncommitted**; confirm with `git log --oneline -1` |
 | Known-good prior baseline | `aca8d03` — Phase 0.3 local Supabase bring-up |
-| Working tree | clean after the Phase 0.4 commit |
+| Working tree | **not clean** — five staged files: four Phase 0.6A implementation/audit files plus this handoff; no commit has been made |
 | Local stack | **running** — API `127.0.0.1:55321`, DB `55322`, Studio `55323`. If ports go unreachable after a Docker/Windows restart, see operating-rules §1 before assuming a config defect. |
 | Backend target | LOCAL Supabase — `http://127.0.0.1:55321` (permanent 5532x range) |
 | Next.js | `16.3.5` — consult `node_modules/next/dist/docs/` before version-sensitive code |
@@ -76,6 +76,66 @@ committed control:
 - One literal registered in `scripts/audit_operating_rules.py`
   (`npm run verify:stack`) so the §11 update cannot be silently dropped.
 
+**Phase 0.5** — read-only audit complete. No implementation work and no commit;
+the audit examined the Phase 0.1–0.4 baseline against the operating rules and
+the wave workflow and produced no code changes.
+
+**Phase 0.6A** — implementation attempted, **staged, and uncommitted**. Not
+complete. This handoff does not authorize committing it.
+
+- Staged (all new files): `.claude/agents/tanaw-reviewer.md`,
+  `.claude/skills/frontend-design/SKILL.md`,
+  `.claude/skills/frontend-design/LICENSE.txt`,
+  `.claude/skills/frontend-design/PROVENANCE.md`.
+- The reviewer agent implements wave step **F (Review)** from
+  `docs/wave-workflow.md` as a project-local, read-only, advisory agent
+  (`tools: Read, Grep, Glob`, `permissionMode: plan`).
+- The `frontend-design` skill is vendored as an explicitly opt-in reference:
+  it declares `disable-model-invocation: true` in its frontmatter, the single
+  deliberate change from upstream. That is a declaration of opt-in intent,
+  **not** a verified enforcement — no mechanism in this repo tests it, so per
+  operating-rules §11 it is policy, not a control.
+  **License provenance resolved this wave.** The upstream is the local
+  `claude-plugins-official` marketplace plugin `frontend-design` (author
+  declared as Anthropic in its `plugin.json`). `LICENSE.txt` is verified
+  **byte-identical** to the upstream original (sha256 `0d542e0c…` both sides),
+  so it is not a defect and is not changed. It terminates at
+  "END OF TERMS AND CONDITIONS" because **the upstream does too** — restoring
+  the canonical appendix would diverge from the authoritative source. Provenance
+  is recorded in `.claude/skills/frontend-design/PROVENANCE.md`, which asserts
+  no copyright line of its own because the upstream ships none.
+- One correction was applied to the reviewer file during verification: the
+  `model: sonnet` frontmatter line was removed because the session's API gateway
+  rejects that model with HTTP 400. See "Recorded issues and workarounds" #6.
+
+Next checkpoint remains subject to **owner authorization**. Commit readiness is
+assessed in the wave report, not here.
+
+**Final staged-scope audit (this wave).** Both blockers adjudicated:
+
+- **Blocker A (LICENSE) — RESOLVED.** Re-verified against the authoritative
+  upstream: `LICENSE.txt` is byte-identical (sha256 `0d542e0c…`) and terminates
+  at "END OF TERMS AND CONDITIONS" because the upstream does too. Not a defect;
+  left unchanged. Provenance recorded in `PROVENANCE.md`. No copyright line
+  invented.
+- **Blocker B (Lesson #6) — PROPOSED, NOT IMPLEMENTED, and remains
+  owner-gated.** `docs/operating-rules.md` and
+  `scripts/audit_operating_rules.py` are **unchanged** this wave (verified: zero
+  diff against HEAD). `PHRASES` still ends at `"npm run verify:stack"` (Phase
+  0.4). The proposed §11 wording and its literal are in the wave report.
+
+**Commits must be separated.** Project TANAW now isolates memory/handoff changes
+into their own commit. The current staged scope is mixed and must not be
+committed as one commit:
+
+- *Implementation/audit commit:* `.claude/agents/tanaw-reviewer.md`,
+  `.claude/skills/frontend-design/SKILL.md`,
+  `.claude/skills/frontend-design/LICENSE.txt`,
+  `.claude/skills/frontend-design/PROVENANCE.md`.
+- *Memory-only commit:* `SESSION-HANDOFF.md` alone.
+
+Neither commit is authorized by this handoff.
+
 ---
 
 ## Known constraints
@@ -108,6 +168,11 @@ committed control:
 | Git hygiene | `npm run verify` | `.env.local` ignored, `.env.example` tracked, no leftovers |
 | Local stack reachability | `npm run verify` / `npm run verify:stack` | 10/10 — bindings and probes both green |
 | Production build | `npm run build` | exit 0 — static `/` and `/_not-found` |
+
+Re-run during the Phase 0.6A verification wave (against the staged tree plus the
+unstaged `model:` line removal): `git diff --check` exit 0, `npm run verify`
+6/6 PASS with local stack reachability 10/10 against a live stack. See the wave
+report for `npm run build`.
 
 Gate self-verification (Phase 0.4), run against the real stack:
 
@@ -166,13 +231,76 @@ Local Supabase stack (Phase 0.3), verified **after** the bring-up:
    gate itself, discovered by the negative test for lesson 4.
    *Fix:* `check_table` strips a trailing carriage return before validating.
    Recorded in operating-rules §11, enforced as an audit literal.
+6. **A project agent's pinned model was rejected by the session's API gateway.**
+   `.claude/agents/tanaw-reviewer.md` declared `model: sonnet`, which this
+   machine's gateway (`ANTHROPIC_BASE_URL=https://api.atria-asi.ai`) rejects
+   with `HTTP 400 A supported model is required`. The agent was discovered and
+   launched correctly — the failure was model routing, not discovery and not
+   the agent definition.
+   *Workaround:* the pinned model line was removed so the agent inherits the
+   session model. Agent definitions in this repo pin **tools and permission
+   mode**, which are the restrictions that actually matter; a pinned model is
+   neither a restriction nor a requirement, and pinning one couples the
+   definition to a gateway that may not serve it. Not yet registered as an
+   operating-rules literal — see "Blocker B" in the wave report for the proposed
+   §11 wording and `PHRASES` entry, which remain **owner-gated**.
+7. **A reviewer finding about the vendored LICENSE was disproven by direct
+   comparison.** The reviewer inferred that `LICENSE.txt` was "not the full
+   canonical Apache-2.0 text" because it ends at "END OF TERMS AND CONDITIONS".
+   The inference was reasonable but wrong: the authoritative upstream (the local
+   `claude-plugins-official` plugin `frontend-design`) ships exactly that text,
+   and the vendored copy is **byte-identical** to it (sha256 `0d542e0c…`).
+   *Fix:* no license change — the perceived defect is upstream's own form, and
+   altering it would diverge from the authoritative source. Provenance was
+   recorded in `.claude/skills/frontend-design/PROVENANCE.md` instead.
+   *Record:* a claim about a vendored third-party file is only as strong as the
+   comparison it rests on. "Differs from the text I recall" is not the same as
+   "differs from the source," and the reviewer itself flagged this correctly as
+   *inferred, not inspected*. The resolution needed the authoritative local
+   copy, which existed on this machine.
+8. **Reviewer isolation is tool-level, not context-level — record the
+   distinction, do not call it a tool-isolation failure.** During the smoke test
+   the reviewer received injected instruction text from `codebase-memory-mcp`
+   even though none of that server's tools were available to it. No prohibited
+   capability was invoked and nothing was called; the injected text had no
+   effect.
+   *Record:* three separate claims, kept separate per operating-rules §11 —
+   **tool capability isolation: observed** (the reviewer's available set was
+   exactly `Read`, `Grep`, `Glob`, `SubagentHandback`); **context/instruction
+   isolation: not equivalent to tool isolation and not established** (third-party
+   MCP instruction text does reach a nominally isolated agent's context);
+   **no prohibited capability successfully invoked: observed**. Capability
+   *absent* is not capability *blocked*: the reviewer could not report that a
+   write or command was refused, because no such tool existed to attempt either
+   with. The reviewer is a soft trust boundary, correct as an advisory reviewer,
+   and must not be described as a hard one.
+9. **A full SHA-256 digest was mistranscribed outside the repository.** A
+   checkpoint specification quoted the LICENSE digest as ending `…5762194`; the
+   verified value is `0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594`.
+   *Workaround:* compared the file byte-for-byte against the authoritative
+   upstream source (`cmp`), which is the stronger check, and used the real digest.
+   *Record:* no project record ever contained the wrong value — this file and
+   `PROVENANCE.md` both quote only the 8-character prefix `0d542e0c…`, which
+   remained correct throughout, so no record needed correcting. The mismatch was
+   **not** a license defect and does not indicate any divergence from upstream.
+   A prefix is deliberately used instead of a full digest so a transcription slip
+   cannot become a false integrity finding.
+10. **This handoff described a superseded staged count.** The working-tree row
+    said "exactly three staged Phase 0.6A files," which was accurate early in the
+    wave before the scope expanded.
+    *Fix:* the row now states five staged files — four implementation/audit files
+    plus this handoff.
+    *Record:* staged-scope counts go stale the moment the scope changes; a
+    handoff that states a count must be re-read against `git status` at the end
+    of the wave, not written once mid-wave.
 
 ---
 
 ## Next wave
 
-Phase 0.5 is **not started** and is **not authorized** by this handoff. These are
-candidates for the owner to confirm, not a plan:
+Phase 0.6A is **staged but uncommitted** and is **not authorized** to be
+committed by this handoff. The owner decides. These are candidates for the owner
+to confirm, not a plan:
 
 - First migration (local only): written and reviewed before application, per
   operating-rules §6. `supabase/migrations/` does not exist yet.
