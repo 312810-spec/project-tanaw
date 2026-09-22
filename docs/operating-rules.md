@@ -133,6 +133,12 @@ Before version-sensitive Next.js implementation, consult the installed documenta
 
 Treat relevant deprecation notices as blocking until they are resolved.
 
+**A PostgREST schema-cache miss is not a PostgreSQL error.** A query against a non-existent relation is resolved in the PostgREST schema cache and answered with `PGRST205` (HTTP 404) before PostgreSQL is ever reached; `42P01` (`undefined_table`) does not occur for this path. Recorded because the misattribution was written into the health probe's comments during Phase 0.6B and corrected there. Corrective: describe the mechanism actually observed, and prefer testing a property (a truthy `error.code`) over naming a specific error constant, so the code stays right when the underlying error changes.
+
+**Reachability is not key validity.** The local connectivity probe returns `reachable: true` whenever PostgREST answers with a structured error, but a wrong publishable key is *also* answered structurally — `PGRST301` (HTTP 401) — and therefore reports as reachable. A green probe proves the endpoint answered; it does not prove the key is valid. Recorded so a future green-but-broken diagnosis is not misattributed to RLS or the stack. Corrective: validate the publishable key separately (`supabase status`) rather than inferring it from a connectivity probe.
+
+**`NEXT_PUBLIC_*` values are baked in at build time.** Next.js inlines `NEXT_PUBLIC_*` environment variables into the built artifact, so changing an environment value at runtime does not retroactively alter an already-built application. Observed during Phase 0.6B: a health-route test that overrode `NEXT_PUBLIC_SUPABASE_URL` at process start still hit the live stack, because the build had already inlined the live value and silently ignored the override — the test looked like a pass for the wrong reason. Workaround: rebuild (`npm run build`) with the intended environment value before exercising an environment-dependent route, and never treat a runtime override as sufficient evidence about a built artifact.
+
 ---
 
 ## 9. Product governance context
