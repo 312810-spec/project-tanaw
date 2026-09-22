@@ -11,9 +11,9 @@ Updated at the end of every wave.
 |---|---|
 | Repository | `312810-spec/project-tanaw` |
 | Branch | `main` (**pushed** — origin/main tracks HEAD) |
-| HEAD | `0b0ef07` — the Phase 0.6B governance-record commit; confirm with `git log --oneline -1` |
+| HEAD | `325ebd6` — the Phase 0.6C identity commit; confirm with `git log --oneline -1` |
 | Known-good prior baseline | `aca8d03` — Phase 0.3 local Supabase bring-up |
-| Working tree | **clean** — Phase 0.6B is committed and pushed |
+| Working tree | **clean** — Phase 0.6C is committed and pushed |
 | Local stack | **running** — API `127.0.0.1:55321`, DB `55322`, Studio `55323`. If ports go unreachable after a Docker/Windows restart, see operating-rules §1 before assuming a config defect. |
 | Backend target | LOCAL Supabase — `http://127.0.0.1:55321` (permanent 5532x range) |
 | Next.js | `16.3.5` — consult `node_modules/next/dist/docs/` before version-sensitive code |
@@ -181,6 +181,41 @@ Both are on `origin/main`, which matches `HEAD` exactly (0 ahead, 0 behind).
   or UI changes, and no dependency or package changes.
 - Atria-only execution was maintained throughout the wave; no Claude-family
   model or other provider was selected, invoked, or used as a fallback.
+- Lesson #6 remains **OWNER-GATED and NOT IMPLEMENTED**; this wave did not touch
+  it.
+
+**Phase 0.6C** — **complete, committed, and pushed.** A single implementation
+commit; no separate memory commit was needed for this wave.
+
+1. `325ebd6` — `feat: establish Project TANAW application identity`
+   (implementation): `app/page.tsx`, `app/layout.tsx`, `app/globals.css`; the
+   five stock starter SVGs `public/{next,vercel,file,globe,window}.svg` were
+   removed once no longer referenced.
+
+`325ebd6` is on `origin/main`, which matches `HEAD` exactly (0 ahead, 0 behind).
+
+- The stock Create Next App starter page is gone. In its place is a Project
+  TANAW identity shell: a header with an inline-SVG wordmark, a hero, the
+  governance authority sequence (Submit → Certify → Finalize → Endorse →
+  Approve → Lock), and three capability cards explicitly labeled **planned /
+  not yet available**. No fabricated functionality, no fabricated statistics,
+  and no claim that auth, dashboards, reports, or data workflows work.
+- Metadata replaced: `title` is now a Project TANAW template with a real
+  `description`, and `viewport.themeColor` was added for light and dark. A
+  rendered-page check confirmed **no "Create Next App" residue** remains.
+- Visual tokens established in `app/globals.css`: DepEd-inspired blue
+  `--color-brand: #1b3a8c` with a gold accent `--color-gold: #c9a227`, wired
+  into Tailwind's `@theme inline` so they are first-class utilities. Light and
+  dark are both supported — the brand is lifted on dark backgrounds to preserve
+  contrast — and visible keyboard focus was added.
+- **No dependencies were changed.** `package.json` and `package-lock.json` have
+  zero diff for this wave.
+- Phase 0.6C introduced **no** database schema, migrations, Supabase Auth, RLS,
+  middleware/Proxy, real Supabase data queries, or SMEA/ECR business logic. The
+  client factories exist but were deliberately **not** consumed here. This wave
+  touched application identity only.
+- Atria-only execution was maintained; no Claude-family model or other provider
+  was selected, invoked, or used as a fallback.
 - Lesson #6 remains **OWNER-GATED and NOT IMPLEMENTED**; this wave did not touch
   it.
 
@@ -379,12 +414,27 @@ Local Supabase stack (Phase 0.3), verified **after** the bring-up:
     before exercising an environment-dependent route; never treat a runtime
     override as sufficient evidence about an already-built artifact.
     *Record:* recorded in operating-rules §8.
+14. **Tool authorization became unavailable mid-verification, after the work was
+    already done.** During Phase 0.6C, the session's tool classifier timed out
+    on a final **read-only** verification command. The implementation,
+    validation, commit, and push had **already completed** by that point — the
+    outage interrupted only the last status check.
+    *Workaround:* verify repository state independently (`git log`, `git status`,
+    `git rev-parse origin/main`) rather than concluding the work failed. Do not
+    repeat an already-completed implementation, and do not create a second
+    commit for it.
+    *Record:* this was an **execution/tooling failure, not a code failure**, and
+    it was **not** a model/provider fallback — no other model was selected or
+    invoked. The outage did not block Phase 0.6C; `325ebd6` was confirmed
+    committed and pushed despite the interrupted command. Recorded because a
+    later session could mistake a silent verification gap for an incomplete wave
+    and redo work that is already on `origin/main`.
 
 ---
 
 ## Next wave
 
-Phase 0.6B is **complete, committed, and pushed**; there is nothing pending
+Phase 0.6C is **complete, committed, and pushed**; there is nothing pending
 authorization from it. The one remaining owner-gated item is Lesson #6 (see
 "Recorded issues and workarounds" #6), which is a standalone governance decision
 and does not block the work below. These are candidates for the owner to
@@ -393,8 +443,6 @@ confirm, not a plan:
 - First migration (local only): written and reviewed before application, per
   operating-rules §6. `supabase/migrations/` does not exist yet. No tables back
   the health probe — it deliberately queries a relation it does not create.
-- Replace the stock Create Next App landing page and `metadata` ("Create Next
-  App") with Project TANAW identity.
 - Consume the client foundation: the browser and server clients exist but are
   not yet imported by any component or route other than the health probe.
 
