@@ -3,7 +3,7 @@ import test from "node:test";
 import { checkEvidenceReadiness } from "../app/lib/smea-evidence-readiness.ts";
 
 const src = { sourceId: "fixture", documentTitle: "Synthetic", schoolYear: "2026-2027", locator: "Sheet!A1" };
-const def = { code: "SYNTHETIC", label: "Synthetic", unit: "count", schoolYear: "2026-2027", reportingPeriod: "term-1", status: "verified", source: src, formula: null };
+const def = { code: "SYNTHETIC", label: "Synthetic", unit: "count", schoolYear: "2026-2027", reportingPeriod: "term-1", status: "verified", source: src, formula: { expression: "fixture", numerator: "fixture", denominator: "fixture", rounding: "none" } };
 const observed = (value) => ({ indicatorCode: def.code, reportingPeriod: def.reportingPeriod, scopeId: "fixture-scope", reviewState: "working", value });
 
 test("valid sourced numeric zero is ready as evidence, not approval", () => {
