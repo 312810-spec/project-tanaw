@@ -38,6 +38,8 @@ jobs:
         run: npm run verify
       - name: Verify SMEA evidence semantics
         run: node --experimental-strip-types --test tests/smea-indicators.test.mjs
+      - name: Verify SMEA evidence readiness
+        run: node --experimental-strip-types --test tests/smea-evidence-readiness.test.mjs
       - name: Build application
         run: npm run build
 
