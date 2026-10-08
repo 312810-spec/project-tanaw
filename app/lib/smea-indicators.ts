@@ -37,7 +37,8 @@ export interface IndicatorDefinition {
 export type ObservedValue =
   | { kind: "missing"; reason: string }
   | { kind: "number"; value: number; evidence: SourceReference }
-  | { kind: "text"; value: string; evidence: SourceReference };
+  | { kind: "text"; value: string; evidence: SourceReference }
+  | { kind: "derivedNumber"; value: number; sources: readonly [SourceReference, SourceReference]; formulaCode: string };
 
 export interface IndicatorObservation {
   indicatorCode: string;
@@ -71,11 +72,11 @@ export function validatedRatio(
   ) {
     return { kind: "missing", reason: "Invalid numerator or denominator; no ratio generated." };
   }
-  // This provisional computation is intentionally not returned as an evidence-backed
-  // observation: the denominator source must not be silently discarded.
   return {
-    kind: "missing",
-    reason: "Ratio is not publishable without a derived-value provenance record.",
+    kind: "derivedNumber",
+    value: numerator.value / denominator.value,
+    sources: [numerator.evidence, denominator.evidence],
+    formulaCode: definition.code,
   };
 }
 
@@ -88,6 +89,7 @@ export function displayObservedValue(value: ObservedValue): string {
     case "missing":
       return "Missing — " + value.reason;
     case "number":
+    case "derivedNumber":
       return String(value.value);
     case "text":
       return value.value;
