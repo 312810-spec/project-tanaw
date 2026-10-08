@@ -1,5 +1,5 @@
 import type { IndicatorDefinition, IndicatorObservation } from "./smea-indicators";
-import { checkEvidenceReadiness, type ReadinessIssue } from "./smea-evidence-readiness";
+import { checkEvidenceReadiness, type ReadinessIssue } from "./smea-evidence-readiness.ts";
 
 export interface PacketReadiness {
   ready: boolean;
