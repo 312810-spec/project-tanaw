@@ -47,3 +47,15 @@ Approved CO/Division ECR families and approved presentation reference were locat
 DO 009 s. 2026 and official reproductions were located; the main DepEd order/PDF returned 403. Government explanatory material corroborates a three-term calendar, but exact boundaries are not seeded until the annex and amendments are inspected. No school-year dates or grading formulas were invented.
 
 No hosted Supabase mutation, deployment, real school records, real account creation or live AI call occurred. Hosted infrastructure remains separately approval-gated. Preserve existing operating-rules audits and sections 1–14. The user's current instruction authorizes continued development and GitHub work without repeating routine permissions.
+
+## Continuation checkpoint — 8 October 2026, persistent workflow wave
+
+Local shell is restored. Repository baseline was verified (5 PASS / Docker SKIP), and production build passed. Docker is absent; embedded PostgreSQL was used for local SQL checks. All four SQL suites passed, including the new persistent workflow suite. Full isolated Supabase CI is still required.
+
+PR #17 (head adef78dbcddc9911a03b7550032e699b3a4fc4bf) adds manual-indicator submission assignments/immutable versions, subject review, school and independent Head packet review, manifest-based stale-review detection, explicit Lock, incomplete reasons/acknowledgment, time-limited amendment rounds and aggregate-only district status/decisions. XLSX submission remains closed pending approved parser verification. No hosted changes or actual accounts/records.
+
+Raw CO and Division workbook inspection is now complete for those two core families only; findings are in docs/ecr-reference-findings-2026-10-08.md. Their transmutation tables differ, and the CO boundary lookup requires discrepancy handling. No computation was declared interchangeable or silently repaired.
+
+Git CLI fetch works, but push has no credential helper in this environment. Publishing used the already-authorized GitHub connector APIs after local verification. Local and remote commit IDs differ because the connector creates the commit; source tree content is the same. Do not mistake the different commit IDs for different source implementations.
+
+Next independent work: connect authenticated role UI to the checked workflow RPCs, then verify and advance the remaining import, account, offline and output tasks. Preserve source boundaries, current confirmed decisions and exact-head CI checks.
