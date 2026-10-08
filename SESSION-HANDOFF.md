@@ -1,34 +1,49 @@
 # Project TANAW — Session Handoff
 
-Checkpoint: 2026-10-08. Historical Phase 0.6C notes are archived in docs/session-handoff-phase-0.6c.md; their claims about current branch, stack and scope are superseded.
+Checkpoint: 2026-10-08. Historical Phase 0.6C notes are archived in docs/session-handoff-phase-0.6c.md; their old current-state claims are superseded.
 
-## Current verified state
+Verified application baseline: db2ad93b7d0c5487f25e55d762ce19c18fdd4685 (merged PR #16). CI on implementation head eab187dd7386c00aaa222289dec8b74306797320 passed fast domain tests, production build, isolated Supabase constraints/permissions/cycles and desktop/mobile public-route browser smoke. Screenshot artifact: https://github.com/312810-spec/project-tanaw/actions/runs/37739271181/artifacts/11532619601 (expires 2026-10-22).
 
-Repository: 312810-spec/project-tanaw. Main is 595c416b55fbaa8f559f7db6274cddc693ce7490 after PRs #9, #10 and #11 were merged with successful fast checks, production builds and isolated local Supabase checks.
-- #9: evidence and packet readiness semantics.
-- #10: pure deadline, extension, review, lock and amendment eligibility policies plus synthetic regression tests. These policies are not yet connected to persistent submissions.
-- #11: coordinator-managed active school memberships, multiple roles and subject scope, scoped reads and audited updates. SQL regression tests passed. No hosted migration or real account provisioning.
-- #12: draft sign-in and assigned-role workspace; head 8860d880eaaaf72641f83cee353a36a62a186659. Fast tests passed; full validation pending at this checkpoint.
+## Verified work completed this session
 
-Confirmed product decisions are in docs/confirmed-decisions-2026-10-08.md. Do not repeat answered questions. The coordinator may review their own submission at the school stage only. School Head self-approval remains prohibited. Instructional block ends come from the applicable DepEd calendar; coordinator separately sets deadlines.
+PRs #9–#16 implement the following incremental foundations. Consult each PR and its exact commit checks for evidence; the list does not mean the full application is production ready.
 
-## Continuous development
+| Area | Delivered | Remaining |
+|---|---|---|
+| Evidence/packet readiness | Explicit errors for missing, conflicting, orphan and inconsistent evidence | Authorized persisted submission lineage |
+| Workflow policies | Deadline cutoff, scoped extensions, review eligibility, coordinator self-review exception, independent Head approval, explicit Lock eligibility, district aggregate review eligibility and correction versions | Connect these pure policies to authenticated atomic persistent mutations |
+| Accounts | Active school memberships, multiple roles and subject scope, coordinator-only reasoned RPC and audit history, email/password sign-in and assigned-role workspace | Trusted initial coordinator provisioning, account creation/recovery UI and pilot |
+| Cycles | Trusted verified calendar entry table, separate coordinator deadline, revision conflicts, closed/locked deadline protection and change history; workspace deadline form in Philippine time | Populate authoritative calendar only after annex/amendment verification; implement submission extensions and packet Lock |
+| ECR preview | Pure all-or-none acceptance, blank roster artifact exclusion, duplicate/missing/invalid data and reconciliation rejection; 12 synthetic tests | XLSX parsing, raw formula verification, approved template fingerprints/mappings, upload/version persistence |
+| Verification | Fast domain tests, full baseline/build and isolated Supabase tests, Chromium public-route desktop/mobile checks and six screenshot artifacts | Authenticated browser pilot and visual inspection of configured roles |
 
-Use independent branches for unaffected next tasks while slow checks run. Fast pure tests run without npm dependency installation; full build and isolated database validation remain merge gates. Inspect failed job logs and fix failures rather than skipping checks. Do not repeatedly update a tested branch and cancel expensive checks unnecessarily. Keep memory-only commits separate from implementation commits.
+All 52 pure domain tests passed. SQL tests exercise actual local RLS/RPC behavior with synthetic transactions and rollback. Browser checks test unconfigured routes, disabled login, no unverified assignments, page errors and mobile overflow. They do not establish real-account sign-in or coordinator form success.
 
-Current session has GitHub and reference-reading capabilities but no local shell/browser runtime. Work is committed through GitHub APIs; verification uses isolated CI. A browser smoke and screenshot pipeline is the next work item. No background coding agent is installed or implied by these workflows.
+## Confirmed decisions
 
-## Pending work and evidence limits
+Read docs/confirmed-decisions-2026-10-08.md; do not repeat answered questions. The coordinator may review their own submission only at the school stage. School Head self-approval remains prohibited. Calendar instructional end dates and coordinator submission deadlines are separate. A closed deadline requires a per-submission extension; a locked version requires an amendment. Missing is not zero; submitted is not approved. Drive is reference-only during development, never a runtime integration.
 
-1. Complete browser verification of sign-in/workspace and capture desktop/mobile UI screenshots.
-2. Connect coordinator membership management UI and operational account provisioning/recovery. Initial coordinator must be provisioned through a trusted operation; no self-signup or self-assigned roles.
-3. Implement persistent cycles, submissions, staged reviews, deadline/extension rules, independent Head approval, lock, amendment versions and aggregate-only district review.
-4. Inspect raw approved ECR workbook formulas and register validated template fingerprints/mappings; implement atomic preview/import, corrected version history and blank roster-row exclusion.
-5. Connect indicators, reporting, approved template exports and deterministic charts. Live AI follows verified reporting.
-6. Implement offline drafts and in-app reminders; test controlled TNHS pilot with synthetic data before real records.
+## Continuous development and fallback
 
-Drive is reference-only in development, not a runtime source. CO and Division workbook families were located. Cached extracted text is not formula verification. Division cached blank rows include zero/failed computed artifacts; these must not be counted as learners. DO 009 s. 2026 was located, but exact instructional boundaries must be verified from the authoritative calendar annex and amendments before seeding; primary DepEd links returned 403 in this session. No dates or formulas were invented.
+Continue unaffected work on independent branches while slow checks run. Pure tests avoid npm installation; browser and isolated database checks run concurrently. Successful prior jobs are not rerun without a change or unresolved concern. Inspect failed logs, repair code/configuration or rerun only a transiently failed job; do not bypass merge checks. Exact-head checks govern merges.
 
-## Boundaries
+This session used GitHub Git tree/commit/ref APIs because no local shell or browser runtime was exposed. Remote Chromium produced screenshots when local capture was unavailable. A branch-history synchronization resolved a PR for which no workflows had started; current source trees were verified identical before bringing main ancestry into the feature branch. These CI workflows run checks, not a background coding agent.
 
-No hosted Supabase mutation, deployment, real accounts, real school records or live AI calls were performed. Missing is not zero; submitted is not approved. Preserve operating-rules sections 1–14 and existing audits. Current user explicitly authorizes continued app development and GitHub work; historical per-command approval notes do not require repeating completed decisions. Hosted infrastructure approval remains separate.
+Keep implementation and memory-only changes in separate commits. Record verified main SHA and any unresolved checks at the next checkpoint.
+
+## Next development queue
+
+1. Verify authoritative DepEd calendar annex and applicable amendments, then provision trusted calendar entries locally. Validate approved ECR raw formulas and mappings without publishing private source records.
+2. Persist owned/subject-scoped submissions and corrected versions with atomic import preview and versioned audit history.
+3. Connect staged review, per-submission extensions, independent Head approval, explicit packet Lock, incomplete packet reasons/acknowledgment, post-Lock amendments and district aggregate-only accept/return.
+4. Coordinator account management/recovery and handover UI; real accounts require controlled provisioning.
+5. Verified indicators, deterministic charts, editable approved Excel/PPT/PDF exports; live AI only after reporting is verified.
+6. Offline drafts, in-app reminders, desktop/Android PWA and controlled TNHS pilot.
+
+## Source and environment limits
+
+Approved CO/Division ECR families and approved presentation reference were located in Drive. Cached extracted text does not expose authoritative formulas. Blank Division roster rows contain computed zero/failed artifacts; preview logic excludes only rows whose identity AND raw entered scores are empty. Entered zero scores remain data.
+
+DO 009 s. 2026 and official reproductions were located; the main DepEd order/PDF returned 403. Government explanatory material corroborates a three-term calendar, but exact boundaries are not seeded until the annex and amendments are inspected. No school-year dates or grading formulas were invented.
+
+No hosted Supabase mutation, deployment, real school records, real account creation or live AI call occurred. Hosted infrastructure remains separately approval-gated. Preserve existing operating-rules audits and sections 1–14. The user's current instruction authorizes continued development and GitHub work without repeating routine permissions.
