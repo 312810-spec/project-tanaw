@@ -44,3 +44,6 @@ __pycache__/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Generated verification screenshots and summaries
+/artifacts/

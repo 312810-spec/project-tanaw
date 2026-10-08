@@ -19,7 +19,7 @@ try {
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
   assert.ok(ready, "Production server must become reachable");
-  browser = await chromium.launch();
+  browser = await chromium.launch({ executablePath: process.env.TANAW_CHROMIUM_EXECUTABLE || undefined });
   for (const [device, viewport] of [["desktop", { width: 1440, height: 1000 }], ["mobile", { width: 390, height: 844 }]]) {
     const context = await browser.newContext({ viewport, colorScheme: "light" });
     const page = await context.newPage();
