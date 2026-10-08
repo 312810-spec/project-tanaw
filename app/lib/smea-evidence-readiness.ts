@@ -14,7 +14,9 @@ export type ReadinessIssueCode =
   | "unverifiedDerivedFormula"
   | "missingSourceLocator"
   | "duplicateEvidence"
-  | "duplicateDefinition";
+  | "duplicateDefinition"
+  | "unexpectedEvidence"
+  | "invalidScope";
 
 export interface ReadinessIssue {
   code: ReadinessIssueCode;

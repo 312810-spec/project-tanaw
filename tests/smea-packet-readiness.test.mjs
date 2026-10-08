@@ -39,3 +39,20 @@ test("evidence from another scope does not satisfy this packet", () => {
   const result = checkPacketReadiness([definition], [{ ...observation, scopeId: "s2" }], "s1");
   assert.deepEqual(result.issues.map((issue) => issue.code), ["missingEvidence"]);
 });
+
+test("unexpected evidence in the requested scope blocks readiness", () => {
+  const extra = { ...observation, indicatorCode: "UNKNOWN" };
+  const result = checkPacketReadiness([definition], [observation, extra], "s1");
+  assert.equal(result.ready, false);
+  assert.deepEqual(result.issues.map((issue) => issue.code), ["unexpectedEvidence"]);
+});
+test("unexpected evidence in another scope is excluded", () => {
+  const extra = { ...observation, indicatorCode: "UNKNOWN", scopeId: "s2" };
+  const result = checkPacketReadiness([definition], [observation, extra], "s1");
+  assert.equal(result.ready, true);
+});
+test("blank reporting scope fails closed", () => {
+  const result = checkPacketReadiness([definition], [], " ");
+  assert.equal(result.ready, false);
+  assert.ok(result.issues.some((issue) => issue.code === "invalidScope"));
+});

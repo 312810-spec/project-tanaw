@@ -11,6 +11,8 @@ const ISSUE_LABELS: Record<PacketReadiness["issues"][number]["code"], string> = 
   unverifiedDerivedFormula: "Calculated value does not match a verified formula",
   duplicateEvidence: "Multiple evidence records require reconciliation",
   duplicateDefinition: "Duplicate indicator definitions",
+  unexpectedEvidence: "Evidence has no matching indicator definition",
+  invalidScope: "A valid reporting scope is required",
 };
 
 /** Read-only preview of a packet validation result. Never represents approval. */

@@ -19,6 +19,16 @@ export function checkPacketReadiness(
 ): PacketReadiness {
   const issues: ReadinessIssue[] = [];
   let readyIndicators = 0;
+  if (!scopeId.trim()) {
+    issues.push({ code: "invalidScope", indicatorCode: "*" });
+  }
+  const expectedKeys = new Set(definitions.map((d) => JSON.stringify([d.code, d.reportingPeriod])));
+  for (const observation of observations) {
+    if (observation.scopeId === scopeId &&
+        !expectedKeys.has(JSON.stringify([observation.indicatorCode, observation.reportingPeriod]))) {
+      issues.push({ code: "unexpectedEvidence", indicatorCode: observation.indicatorCode });
+    }
+  }
 
   for (const definition of definitions) {
     const matching = observations.filter(
