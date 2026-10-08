@@ -44,6 +44,25 @@ insert into fixture_targets values('teacherSlot',public.tanaw_assign_submission(
 insert into fixture_targets values('coSlot',public.tanaw_assign_submission('44000000-0000-0000-0000-000000000001','41000000-0000-0000-0000-000000000003','math','Synthetic class B','Synthetic assignment'));
 insert into fixture_targets select 'teacherSubmission',id from public.tanaw_submissions where slot_id=(select id from fixture_targets where label='teacherSlot');
 insert into fixture_targets select 'coSubmission',id from public.tanaw_submissions where slot_id=(select id from fixture_targets where label='coSlot');
+-- Handover subset is rolled back so the original end-to-end fixture remains unchanged.
+savepoint handover_fixture;
+select public.tanaw_handover_unsubmitted((select id from fixture_targets where label='teacherSubmission'),'41000000-0000-0000-0000-000000000006','41000000-0000-0000-0000-000000000001','Synthetic work handover');
+do $$ begin
+ if not exists(select 1 from public.tanaw_submission_handovers where previous_author='41000000-0000-0000-0000-000000000001' and next_author='41000000-0000-0000-0000-000000000006' and actor_id='41000000-0000-0000-0000-000000000003') then raise exception 'Handover attribution lost'; end if;
+ if (select deadline_at from public.tanaw_reporting_cycles)<>now()+interval '1 day' or exists(select 1 from public.tanaw_submissions where extension_until is not null) then raise exception 'Handover changed deadline or extension'; end if;
+end $$;
+select pg_temp.must_deny(format('select public.tanaw_handover_unsubmitted(%L,%L,%L,%L)',(select id from fixture_targets where label='teacherSubmission'),'41000000-0000-0000-0000-000000000003','41000000-0000-0000-0000-000000000001','Stale author'),'40001');
+select pg_temp.must_deny(format('select public.tanaw_handover_unsubmitted(%L,%L,%L,%L)',(select id from fixture_targets where label='teacherSubmission'),'41000000-0000-0000-0000-000000000007','41000000-0000-0000-0000-000000000006','Cross school target'),'22023');
+select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000001',true);
+select pg_temp.must_deny(format('select public.tanaw_submit_evidence(%L,0,%L::jsonb,%L)',(select id from fixture_targets where label='teacherSubmission'),pg_temp.evidence(0),'Former author'),'42501');
+select pg_temp.must_deny(format('select public.tanaw_handover_unsubmitted(%L,%L,%L,%L)',(select id from fixture_targets where label='teacherSubmission'),'41000000-0000-0000-0000-000000000001','41000000-0000-0000-0000-000000000006','Teacher takeover'),'42501');
+select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000006',true);
+select public.tanaw_submit_evidence((select id from fixture_targets where label='teacherSubmission'),0,pg_temp.evidence(0),'Replacement author submission');
+select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000003',true);
+select pg_temp.must_deny(format('select public.tanaw_handover_unsubmitted(%L,%L,%L,%L)',(select id from fixture_targets where label='teacherSubmission'),'41000000-0000-0000-0000-000000000001','41000000-0000-0000-0000-000000000006','Submitted evidence transfer'),'42501');
+select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000005',true);
+do $$ begin if (select count(*) from public.tanaw_submission_handovers)<>0 then raise exception 'District read handover account details'; end if; end $$;
+rollback to savepoint handover_fixture;
 select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000001',true);
 select public.tanaw_submit_evidence((select id from fixture_targets where label='teacherSubmission'),0,pg_temp.evidence(0),'Synthetic first submission');
 do $$ begin
@@ -75,6 +94,7 @@ select public.tanaw_review_packet((select id from fixture_targets where label='p
 select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000003',true);
 select public.tanaw_lock_packet((select id from fixture_targets where label='packet1'));
 do $$ begin if (select completeness from public.tanaw_school_packets where id=(select id from fixture_targets where label='packet1'))<>'incomplete' then raise exception 'Incomplete label lost'; end if; end $$;
+select pg_temp.must_deny(format('select public.tanaw_handover_unsubmitted(%L,%L,%L,%L)',(select id from fixture_targets where label='coSubmission'),'41000000-0000-0000-0000-000000000001','41000000-0000-0000-0000-000000000003','Locked handover'),'42501');
 select pg_temp.must_deny(format('select public.tanaw_extend_submission(%L,now()+interval %L,%L)',(select id from fixture_targets where label='teacherSubmission'),'3 days','Locked extension'),'42501');
 select pg_temp.must_deny(format('select public.tanaw_submit_evidence(%L,2,%L::jsonb,%L)',(select id from fixture_targets where label='teacherSubmission'),pg_temp.evidence(2),'Locked correction'),'42501');
 select public.tanaw_open_amendment('44000000-0000-0000-0000-000000000001',now()+interval '2 days','Synthetic amendment');

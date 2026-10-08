@@ -63,6 +63,15 @@ try {
     pages.push({ page, context, errors, role });
     return { page, ui };
   }
+  const handoverCoordinator = await login('smeaCoordinator');
+  for (const target of [users.smeaCoordinator.id, users.teacher.id]) {
+    await handoverCoordinator.ui.getByLabel('Assigned submission').selectOption({ index: 1 });
+    await handoverCoordinator.ui.getByText('Hand over an unsubmitted assignment', { exact: true }).click();
+    await handoverCoordinator.ui.getByLabel('New assigned account').selectOption(target);
+    await handoverCoordinator.ui.getByLabel('Handover reason').fill('Synthetic browser recorded handover');
+    await handoverCoordinator.ui.getByRole('button', { name: 'Record assignment handover' }).click();
+    await handoverCoordinator.ui.getByText('Action recorded with its history.', { exact: true }).waitFor();
+  }
   const teacher = await login('teacher');
   await teacher.ui.getByLabel('Assigned submission').selectOption({ index: 1 });
   await teacher.ui.getByLabel('Verified indicator').selectOption(definition);
