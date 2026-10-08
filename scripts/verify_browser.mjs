@@ -36,7 +36,7 @@ try {
       const url = new URL(route.request().url());
       return url.origin === origin || url.protocol === "data:" ? route.continue() : route.abort();
     });
-    for (const [name, path] of [["home", "/"], ["login", "/login"], ["workspace", "/workspace"]]) {
+    for (const [name, path] of [["home", "/"], ["login", "/login"], ["workspace", "/workspace"], ["forgot-password", "/forgot-password"], ["reset-password", "/reset-password"]]) {
       const response = await page.goto(origin + path, { waitUntil: "networkidle" });
       assert.equal(response?.status(), 200, path + " must load");
       await page.locator("h1").waitFor({ state: "visible" });
@@ -49,11 +49,17 @@ try {
         await page.getByText("This installation is not configured for sign-in yet.").waitFor();
         assert.equal(await page.locator("select").count(), 0, "Unverified account must not see assignments");
       }
+      if (name === "forgot-password") assert.equal(await page.getByLabel("Account email").isDisabled(), true);
+      if (name === "reset-password") assert.equal(await page.getByLabel("New password", { exact: true }).isDisabled(), true);
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
       assert.equal(overflow, false, path + " must fit " + device);
       await page.screenshot({ path: output + "/" + name + "-" + device + ".png", fullPage: true });
       checks.push({ device, path, status: "passed" });
     }
+    const callback = await page.request.get(origin + '/auth/callback?next=https://other.invalid', { maxRedirects: 0 });
+    assert.equal(new URL(callback.headers().location).pathname, '/forgot-password');
+    assert.equal(new URL(callback.headers().location).origin, origin);
+    assert.equal(callback.headers()['cache-control'], 'no-store');
     const manifestResponse = await page.request.get(origin + '/manifest.webmanifest');
     assert.equal(manifestResponse.status(), 200);
     const manifest = await manifestResponse.json();
