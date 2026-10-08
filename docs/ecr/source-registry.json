@@ -5,7 +5,7 @@
       "family": "co-core",
       "approved_drive_source_id": "1l6OFDTh_CiELpIT_QKxp_ObSpY7E6Otv",
       "original_sha256": "c230d5b29f5d6651132bd705e16a890095e1e98353cf3a554fc319955a1c0bf6",
-      "structural_fingerprint": "97e3f16a61b0d01bdc2ce8c470ddfc2ffa8fab55c7e6b259ba950ff614224048",
+      "structural_fingerprint": "1baa11b3de6bc493b016a0dcd49b2f86ef49d465ec6668913b6915c83122b820",
       "formula_cells": 5242,
       "runtime_import_enabled": false,
       "verification_state": "source-inspected-adapter-pending",
