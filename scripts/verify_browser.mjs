@@ -8,7 +8,14 @@ const { chromium } = require(process.env.TANAW_PLAYWRIGHT_MODULE || "playwright"
 const origin = "http://127.0.0.1:3000";
 const output = "artifacts/ui";
 await mkdir(output, { recursive: true });
-const server = spawn("npm", ["run", "start", "--", "--hostname", "127.0.0.1", "--port", "3000"], { stdio: "ignore", detached: true });
+const startServer = () => spawn("npm", ["run", "start", "--", "--hostname", "127.0.0.1", "--port", "3000"], { stdio: "ignore", detached: true });
+let server = startServer();
+async function stopServer() {
+  if (server.exitCode !== null) return;
+  const exited = new Promise((resolve) => server.once('exit', resolve));
+  try { process.kill(-server.pid, 'SIGTERM'); } catch { return; }
+  await exited;
+}
 let browser;
 const checks = [];
 try {
@@ -46,6 +53,33 @@ try {
       assert.equal(overflow, false, path + " must fit " + device);
       await page.screenshot({ path: output + "/" + name + "-" + device + ".png", fullPage: true });
       checks.push({ device, path, status: "passed" });
+    }
+    const manifestResponse = await page.request.get(origin + '/manifest.webmanifest');
+    assert.equal(manifestResponse.status(), 200);
+    const manifest = await manifestResponse.json();
+    assert.equal(manifest.start_url, '/workspace'); assert.equal(manifest.display, 'standalone');
+    for (const size of [192, 512]) {
+      const icon = await page.request.get(origin + '/api/app-icon?size=' + size);
+      assert.equal(icon.status(), 200); assert.match(icon.headers()['content-type'], /image\/png/);
+      const png = await icon.body(); assert.equal(png.readUInt32BE(16), size); assert.equal(png.readUInt32BE(20), size);
+    }
+    await page.evaluate(async () => { await navigator.serviceWorker.ready; if (!navigator.serviceWorker.controller) await new Promise((resolve) => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true })); });
+    const cacheEntries = await page.evaluate(async () => (await Promise.all((await caches.keys()).filter((key) => key.startsWith('tanaw-offline-shell-')).map(async (key) => (await (await caches.open(key)).keys()).map((request) => new URL(request.url).pathname)))).flat());
+    assert.deepEqual(cacheEntries, ['/offline.html'], 'Only the public offline fallback may be cached');
+    // Disconnect the origin itself: older Chromium does not consistently apply
+    // context.setOffline to service-worker-owned fetches.
+    await stopServer();
+    await context.setOffline(true);
+    await page.goto(origin + '/workspace');
+    await page.getByRole('heading', { name: "You're offline" }).waitFor();
+    assert.equal(await page.locator('form').count(), 0, 'Offline reload cannot expose authenticated actions');
+    await page.screenshot({ path: output + '/offline-' + device + '.png', fullPage: true });
+    await context.setOffline(false);
+    if (device === 'desktop') {
+      server = startServer();
+      let reconnected = false;
+      for (let attempt = 0; attempt < 150; attempt++) { try { if ((await fetch(origin)).ok) { reconnected = true; break; } } catch {} await new Promise((resolve) => setTimeout(resolve, 200)); }
+      assert.ok(reconnected, 'Origin must restart for the mobile check');
     }
     assert.deepEqual(errors, [], "Pages must have no uncaught browser errors");
     await context.close();
