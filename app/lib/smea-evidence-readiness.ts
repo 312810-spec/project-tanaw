@@ -10,7 +10,9 @@ export type ReadinessIssueCode =
   | "mismatchedIndicator"
   | "mismatchedPeriod"
   | "nonfiniteValue"
-  | "missingSourceLocator";
+  | "missingSourceLocator"
+  | "duplicateEvidence"
+  | "duplicateDefinition";
 
 export interface ReadinessIssue {
   code: ReadinessIssueCode;

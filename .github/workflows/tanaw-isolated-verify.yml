@@ -40,6 +40,8 @@ jobs:
         run: node --experimental-strip-types --test tests/smea-indicators.test.mjs
       - name: Verify SMEA evidence readiness
         run: node --experimental-strip-types --test tests/smea-evidence-readiness.test.mjs
+      - name: Verify SMEA packet readiness
+        run: node --experimental-strip-types --test tests/smea-packet-readiness.test.mjs
       - name: Build application
         run: npm run build
 
