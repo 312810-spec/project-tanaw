@@ -54,8 +54,19 @@ class FingerprintTests(unittest.TestCase):
             self.audit()
 
     def test_active_content_external_links_and_external_relationships_rejected(self):
-        for extra in [{"xl/vbaProject.bin": "synthetic"}, {"xl/externalLinks/externalLink1.xml": "synthetic"}, {"xl/embeddings/object.bin": "synthetic"}, {"xl/worksheets/_rels/sheet1.xml.rels": '<Relationships><Relationship TargetMode="External" Target="https://fixture.invalid"/></Relationships>'}]:
+        for extra in [{"xl/vbaProject.bin": "synthetic"}, {"xl/externalLinks/externalLink1.xml": "synthetic"}, {"xl/embeddings/object.bin": "synthetic"}, {"xl/connections.xml": "synthetic"}, {"xl/queryTables/queryTable1.xml": "synthetic"}, {"xl/worksheets/_rels/sheet1.xml.rels": '<Relationships><Relationship TargetMode="External" Target="https://fixture.invalid"/></Relationships>'}]:
             with self.assertRaises(ValueError): self.audit(extra=extra)
+
+    def test_defined_names_and_calculation_properties_are_fingerprinted(self):
+        original = self.audit()["fingerprint"]
+        for addition in ['<calcPr fullPrecision="0"/>', '<definedNames><definedName name="Fixture">HELPER!$C$1</definedName></definedNames>']:
+            with zipfile.ZipFile(self.path) as archive:
+                files = {name: archive.read(name) for name in archive.namelist()}
+            files['xl/workbook.xml'] = files['xl/workbook.xml'].replace(b'</workbook>', addition.encode() + b'</workbook>')
+            with zipfile.ZipFile(self.path, 'w') as archive:
+                for name, data in files.items(): archive.writestr(name, data)
+            self.assertNotEqual(original, module.fingerprint(self.path, {"HELPER": ["C1"]})["fingerprint"])
+            self.audit()
 
     def test_dtd_and_path_traversal_rejected(self):
         with self.assertRaises(ValueError): self.audit(sheet_prefix='<!DOCTYPE worksheet [<!ENTITY fixture "synthetic">]>')

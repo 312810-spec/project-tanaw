@@ -33,7 +33,7 @@ def fingerprint(path, lookup_ranges):
             raise EcrAuditError("expanded-file-too-large")
         if any(entry.flag_bits & 1 or entry.filename.startswith("/") or ".." in entry.filename.split("/") for entry in entries):
             raise EcrAuditError("unsafe-archive-member")
-        if any("vbaproject" in name.lower() or name.startswith("xl/externalLinks/") or name.startswith("xl/embeddings/") for name in names):
+        if any("vbaproject" in name.lower() or name.startswith("xl/externalLinks/") or name.startswith("xl/embeddings/") or name == "xl/connections.xml" or name.startswith("xl/queryTables/") for name in names):
             raise EcrAuditError("unsupported-active-or-external-content")
 
         def xml(name):
@@ -86,7 +86,10 @@ def fingerprint(path, lookup_ranges):
                            "merges": sorted(item.get("ref") for item in root.findall("s:mergeCells/s:mergeCell", NS)), "lookup": lookup})
         if any(name not in seen for name in lookup_ranges):
             raise EcrAuditError("missing-lookup-sheet")
-        structure = {"algorithm": "tanaw-ooxml-source-v1", "sheets": sheets}
+        defined_names = [[sorted(item.attrib.items()), item.text or ""] for item in workbook.findall("s:definedNames/s:definedName", NS)]
+        calc = workbook.find("s:calcPr", NS)
+        structure = {"algorithm": "tanaw-ooxml-source-v1", "sheets": sheets,
+                     "defined_names": defined_names, "calculation_properties": sorted(calc.attrib.items()) if calc is not None else []}
         encoded = json.dumps(structure, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()
         return {"algorithm": structure["algorithm"], "fingerprint": hashlib.sha256(encoded).hexdigest(),
                 "formula_cells": sum(len(sheet["formulas"]) for sheet in sheets),
