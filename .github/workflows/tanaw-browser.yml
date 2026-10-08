@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
+      TANAW_APP_ORIGIN: http://127.0.0.1:3000
       NEXT_PUBLIC_SUPABASE_URL: ''
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ''
       TANAW_PLAYWRIGHT_MODULE: /tmp/tanaw-browser/node_modules/playwright

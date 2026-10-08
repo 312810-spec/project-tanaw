@@ -37,7 +37,7 @@ const seed = spawnSync('docker', ['exec', '-i', 'supabase_db_project-tanaw', 'ps
 assert.equal(seed.status, 0, 'Synthetic local workflow setup must succeed');
 const build = spawnSync('npm', ['run', 'build'], { env: { ...process.env, NEXT_PUBLIC_SUPABASE_URL: url, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publicKey }, stdio: 'inherit' });
 assert.equal(build.status, 0, 'Configured local preview must build');
-const server = spawn('npm', ['run', 'start', '--', '--hostname', '127.0.0.1', '--port', '3000'], { detached: true, stdio: 'ignore' });
+const server = spawn('npm', ['run', 'start', '--', '--hostname', '127.0.0.1', '--port', '3000'], { detached: true, stdio: 'ignore', env: { ...process.env, TANAW_APP_ORIGIN: 'http://127.0.0.1:3000' } });
 const origin = 'http://127.0.0.1:3000';
 let browser;
 const pages = [];
@@ -127,6 +127,49 @@ try {
   const disabledRecords = await denied.from('tanaw_submission_versions').select('submission_id');
   assert.equal(disabledRecords.error, null); assert.deepEqual(disabledRecords.data, [], 'Disabled account must lose source access');
   await coordinator.page.screenshot({ path: output + '/coordinator-access-managed.png', fullPage: true });
+  // Local Mailpit captures the recovery email; no actual recipient is contacted.
+  const recoveryContext = await browser.newContext();
+  const recoveryPage = await recoveryContext.newPage();
+  await recoveryPage.route('**/*', (route) => { const target = new URL(route.request().url()); return [origin, url].includes(target.origin) || target.protocol === 'data:' ? route.continue() : route.abort(); });
+  await recoveryPage.goto(origin + '/forgot-password');
+  await recoveryPage.getByLabel('Account email').fill(users.teacher.email);
+  await recoveryPage.getByRole('button', { name: 'Send recovery link' }).click();
+  await recoveryPage.getByText('If this address has an account, a recovery link will arrive. Open it in this browser to continue.', { exact: true }).waitFor();
+  let captured;
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const response = await fetch('http://127.0.0.1:55324/api/v1/messages');
+    assert.equal(response.ok, true, 'Isolated Mailpit must be reachable');
+    const mailbox = await response.json();
+    captured = mailbox.messages?.find((message) => message.To?.some((address) => address.Address === users.teacher.email));
+    if (captured) break;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  assert.ok(captured, 'Synthetic recovery email must be captured locally');
+  const mailResponse = await fetch('http://127.0.0.1:55324/api/v1/message/' + encodeURIComponent(captured.ID));
+  assert.equal(mailResponse.ok, true, 'Synthetic recovery message must be readable');
+  const mail = await mailResponse.json();
+  const links = [...String(mail.HTML ?? '').matchAll(/href=["']([^"']+)["']/g)].map((match) => match[1].replaceAll('&amp;', '&'));
+  const recoveryLink = links.find((link) => { try { const target = new URL(link); return target.origin === url && target.pathname === '/auth/v1/verify' && target.searchParams.get('type') === 'recovery'; } catch { return false; } });
+  assert.ok(recoveryLink, 'Recovery email must contain only the expected local Auth verification link');
+  try { await recoveryPage.goto(recoveryLink); await recoveryPage.waitForURL('**/reset-password'); } catch { throw new Error('Synthetic PKCE recovery link did not reach the password page'); }
+  await recoveryPage.getByText('Recovery session verified. Choose your new password.', { exact: true }).waitFor();
+  const changedPassword = randomUUID() + randomUUID();
+  await recoveryPage.getByLabel('New password', { exact: true }).fill(changedPassword);
+  await recoveryPage.getByLabel('Confirm new password').fill(changedPassword);
+  await recoveryPage.getByRole('button', { name: 'Save new password' }).click();
+  await recoveryPage.getByText('Password changed. Your school access and assignments are unchanged.', { exact: true }).waitFor();
+  users.teacher.password = changedPassword;
+  const recovered = createClient(url, publicKey, { auth: { persistSession: false } });
+  assert.equal((await recovered.auth.signInWithPassword(users.teacher)).error, null, 'Recovered password must authenticate');
+  assert.deepEqual((await recovered.from('tanaw_memberships').select('school_id')).data, [], 'Recovery must not restore disabled school access');
+  await recoveryPage.screenshot({ path: output + '/password-recovered.png', fullPage: true });
+  await recoveryContext.close();
+  const anonymousContext = await browser.newContext();
+  const anonymousPage = await anonymousContext.newPage();
+  await anonymousPage.goto(origin + '/reset-password');
+  await anonymousPage.getByText('Open a valid recovery link from your email to continue.', { exact: true }).waitFor();
+  assert.equal(await anonymousPage.getByLabel('New password', { exact: true }).isDisabled(), true);
+  await anonymousContext.close();
   for (const entry of pages) { assert.deepEqual(entry.errors, [], entry.role + ' must have no uncaught browser errors'); assert.equal(await entry.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false); await entry.context.close(); }
   console.log('Authenticated synthetic browser acceptance passed: teacher zero submission, subject review, school review, independent Head review, explicit Lock, district acceptance and raw-data denial.');
 } finally {
