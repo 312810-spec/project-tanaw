@@ -1,0 +1,107 @@
+// CI only: ephemeral synthetic identities and data in the isolated LOCAL stack.
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { spawn, spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+import { mkdir } from 'node:fs/promises';
+import { createClient } from '@supabase/supabase-js';
+const require = createRequire(import.meta.url);
+const { chromium } = require(process.env.TANAW_PLAYWRIGHT_MODULE || 'playwright');
+const statusProcess = spawnSync('npx', ['--no-install', 'supabase', 'status', '--output', 'json'], { encoding: 'utf8' });
+assert.equal(statusProcess.status, 0, 'Local status must be available');
+const config = JSON.parse(statusProcess.stdout);
+const url = config.API_URL ?? config.api_url;
+assert.equal(url, 'http://127.0.0.1:55321', 'Synthetic setup must target the isolated local stack only');
+const publicKey = config.PUBLISHABLE_KEY ?? config.ANON_KEY ?? config.anon_key;
+const privateKey = config.SECRET_KEY ?? config.SERVICE_ROLE_KEY ?? config.service_role_key;
+assert.ok(publicKey && privateKey, 'Local-only keys must be available');
+const admin = createClient(url, privateKey, { auth: { persistSession: false, autoRefreshToken: false } });
+const run = randomUUID();
+const users = {};
+for (const role of ['teacher', 'subjectCoordinator', 'smeaCoordinator', 'schoolHead', 'districtCoordinator']) {
+  const password = randomUUID() + randomUUID();
+  const email = `${role.toLowerCase()}-${run}@fixture.invalid`;
+  const result = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+  assert.equal(result.error, null, 'Synthetic local account must be created');
+  users[role] = { id: result.data.user.id, email, password };
+}
+const school = randomUUID(), block = randomUUID(), cycle = randomUUID(), definition = randomUUID();
+const q = (value) => "'" + String(value).replaceAll("'", "''") + "'";
+let sql = `insert into public.tanaw_schools(id,name) values(${q(school)},'Synthetic browser school');\n`;
+for (const [role, user] of Object.entries(users)) sql += `insert into public.tanaw_memberships(school_id,user_id,roles,subject_ids) values(${q(school)},${q(user.id)},array[${q(role)}],array['math']);\n`;
+sql += `insert into public.tanaw_instructional_blocks(id,school_year,label,end_date,source_order,source_url,verified_at) values(${q(block)},'Fixture','Synthetic block',current_date-1,'SYNTHETIC','https://fixture.invalid/calendar',now());\n`;
+sql += `insert into public.tanaw_reporting_cycles(id,school_id,instructional_block_id,deadline_at,created_by) values(${q(cycle)},${q(school)},${q(block)},now()+interval '1 day',${q(users.smeaCoordinator.id)});\n`;
+sql += `insert into public.smea_indicator_definitions(id,school_id,indicator_code,label,unit,school_year,reporting_period,definition_status,source_id,source_title,source_locator,formula_expression,numerator_definition,denominator_definition,rounding_rule) values(${q(definition)},${q(school)},'FIXTURE','Synthetic manual indicator','count','Fixture','Synthetic block','verified','fixture','Synthetic source','https://fixture.invalid/indicator','fixture expression','fixture numerator','fixture denominator','fixture rounding');\n`;
+sql += `begin; set local role authenticated; select set_config('request.jwt.claim.sub',${q(users.smeaCoordinator.id)},true); select public.tanaw_assign_submission(${q(cycle)},${q(users.teacher.id)},'math','Synthetic class A','Synthetic browser assignment'); commit;`;
+const seed = spawnSync('docker', ['exec', '-i', 'supabase_db_project-tanaw', 'psql', '-U', 'postgres', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1'], { input: sql, encoding: 'utf8' });
+assert.equal(seed.status, 0, 'Synthetic local workflow setup must succeed');
+const build = spawnSync('npm', ['run', 'build'], { env: { ...process.env, NEXT_PUBLIC_SUPABASE_URL: url, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publicKey }, stdio: 'inherit' });
+assert.equal(build.status, 0, 'Configured local preview must build');
+const server = spawn('npm', ['run', 'start', '--', '--hostname', '127.0.0.1', '--port', '3000'], { detached: true, stdio: 'ignore' });
+const origin = 'http://127.0.0.1:3000';
+let browser;
+const pages = [];
+const output = 'artifacts/authenticated-ui';
+await mkdir(output, { recursive: true });
+try {
+  let ready = false;
+  for (let attempt = 0; attempt < 150; attempt++) { try { if ((await fetch(origin)).ok) { ready = true; break; } } catch {} await new Promise((resolve) => setTimeout(resolve, 200)); }
+  assert.ok(ready, 'Production server must start');
+  browser = await chromium.launch();
+  async function login(role) {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    const page = await context.newPage();
+    const errors = []; page.on('pageerror', (error) => errors.push(error.message));
+    await page.route('**/*', (route) => { const target = new URL(route.request().url()); return [origin, url].includes(target.origin) || target.protocol === 'data:' ? route.continue() : route.abort(); });
+    await page.goto(origin + '/login');
+    await page.getByLabel('Email address').fill(users[role].email);
+    await page.getByLabel('Password', { exact: true }).fill(users[role].password);
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.waitForURL('**/workspace');
+    const ui = page.getByRole('region', { name: 'Submissions and packet review' });
+    await ui.getByText(role === 'districtCoordinator' ? 'Locked packet status loaded. Learner records are restricted to the school.' : 'School workflow loaded.', { exact: true }).waitFor();
+    pages.push({ page, context, errors, role });
+    return { page, ui };
+  }
+  const teacher = await login('teacher');
+  await teacher.ui.getByLabel('Assigned submission').selectOption({ index: 1 });
+  await teacher.ui.getByLabel('Verified indicator').selectOption(definition);
+  await teacher.ui.getByLabel('Recorded value').fill('0');
+  await teacher.ui.getByLabel('Evidence title').fill('Synthetic recorded zero');
+  await teacher.ui.getByLabel('Evidence location or reference').fill('https://fixture.invalid/evidence');
+  await teacher.ui.getByLabel('Reason for submission or correction').fill('Synthetic browser acceptance test');
+  await teacher.ui.getByRole('button', { name: 'Submit a new evidence version' }).click();
+  await teacher.ui.getByText('Current recorded evidence', { exact: true }).waitFor();
+  await teacher.ui.getByText('Synthetic manual indicator: 0', { exact: false }).waitFor();
+  await teacher.page.screenshot({ path: output + '/teacher-submitted.png', fullPage: true });
+  const subject = await login('subjectCoordinator');
+  await subject.ui.getByLabel('Assigned submission').selectOption({ index: 1 });
+  await subject.ui.getByRole('button', { name: 'Record subject review of this version' }).waitFor({ state: 'visible' });
+  await subject.ui.getByRole('button', { name: 'Record subject review of this version' }).click();
+  await subject.ui.getByText('Action recorded with its history.', { exact: true }).waitFor();
+  const coordinator = await login('smeaCoordinator');
+  await coordinator.ui.getByRole('button', { name: 'Prepare a new school packet version' }).click();
+  await coordinator.ui.getByText('Latest school packet · Version 1', { exact: true }).waitFor();
+  await coordinator.ui.getByRole('button', { name: 'Record school review', exact: true }).click();
+  await coordinator.ui.getByText('Action recorded with its history.', { exact: true }).waitFor();
+  const head = await login('schoolHead');
+  await head.ui.getByRole('button', { name: 'Record School Head review' }).click();
+  await head.ui.getByText('Action recorded with its history.', { exact: true }).waitFor();
+  await coordinator.ui.getByRole('button', { name: 'Refresh workflow' }).click();
+  await coordinator.ui.getByRole('button', { name: 'Lock this school packet' }).click();
+  await coordinator.ui.getByText('Locked · complete', { exact: true }).waitFor();
+  await coordinator.page.screenshot({ path: output + '/coordinator-locked.png', fullPage: true });
+  const district = await login('districtCoordinator');
+  await district.ui.getByRole('button', { name: 'Record district decision' }).click();
+  await district.ui.getByText('Action recorded with its history.', { exact: true }).waitFor();
+  await district.page.screenshot({ path: output + '/district-aggregate.png', fullPage: true });
+  const districtClient = createClient(url, publicKey, { auth: { persistSession: false } });
+  assert.equal((await districtClient.auth.signInWithPassword(users.districtCoordinator)).error, null);
+  const raw = await districtClient.from('tanaw_submission_versions').select('submission_id');
+  assert.equal(raw.error, null); assert.deepEqual(raw.data, [], 'District must have no learner/source version access');
+  for (const entry of pages) { assert.deepEqual(entry.errors, [], entry.role + ' must have no uncaught browser errors'); assert.equal(await entry.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false); await entry.context.close(); }
+  console.log('Authenticated synthetic browser acceptance passed: teacher zero submission, subject review, school review, independent Head review, explicit Lock, district acceptance and raw-data denial.');
+} finally {
+  if (browser) await browser.close();
+  if (server.pid) { try { process.kill(-server.pid, 'SIGTERM'); } catch {} }
+}
