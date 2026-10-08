@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 /**
  * Project TANAW — application identity shell.
  *
@@ -92,6 +94,13 @@ export default function Home() {
               ))}
             </ol>
           </div>
+        </div>
+
+        <div className="mt-12">
+          <Link href="/review" className="inline-flex rounded-md border border-brand px-4 py-2 text-sm font-medium text-brand hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
+            View evidence review foundation
+          </Link>
+          <p className="mt-2 text-xs text-foreground/60">Read-only preview · no live school evidence connected</p>
         </div>
 
         <div className="mt-20 flex flex-col gap-5">
