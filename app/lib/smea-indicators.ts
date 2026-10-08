@@ -54,9 +54,13 @@ export function isCalculable(definition: IndicatorDefinition): boolean {
 
 /** Denominators must be evidenced, finite, and strictly positive. */
 export function validatedRatio(
+  definition: IndicatorDefinition,
   numerator: ObservedValue,
   denominator: ObservedValue,
 ): ObservedValue {
+  if (!isCalculable(definition)) {
+    return { kind: "missing", reason: "Indicator formula is not verified." };
+  }
   if (numerator.kind !== "number" || denominator.kind !== "number") {
     return { kind: "missing", reason: "Source numerator or denominator is missing or nonnumeric." };
   }
@@ -67,7 +71,12 @@ export function validatedRatio(
   ) {
     return { kind: "missing", reason: "Invalid numerator or denominator; no ratio generated." };
   }
-  return { kind: "number", value: numerator.value / denominator.value, evidence: numerator.evidence };
+  // This provisional computation is intentionally not returned as an evidence-backed
+  // observation: the denominator source must not be silently discarded.
+  return {
+    kind: "missing",
+    reason: "Ratio is not publishable without a derived-value provenance record.",
+  };
 }
 
 /**
