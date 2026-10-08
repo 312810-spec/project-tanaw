@@ -15,6 +15,7 @@ export interface PacketReadiness {
 export function checkPacketReadiness(
   definitions: readonly IndicatorDefinition[],
   observations: readonly IndicatorObservation[],
+  scopeId: string,
 ): PacketReadiness {
   const issues: ReadinessIssue[] = [];
   let readyIndicators = 0;
@@ -22,6 +23,7 @@ export function checkPacketReadiness(
   for (const definition of definitions) {
     const matching = observations.filter(
       (o) =>
+        o.scopeId === scopeId &&
         o.indicatorCode === definition.code &&
         o.reportingPeriod === definition.reportingPeriod,
     );
