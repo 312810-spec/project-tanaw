@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/utils/supabase/client";
 
 const configured = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
 
 export function SignInForm() {
+  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -19,7 +21,7 @@ export function SignInForm() {
       const client = createSupabaseBrowserClient();
       const { error } = await client.auth.signInWithPassword({ email, password });
       if (error) { setMessage("Sign-in failed. Check your account details or contact the SMEA Coordinator."); return; }
-      window.location.assign("/workspace");
+      router.push("/workspace");
     } catch { setMessage("Unable to connect. Check your connection and try again."); }
     finally { setBusy(false); }
   }

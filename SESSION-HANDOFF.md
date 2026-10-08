@@ -59,3 +59,9 @@ Raw CO and Division workbook inspection is now complete for those two core famil
 Git CLI fetch works, but push has no credential helper in this environment. Publishing used the already-authorized GitHub connector APIs after local verification. Local and remote commit IDs differ because the connector creates the commit; source tree content is the same. Do not mistake the different commit IDs for different source implementations.
 
 Next independent work: connect authenticated role UI to the checked workflow RPCs, then verify and advance the remaining import, account, offline and output tasks. Preserve source boundaries, current confirmed decisions and exact-head CI checks.
+
+## Continuation checkpoint — coordinator access UI
+
+PR #18 head 1f9d03161c0e45b8299388331265a7b1b37789bc passed fast domain, public browser, build and isolated Supabase including authenticated synthetic browser acceptance. It was squash merged as 0062bf6425e13817f2af5d0ca656086d0843877f. Authenticated screenshots: run 37747944996, artifact 11536941398. These are synthetic local fixtures, not TNHS pilot evidence.
+
+The next increment adds coordinator-only school email labels, membership role/scope/disable UI, explicit revision checks with old unversioned writes denied, history display, and authenticated disable-access regression. Existing workspace effect/navigation lint findings were corrected and lint added to CI. Local embedded PostgreSQL suites pass; full Supabase/browser CI must pass at the published head before merge. Creation/recovery, recorded handover, official calendar provisioning, complete approved XLSX adapters, report outputs and offline/PWA remain pending. No hosted operation or real record mutation occurred.

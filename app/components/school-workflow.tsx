@@ -12,10 +12,12 @@ type Definition = { id: string; label: string; unit: string };
 type Packet = { id: string; version: number; locked_at: string | null; completeness: string | null; missing: { slotId: string; reason: string }[] };
 type DistrictPacket = { packet_id: string; version: number; completeness: string; submission_count: number; missing_count: number };
 const inputStyle = "w-full min-w-0 rounded-lg border border-foreground/20 bg-background p-3 text-sm";
+function currentTime() { return Date.now(); }
 const buttonStyle = "rounded-lg border border-brand px-4 py-2 text-sm text-brand disabled:opacity-50";
 
 export function SchoolWorkflow({ schoolId, role, actorId }: { schoolId: string; role: string; actorId: string }) {
   const generation = useRef(0);
+  const invalidate = useCallback(() => { generation.current++; }, []);
   const [status, setStatus] = useState("Loading school workflow…");
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -68,11 +70,11 @@ export function SchoolWorkflow({ schoolId, role, actorId }: { schoolId: string; 
       setSubmissions(submissionResult.data ?? []); setReady(true); setStatus("School workflow loaded.");
     } catch { if (request === generation.current) setStatus("Workflow could not be loaded completely. Refresh access before taking an action."); }
   }, [schoolId, role, actorId, cycleId]);
-  useEffect(() => { setSubmissionId(""); setMissingReasons({}); setAcknowledge(false); void load(); return () => { generation.current++; }; }, [load]);
+  useEffect(() => { let cancelled = false; queueMicrotask(() => { if (!cancelled) { setSubmissionId(""); setMissingReasons({}); setAcknowledge(false); void load(); } }); return () => { cancelled = true; invalidate(); }; }, [load, invalidate]);
   useEffect(() => {
     let cancelled = false;
-    setVersions([]); setVersionReady(false);
-    if (!submissionId || !ready) return;
+    queueMicrotask(() => { if (!cancelled) { setVersions([]); setVersionReady(false); } });
+    if (!submissionId || !ready) return () => { cancelled = true; };
     void (async () => {
       const result = await createSupabaseBrowserClient().from("tanaw_submission_versions").select("version,evidence,reason,created_at").eq("submission_id", submissionId).order("version", { ascending: false }).limit(20);
       if (cancelled) return;
@@ -117,7 +119,7 @@ export function SchoolWorkflow({ schoolId, role, actorId }: { schoolId: string; 
     event.preventDefault(); const form = new FormData(event.currentTarget); const deadline = String(form.get("deadline"));
     if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(deadline)) return;
     const until = new Date(deadline + ":00+08:00");
-    if (!Number.isFinite(until.getTime()) || until.getTime() <= Date.now()) { setStatus("Choose a future cutoff in Philippine time."); return; }
+    if (!Number.isFinite(until.getTime()) || until.getTime() <= currentTime()) { setStatus("Choose a future cutoff in Philippine time."); return; }
     void action(name, name === "tanaw_open_amendment" ? { target_cycle: cycleId, amendment_deadline: until.toISOString(), change_reason: String(form.get("reason")) } : { target_submission: submissionId, until_time: until.toISOString(), change_reason: String(form.get("reason")) });
   }
   return <section className="space-y-5 rounded-xl border border-foreground/15 p-5" aria-labelledby="school-workflow-heading">

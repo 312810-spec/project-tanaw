@@ -17,6 +17,7 @@ export function ReportingCycles({ schoolId, canManage }: { schoolId: string; can
   const [deadline, setDeadline] = useState("");
   const [reason, setReason] = useState("");
   const generation = useRef(0);
+  const invalidate = useCallback(() => { generation.current++; }, []);
   const load = useCallback(async () => {
     const request = ++generation.current;
     setReady(false); setBlocks([]); setCycles([]); setStatus("Loading reporting cycles…");
@@ -33,10 +34,10 @@ export function ReportingCycles({ schoolId, canManage }: { schoolId: string; can
     } catch { if (request === generation.current) setStatus("Unable to load reporting cycles. Check your connection."); }
   }, [schoolId]);
   useEffect(() => {
-    setBlockId(""); setDeadline(""); setReason(""); setBusy(false);
-    void load();
-    return () => { generation.current++; };
-  }, [load]);
+    let cancelled = false;
+    queueMicrotask(() => { if (!cancelled) { setBlockId(""); setDeadline(""); setReason(""); setBusy(false); void load(); } });
+    return () => { cancelled = true; invalidate(); };
+  }, [load, invalidate]);
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!ready || busy || !canManage || !blocks.some((block) => block.id === blockId)) return;
