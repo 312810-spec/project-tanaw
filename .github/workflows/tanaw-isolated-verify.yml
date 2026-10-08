@@ -70,6 +70,8 @@ jobs:
         run: npm run verify:stack
       - name: Verify SMEA local database constraints
         run: docker exec -i supabase_db_project-tanaw psql -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/smea-registry-local.sql
+      - name: Verify coordinator membership permissions
+        run: docker exec -i supabase_db_project-tanaw psql -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/school-membership-local.sql
       - name: Run baseline checks against local stack
         run: npm run verify
       - name: Stop local stack
