@@ -10,6 +10,8 @@ export type ReadinessIssueCode =
   | "mismatchedIndicator"
   | "mismatchedPeriod"
   | "nonfiniteValue"
+  | "mismatchedSourceYear"
+  | "unverifiedDerivedFormula"
   | "missingSourceLocator"
   | "duplicateEvidence"
   | "duplicateDefinition";
@@ -50,8 +52,15 @@ export function checkEvidenceReadiness(
       !Number.isFinite(value.value)
     ) add("nonfiniteValue");
 
+    if (value.kind === "derivedNumber" &&
+      (definition.formula === null || value.formulaCode !== definition.code)) {
+      add("unverifiedDerivedFormula");
+    }
     const sources =
       value.kind === "derivedNumber" ? value.sources : [value.evidence];
+    if (sources.some((source) => source.schoolYear !== definition.schoolYear)) {
+      add("mismatchedSourceYear");
+    }
     if (sources.some((source) =>
       !source.sourceId.trim() || !source.locator.trim() || !source.documentTitle.trim()
     )) add("missingSourceLocator");

@@ -25,3 +25,20 @@ test("nonfinite data and source gaps block readiness", () => {
 test("derived values must preserve both input locators", () => {
   assert.deepEqual(checkEvidenceReadiness(def, observed({ kind: "derivedNumber", value: 0.5, sources: [src, { ...src, sourceId: "" }], formulaCode: "SYNTHETIC" })).issues.map((i) => i.code), ["missingSourceLocator"]);
 });
+
+test("a source from a different school year blocks readiness", () => {
+  const result = checkEvidenceReadiness(def, observed({ kind: "number", value: 12, evidence: { ...src, schoolYear: "2025-2026" } }));
+  assert.deepEqual(result.issues.map((i) => i.code), ["mismatchedSourceYear"]);
+});
+test("derived evidence without a verified formula blocks readiness", () => {
+  const result = checkEvidenceReadiness({ ...def, formula: null }, observed({
+    kind: "derivedNumber", value: 0.5, sources: [src, src], formulaCode: def.code,
+  }));
+  assert.deepEqual(result.issues.map((i) => i.code), ["unverifiedDerivedFormula"]);
+});
+test("derived evidence with another formula code blocks readiness", () => {
+  const result = checkEvidenceReadiness(def, observed({
+    kind: "derivedNumber", value: 0.5, sources: [src, src], formulaCode: "OTHER",
+  }));
+  assert.deepEqual(result.issues.map((i) => i.code), ["unverifiedDerivedFormula"]);
+});

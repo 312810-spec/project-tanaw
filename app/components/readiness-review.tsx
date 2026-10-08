@@ -7,6 +7,8 @@ const ISSUE_LABELS: Record<PacketReadiness["issues"][number]["code"], string> = 
   mismatchedPeriod: "Reporting period mismatch",
   nonfiniteValue: "Invalid numeric value",
   missingSourceLocator: "Source reference incomplete",
+  mismatchedSourceYear: "Evidence is from another school year",
+  unverifiedDerivedFormula: "Calculated value does not match a verified formula",
   duplicateEvidence: "Multiple evidence records require reconciliation",
   duplicateDefinition: "Duplicate indicator definitions",
 };
