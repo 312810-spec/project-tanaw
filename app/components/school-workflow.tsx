@@ -7,6 +7,7 @@ import { ManualEvidenceForm } from "@/app/components/manual-evidence-form";
 import { workflowReminders } from "@/app/lib/workflow-reminders";
 import type { EvidenceDraft } from "@/app/lib/submission-drafts";
 
+type Assignee = { user_id: string; email: string; roles: string[]; subject_ids: string[]; active: boolean };
 type Cycle = { id: string; instructional_block_id: string; deadline_at: string; locked_at: string | null };
 type Slot = { id: string; author_id: string; subject_id: string; scope_label: string };
 type Submission = { id: string; slot_id: string; current_version: number; extension_until: string | null };
@@ -30,6 +31,7 @@ export function SchoolWorkflow({ schoolId, role, actorId }: { schoolId: string; 
   const [busy, setBusy] = useState(false);
   const [cycles, setCycles] = useState<Cycle[]>([]);
   const [cycleId, setCycleId] = useState("");
+  const [assignees, setAssignees] = useState<Assignee[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [definitions, setDefinitions] = useState<Definition[]>([]);
@@ -51,6 +53,12 @@ export function SchoolWorkflow({ schoolId, role, actorId }: { schoolId: string; 
         if (request !== generation.current) return;
         if (result.error) throw result.error;
         setDistrict(result.data ?? []); setReady(true); setStatus("Locked packet status loaded. Learner records are restricted to the school."); return;
+      }
+      if (role === "smeaCoordinator") {
+        const directory = await client.rpc("tanaw_member_directory", { target_school: schoolId });
+        if (request !== generation.current) return;
+        if (directory.error) throw new Error("Assigned accounts unavailable");
+        setAssignees((directory.data ?? []).filter((member: Assignee) => member.active && member.roles.some((assignedRole) => ["teacher", "smeaCoordinator"].includes(assignedRole))));
       }
       const cycleResult = await client.from("tanaw_reporting_cycles").select("id,instructional_block_id,deadline_at,locked_at").eq("school_id", schoolId).order("deadline_at", { ascending: false });
       if (request !== generation.current) return;
@@ -159,9 +167,14 @@ export function SchoolWorkflow({ schoolId, role, actorId }: { schoolId: string; 
         {currentVersion && <div className="space-y-2 rounded-lg bg-foreground/5 p-4"><h3 className="font-medium">Current recorded evidence</h3>{currentVersion.evidence.entries.map((entry) => <p key={entry.definitionId} className="break-words text-sm">{definitions.find((definition) => definition.id === entry.definitionId)?.label ?? "Recorded indicator"}: {entry.value} · {entry.sourceTitle} · {entry.sourceLocator}</p>)}</div>}
         {(role === "teacher" || (role === "smeaCoordinator" && selectedSlot?.author_id === actorId)) && <ManualEvidenceForm key={submissionId} scope={draftScope} version={selected.current_version} definitions={definitions} busy={busy} onSubmit={submitManual} />}
         {role === "subjectCoordinator" && <button type="button" className={buttonStyle} disabled={busy || !currentVersion || selectedSlot?.author_id === actorId} onClick={() => void action("tanaw_review_submission", { target_submission: submissionId, expected_version: selected.current_version })}>Record subject review of this version</button>}
+        {role === "smeaCoordinator" && selected.current_version === 0 && !cycle?.locked_at && <details><summary className="cursor-pointer text-sm font-medium">Hand over an unsubmitted assignment</summary><form className="mt-3 space-y-3" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); void action("tanaw_handover_unsubmitted", { target_submission: selected.id, target_author: String(form.get("author")), expected_author: selectedSlot?.author_id, change_reason: String(form.get("reason")) }); }}>
+          <p className="text-xs leading-5 text-foreground/65">The original account and handover reason remain in history. Device drafts stay with the original account; deadlines and extensions stay unchanged.</p>
+          <label className="block text-sm">New assigned account<select name="author" required className={inputStyle} disabled={busy}><option value="">Select a replacement</option>{assignees.filter((member) => member.user_id !== selectedSlot?.author_id && (member.roles.includes("smeaCoordinator") || member.subject_ids.includes(selectedSlot?.subject_id ?? ""))).map((member) => <option key={member.user_id} value={member.user_id}>{member.email || member.user_id}</option>)}</select></label>
+          <label className="block text-sm">Handover reason<textarea name="reason" required maxLength={2000} className={inputStyle} disabled={busy} /></label><button className={buttonStyle} disabled={busy}>Record assignment handover</button>
+        </form></details>}
         {role === "smeaCoordinator" && !cycle?.locked_at && <form className="space-y-3" onSubmit={(event) => timedAction(event, "tanaw_extend_submission")}><h3 className="font-medium">Submission extension</h3><label className="block text-sm">Extension cutoff (Philippine time)<input name="deadline" type="datetime-local" step="60" required className={inputStyle} disabled={busy} /></label><label className="block text-sm">Reason<textarea name="reason" required maxLength={2000} className={inputStyle} disabled={busy} /></label><button className={buttonStyle} disabled={busy}>Grant this submission an extension</button></form>}
       </>}
-      {role === "smeaCoordinator" && !cycle?.locked_at && <details><summary className="cursor-pointer text-sm font-medium">Assign a submission</summary><form onSubmit={assign} className="mt-3 space-y-3"><label className="block text-sm">Assigned account ID<input name="author" required className={inputStyle} disabled={busy} /></label><label className="block text-sm">Assigned subject<input name="subject" required className={inputStyle} disabled={busy} /></label><label className="block text-sm">Class or reporting scope<input name="scope" required className={inputStyle} disabled={busy} /></label><label className="block text-sm">Assignment reason<textarea name="reason" required maxLength={2000} className={inputStyle} disabled={busy} /></label><button className={buttonStyle} disabled={busy}>Assign submission</button></form></details>}
+      {role === "smeaCoordinator" && !cycle?.locked_at && <details><summary className="cursor-pointer text-sm font-medium">Assign a submission</summary><form onSubmit={assign} className="mt-3 space-y-3"><label className="block text-sm">Assigned account<select name="author" required className={inputStyle} disabled={busy}><option value="">Select an active account</option>{assignees.map((member) => <option key={member.user_id} value={member.user_id}>{member.email || member.user_id}</option>)}</select></label><label className="block text-sm">Assigned subject<input name="subject" required className={inputStyle} disabled={busy} /></label><label className="block text-sm">Class or reporting scope<input name="scope" required className={inputStyle} disabled={busy} /></label><label className="block text-sm">Assignment reason<textarea name="reason" required maxLength={2000} className={inputStyle} disabled={busy} /></label><button className={buttonStyle} disabled={busy}>Assign submission</button></form></details>}
       {role === "smeaCoordinator" && <>
         {slots.filter((slot) => submissions.find((submission) => submission.slot_id === slot.id)?.current_version === 0).map((slot) => <label key={slot.id} className="block text-sm">Reason for missing {slot.scope_label}<input className={inputStyle} value={missingReasons[slot.id] ?? ""} disabled={busy} onChange={(event) => setMissingReasons({ ...missingReasons, [slot.id]: event.target.value })} /></label>)}
         <button type="button" className={buttonStyle} disabled={busy || slots.length === 0} onClick={() => void action("tanaw_prepare_packet", { target_cycle: cycleId, missing_reasons: slots.filter((slot) => submissions.find((submission) => submission.slot_id === slot.id)?.current_version === 0).map((slot) => ({ slotId: slot.id, reason: missingReasons[slot.id] ?? "" })) })}>Prepare a new school packet version</button>
