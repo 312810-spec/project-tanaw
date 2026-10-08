@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { SchoolWorkflow } from "@/app/components/school-workflow";
 import { ReportingCycles } from "@/app/components/reporting-cycles";
 import { createSupabaseBrowserClient } from "@/utils/supabase/client";
 
@@ -18,11 +19,12 @@ export function AccountWorkspace() {
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [selected, setSelected] = useState("");
   const [role, setRole] = useState("");
+  const [actorId, setActorId] = useState("");
   const [signedIn, setSignedIn] = useState(false);
   const [busy, setBusy] = useState(false);
   const load = useCallback(async () => {
     const request = ++generation.current;
-    setMemberships([]); setSelected(""); setRole(""); setSignedIn(false);
+    setMemberships([]); setSelected(""); setRole(""); setSignedIn(false); setActorId("");
     if (!configured) { setStatus("This installation is not configured for sign-in yet."); return; }
     setBusy(true);
     try {
@@ -30,7 +32,7 @@ export function AccountWorkspace() {
       const { data: identity, error: identityError } = await client.auth.getUser();
       if (request !== generation.current) return;
       if (identityError || !identity.user) { setStatus("Sign in with your assigned account to continue."); return; }
-      setSignedIn(true);
+      setSignedIn(true); setActorId(identity.user.id);
       const { data, error } = await client.from("tanaw_memberships")
         .select("school_id,roles,subject_ids").eq("user_id", identity.user.id).eq("active", true);
       if (request !== generation.current) return;
@@ -42,7 +44,7 @@ export function AccountWorkspace() {
       setMemberships(rows);
       if (rows.length === 0) { setStatus("Your account has no active school assignment. Contact the SMEA Coordinator."); return; }
       setSelected(rows[0].school_id); setRole(rows[0].roles[0] ?? "");
-      setStatus("School access loaded. Reporting actions are not connected yet.");
+      setStatus("School access loaded.");
     } catch { if (request === generation.current) setStatus("Unable to connect. Your school access has not been verified."); }
     finally { if (request === generation.current) setBusy(false); }
   }, []);
@@ -53,7 +55,7 @@ export function AccountWorkspace() {
     const { data: subscription } = client.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT") {
         generation.current++; setBusy(false);
-        setMemberships([]); setSelected(""); setRole(""); setSignedIn(false);
+        setMemberships([]); setSelected(""); setRole(""); setSignedIn(false); setActorId("");
         setStatus("Signed out. Sign in to continue.");
       }
     });
@@ -66,7 +68,7 @@ export function AccountWorkspace() {
     try {
       const { error } = await createSupabaseBrowserClient().auth.signOut();
       if (error) { setStatus("Sign-out could not be completed. Try again."); return; }
-      setMemberships([]); setSelected(""); setRole(""); setSignedIn(false); setStatus("Signed out.");
+      setMemberships([]); setSelected(""); setRole(""); setSignedIn(false); setActorId(""); setStatus("Signed out.");
     } catch { setStatus("Sign-out could not be completed. Try again."); }
     finally { setBusy(false); }
   }
@@ -90,11 +92,12 @@ export function AccountWorkspace() {
         <p className="text-sm text-foreground/70 sm:col-span-2">{membership.subject_ids.length} assigned subject scope(s). Role selection changes this view; database permissions come from your coordinator-managed assignments.</p>
       </div>}
       {membership && <ReportingCycles key={membership.school_id} schoolId={membership.school_id} canManage={membership.roles.includes("smeaCoordinator") && role === "smeaCoordinator"} />}
+      {membership && actorId && <SchoolWorkflow key={membership.school_id + role} schoolId={membership.school_id} role={role} actorId={actorId} />}
       <div className="flex flex-wrap gap-3">
         <button type="button" onClick={() => void load()} disabled={busy} className="rounded-lg border border-brand px-4 py-2 text-sm text-brand disabled:opacity-50">Refresh access</button>
         {signedIn ? <button type="button" onClick={() => void signOut()} disabled={busy} className="rounded-lg border border-foreground/20 px-4 py-2 text-sm disabled:opacity-50">Sign out</button> : <a href="/login" className="rounded-lg bg-brand px-4 py-2 text-sm text-white">Sign in</a>}
       </div>
-      <p className="text-xs leading-5 text-foreground/60">Class-record import and packet review are still being connected. No school results are shown until authorized records are available.</p>
+      <p className="text-xs leading-5 text-foreground/60">Class-record import is still being verified. No school results are shown until authorized records are available.</p>
     </div>
   );
 }

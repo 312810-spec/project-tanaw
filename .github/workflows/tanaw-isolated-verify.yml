@@ -50,7 +50,7 @@ jobs:
   local-supabase:
     name: Local Supabase smoke check (isolated)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -78,6 +78,23 @@ jobs:
         run: docker exec -i supabase_db_project-tanaw psql -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/submission-workflow-local.sql
       - name: Run baseline checks against local stack
         run: npm run verify
+      - name: Install isolated authenticated browser tooling
+        run: npm install --prefix /tmp/tanaw-browser --no-save --package-lock=false playwright@1.56.1
+      - name: Install authenticated Chromium
+        run: /tmp/tanaw-browser/node_modules/.bin/playwright install --with-deps chromium
+      - name: Verify authenticated synthetic school workflow
+        env:
+          TANAW_PLAYWRIGHT_MODULE: /tmp/tanaw-browser/node_modules/playwright
+        run: node scripts/verify_authenticated_browser.mjs
+      - name: Preserve authenticated synthetic UI screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tanaw-authenticated-synthetic-ui
+          path: artifacts/authenticated-ui/
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 14
       - name: Stop local stack
         if: always()
         run: npx --no-install supabase stop || true
