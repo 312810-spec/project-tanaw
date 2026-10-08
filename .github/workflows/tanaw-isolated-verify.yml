@@ -62,6 +62,8 @@ jobs:
         run: npx --no-install supabase start --ignore-health-check > /tmp/tanaw-supabase-start.log 2>&1 || { sed -E 's/(sb_secret_[A-Za-z0-9_-]+|eyJ[A-Za-z0-9_.-]+|[a-f0-9]{64})/[REDACTED]/g' /tmp/tanaw-supabase-start.log | tail -n 50; exit 1; }
       - name: Verify local stack reachability
         run: npm run verify:stack
+      - name: Verify SMEA local database constraints
+        run: docker exec -i supabase_db_project-tanaw psql -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/smea-registry-local.sql
       - name: Run baseline checks against local stack
         run: npm run verify
       - name: Stop local stack
