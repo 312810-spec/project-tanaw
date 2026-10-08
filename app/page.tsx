@@ -11,11 +11,11 @@ import Link from "next/link";
 
 const GOVERNANCE_CHAIN = [
   "Submit",
-  "Certify",
-  "Finalize",
-  "Endorse",
-  "Approve",
-  "Lock",
+  "Subject review",
+  "School review",
+  "Head review",
+  "School Lock",
+  "District review",
 ] as const;
 
 const PLANNED = [
@@ -74,7 +74,7 @@ export default function Home() {
 
           <div className="mt-4 flex flex-col gap-3">
             <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-foreground/50">
-              Authority sequence
+              Confirmed review sequence
             </span>
             <ol className="flex flex-wrap items-center gap-x-2 gap-y-3">
               {GOVERNANCE_CHAIN.map((step, index) => (
@@ -97,10 +97,11 @@ export default function Home() {
         </div>
 
         <div className="mt-12">
+          <Link href="/login" className="mb-4 mr-3 inline-flex rounded-md bg-brand px-4 py-2 text-sm font-medium text-white">Sign in to your workspace</Link>
           <Link href="/review" className="inline-flex rounded-md border border-brand px-4 py-2 text-sm font-medium text-brand hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
             View evidence review foundation
           </Link>
-          <p className="mt-2 text-xs text-foreground/60">Read-only preview · no live school evidence connected</p>
+          <p className="mt-2 text-xs text-foreground/60">Evidence preview is read-only · live school reporting is not yet connected</p>
         </div>
 
         <div className="mt-20 flex flex-col gap-5">
