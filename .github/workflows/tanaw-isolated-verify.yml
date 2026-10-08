@@ -57,7 +57,7 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
       - name: Start local-only Supabase
-        run: npx --no-install supabase start
+        run: npx --no-install supabase start --ignore-health-check > /tmp/tanaw-supabase-start.log 2>&1 || { sed -E 's/(sb_secret_[A-Za-z0-9_-]+|eyJ[A-Za-z0-9_.-]+|[a-f0-9]{64})/[REDACTED]/g' /tmp/tanaw-supabase-start.log | tail -n 50; exit 1; }
       - name: Verify local stack reachability
         run: npm run verify:stack
       - name: Run baseline checks against local stack
