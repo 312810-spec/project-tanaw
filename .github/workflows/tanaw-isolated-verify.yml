@@ -5,6 +5,9 @@ on:
     branches:
       - verify/remote-runner-workaround
   workflow_dispatch:
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
