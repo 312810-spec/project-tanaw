@@ -26,7 +26,7 @@ test('service worker never intercepts writes, API, auth or foreign requests', ()
 test('online navigation passes through, disconnected navigation receives public fallback', async () => {
   for (const online of [true, false]) {
     let response;
-    const { handlers } = worker(async () => { if (!online) throw new Error('Offline'); return new Response('Network response'); });
+    const { handlers } = worker(async (_request, options) => { assert.equal(options.cache, "no-store"); if (!online) throw new Error('Offline'); return new Response('Network response'); });
     handlers.fetch({ request: { method: 'GET', mode: 'navigate', url: 'https://fixture.invalid/workspace' }, respondWith: (promise) => { response = promise; } });
     assert.equal(await (await response).text(), online ? 'Network response' : 'Public fallback');
   }

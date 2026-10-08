@@ -11,5 +11,5 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/auth/")) return;
   if (request.method !== "GET" || request.mode !== "navigate" || url.origin !== self.location.origin) return;
-  event.respondWith(fetch(request).catch(async () => (await caches.match("/offline.html")) || new Response("TANAW is offline. Reconnect to reopen your workspace. Device drafts are preserved.", { status: 503, headers: { "Content-Type": "text/plain" } })));
+  event.respondWith(fetch(request, { cache: "no-store" }).catch(async () => (await caches.match("/offline.html")) || new Response("TANAW is offline. Reconnect to reopen your workspace. Device drafts are preserved.", { status: 503, headers: { "Content-Type": "text/plain" } })));
 });
