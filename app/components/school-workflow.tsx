@@ -1,7 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { createSupabaseBrowserClient } from "@/utils/supabase/client";
+
+import { ManualEvidenceForm } from "@/app/components/manual-evidence-form";
+import { workflowReminders } from "@/app/lib/workflow-reminders";
+import type { EvidenceDraft } from "@/app/lib/submission-drafts";
 
 type Cycle = { id: string; instructional_block_id: string; deadline_at: string; locked_at: string | null };
 type Slot = { id: string; author_id: string; subject_id: string; scope_label: string };
@@ -18,6 +22,9 @@ const buttonStyle = "rounded-lg border border-brand px-4 py-2 text-sm text-brand
 export function SchoolWorkflow({ schoolId, role, actorId }: { schoolId: string; role: string; actorId: string }) {
   const generation = useRef(0);
   const invalidate = useCallback(() => { generation.current++; }, []);
+  const [now, setNow] = useState<number>(NaN);
+  const [reviews, setReviews] = useState<{ submission_id: string; version: number }[]>([]);
+  useEffect(() => { const update = () => setNow(Date.now()); const timer = setInterval(update, 30000); queueMicrotask(update); return () => clearInterval(timer); }, []);
   const [status, setStatus] = useState("Loading school workflow…");
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -29,13 +36,14 @@ export function SchoolWorkflow({ schoolId, role, actorId }: { schoolId: string; 
   const [packets, setPackets] = useState<Packet[]>([]);
   const [district, setDistrict] = useState<DistrictPacket[]>([]);
   const [submissionId, setSubmissionId] = useState("");
+  const draftScope = useMemo(() => ({ actorId, schoolId, submissionId }), [actorId, schoolId, submissionId]);
   const [versions, setVersions] = useState<Version[]>([]);
   const [versionReady, setVersionReady] = useState(false);
   const [acknowledge, setAcknowledge] = useState(false);
   const [missingReasons, setMissingReasons] = useState<Record<string, string>>({});
   const load = useCallback(async () => {
     const request = ++generation.current;
-    setReady(false); setVersionReady(false); setSlots([]); setSubmissions([]); setPackets([]); setDistrict([]); setVersions([]);
+    setReady(false); setVersionReady(false); setSlots([]); setSubmissions([]); setPackets([]); setDistrict([]); setVersions([]); setReviews([]);
     try {
       const client = createSupabaseBrowserClient();
       if (role === "districtCoordinator") {
@@ -67,6 +75,10 @@ export function SchoolWorkflow({ schoolId, role, actorId }: { schoolId: string; 
       const submissionResult = visibleSlots.length ? await client.from("tanaw_submissions").select("id,slot_id,current_version,extension_until", { count: "exact" }).in("slot_id", visibleSlots.map((slot) => slot.id)).limit(500) : { data: [], error: null, count: 0 };
       if (request !== generation.current) return;
       if (submissionResult.error || submissionResult.count !== submissionResult.data?.length) throw new Error("Submission page is incomplete");
+      const reviewResult = submissionResult.data?.length ? await client.from("tanaw_submission_reviews").select("submission_id,version", { count: "exact" }).in("submission_id", submissionResult.data.map((submission) => submission.id)).limit(1000) : { data: [], error: null, count: 0 };
+      if (request !== generation.current) return;
+      if (reviewResult.error || reviewResult.count !== reviewResult.data?.length) throw new Error("Review page is incomplete");
+      setReviews(reviewResult.data ?? []); setNow(Date.now());
       setSubmissions(submissionResult.data ?? []); setReady(true); setStatus("School workflow loaded.");
     } catch { if (request === generation.current) setStatus("Workflow could not be loaded completely. Refresh access before taking an action."); }
   }, [schoolId, role, actorId, cycleId]);
@@ -88,28 +100,28 @@ export function SchoolWorkflow({ schoolId, role, actorId }: { schoolId: string; 
   const currentVersion = versions.find((version) => version.version === selected?.current_version);
   const cycle = cycles.find((entry) => entry.id === cycleId);
   const latest = packets[0];
+  const reminders = cycle ? workflowReminders(cycle.deadline_at, !!cycle.locked_at, submissions, reviews, now) : null;
   async function action(name: string, args: Record<string, unknown>) {
-    if (!ready || busy) return;
-    if (!navigator.onLine) { setStatus("Connect to the internet for submission and review actions."); return; }
+    if (!ready || busy) return false;
+    if (!navigator.onLine) { setStatus("Connect to the internet for submission and review actions."); return false; }
     const request = generation.current;
     setBusy(true); setStatus("Recording action…");
     try {
       const { error } = await createSupabaseBrowserClient().rpc(name, args);
-      if (request !== generation.current) return;
-      if (error) { setStatus(error.code === "40001" ? "The record changed. Refresh and review the current version before retrying." : "Action was not accepted. Check your assignment, deadline and required reviews, then refresh."); return; }
-      await load(); setStatus("Action recorded with its history.");
-    } catch { if (request === generation.current) setStatus("Connection interrupted. Refresh to check whether the action was recorded before retrying."); }
+      if (request !== generation.current) return false;
+      if (error) { setStatus(error.code === "40001" ? "The record changed. Refresh and review the current version before retrying." : "Action was not accepted. Check your assignment, deadline and required reviews, then refresh."); return false; }
+      await load(); setStatus("Action recorded with its history."); return true;
+    } catch { if (request === generation.current) setStatus("Connection interrupted. Refresh to check whether the action was recorded before retrying."); return false; }
     finally { setBusy(false); }
   }
-  function submitManual(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (!selected || !versionReady || (selected.current_version > 0 && !currentVersion)) return;
-    const form = new FormData(event.currentTarget);
-    const definitionId = String(form.get("definition")); const raw = String(form.get("value") ?? "");
+  async function submitManual(form: EvidenceDraft) {
+    if (!selected || !versionReady || (selected.current_version > 0 && !currentVersion)) return false;
+    const definitionId = form.definition; const raw = form.value;
     const value = Number(raw);
-    if (!raw.trim() || !Number.isFinite(value)) { setStatus("Enter a recorded numeric value. Leave missing evidence unsubmitted."); return; }
-    const entry: Entry = { definitionId, value, sourceTitle: String(form.get("sourceTitle") ?? "").trim(), sourceLocator: String(form.get("sourceLocator") ?? "").trim() };
+    if (!definitions.some((definition) => definition.id === definitionId) || !raw.trim() || !Number.isFinite(value)) { setStatus("Select a verified indicator and enter a recorded numeric value. Leave missing evidence unsubmitted."); return false; }
+    const entry: Entry = { definitionId, value, sourceTitle: form.sourceTitle.trim(), sourceLocator: form.sourceLocator.trim() };
     const entries = [...(currentVersion?.evidence.entries ?? []).filter((item) => item.definitionId !== definitionId), entry];
-    void action("tanaw_submit_evidence", { target_submission: selected.id, expected_version: selected.current_version, new_evidence: { kind: "manualIndicators", entries }, change_reason: String(form.get("reason") ?? "") });
+    return action("tanaw_submit_evidence", { target_submission: selected.id, expected_version: selected.current_version, new_evidence: { kind: "manualIndicators", entries }, change_reason: form.reason });
   }
   function assign(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); const form = new FormData(event.currentTarget);
@@ -139,20 +151,13 @@ export function SchoolWorkflow({ schoolId, role, actorId }: { schoolId: string; 
       </article>)}
     </>}
     {ready && cycleId && role !== "districtCoordinator" && <>
+      {reminders && <aside aria-label="Deadline reminders" className="space-y-2 rounded-lg bg-foreground/5 p-4"><h3 className="text-sm font-semibold">{reminders.deadline}</h3><p className="text-sm">{reminders.missing} missing submission(s) · {reminders.awaitingSubjectReview} awaiting current-version subject review · {reminders.activeExtensions} active extension(s)</p><p className="text-xs text-foreground/60">Counts cover your visible assignments. Deadline alerts use this device’s clock; the server controls editing and final actions.</p></aside>}
       {slots.length === 0 && <p className="text-sm">No visible submission assignments for this cycle.</p>}
       {submissions.length > 0 && <div><label htmlFor="workflow-submission" className="block text-sm font-medium">Assigned submission</label><select id="workflow-submission" className={inputStyle} value={submissionId} disabled={busy} onChange={(event) => setSubmissionId(event.target.value)}><option value="">Select a submission</option>{submissions.map((submission) => { const slot = slots.find((entry) => entry.id === submission.slot_id); return <option key={submission.id} value={submission.id}>{slot?.scope_label} · {slot?.subject_id} · {submission.current_version ? "Version " + submission.current_version : "Missing"}</option>; })}</select></div>}
       {selected && versionReady && <>
         <p className="text-sm">{versions.length} recent source version(s). Current version: {selected.current_version || "not submitted"}.</p>
         {currentVersion && <div className="space-y-2 rounded-lg bg-foreground/5 p-4"><h3 className="font-medium">Current recorded evidence</h3>{currentVersion.evidence.entries.map((entry) => <p key={entry.definitionId} className="break-words text-sm">{definitions.find((definition) => definition.id === entry.definitionId)?.label ?? "Recorded indicator"}: {entry.value} · {entry.sourceTitle} · {entry.sourceLocator}</p>)}</div>}
-        {(role === "teacher" || role === "smeaCoordinator") && <form onSubmit={submitManual} className="space-y-3">
-          <p className="text-sm text-foreground/65">Manual entry is for indicators without a class-record spreadsheet source. Class-record uploads remain unavailable while approved computations are being verified.</p>
-          <label className="block text-sm">Verified indicator<select name="definition" className={inputStyle} required disabled={busy || definitions.length === 0}><option value="">Select an indicator</option>{definitions.map((definition) => <option key={definition.id} value={definition.id}>{definition.label} ({definition.unit})</option>)}</select></label>
-          <label className="block text-sm">Recorded value<input name="value" type="number" step="any" required className={inputStyle} disabled={busy} /></label>
-          <label className="block text-sm">Evidence title<input name="sourceTitle" required maxLength={200} className={inputStyle} disabled={busy} /></label>
-          <label className="block text-sm">Evidence location or reference<input name="sourceLocator" required maxLength={1000} className={inputStyle} disabled={busy} /></label>
-          <label className="block text-sm">Reason for submission or correction<textarea name="reason" required maxLength={2000} className={inputStyle} disabled={busy} /></label>
-          <button className={buttonStyle} disabled={busy || definitions.length === 0}>Submit a new evidence version</button>
-        </form>}
+        {(role === "teacher" || (role === "smeaCoordinator" && selectedSlot?.author_id === actorId)) && <ManualEvidenceForm key={submissionId} scope={draftScope} version={selected.current_version} definitions={definitions} busy={busy} onSubmit={submitManual} />}
         {role === "subjectCoordinator" && <button type="button" className={buttonStyle} disabled={busy || !currentVersion || selectedSlot?.author_id === actorId} onClick={() => void action("tanaw_review_submission", { target_submission: submissionId, expected_version: selected.current_version })}>Record subject review of this version</button>}
         {role === "smeaCoordinator" && !cycle?.locked_at && <form className="space-y-3" onSubmit={(event) => timedAction(event, "tanaw_extend_submission")}><h3 className="font-medium">Submission extension</h3><label className="block text-sm">Extension cutoff (Philippine time)<input name="deadline" type="datetime-local" step="60" required className={inputStyle} disabled={busy} /></label><label className="block text-sm">Reason<textarea name="reason" required maxLength={2000} className={inputStyle} disabled={busy} /></label><button className={buttonStyle} disabled={busy}>Grant this submission an extension</button></form>}
       </>}
