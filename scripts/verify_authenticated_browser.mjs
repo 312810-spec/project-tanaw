@@ -99,6 +99,19 @@ try {
   assert.equal((await districtClient.auth.signInWithPassword(users.districtCoordinator)).error, null);
   const raw = await districtClient.from('tanaw_submission_versions').select('submission_id');
   assert.equal(raw.error, null); assert.deepEqual(raw.data, [], 'District must have no learner/source version access');
+  const access = coordinator.page.getByRole('region', { name: 'Manage school access' });
+  await access.getByLabel('Assigned account').selectOption(users.teacher.id);
+  await access.getByLabel('Access enabled').uncheck();
+  await access.getByLabel('Reason for access change').fill('Synthetic browser account disable');
+  await access.getByRole('button', { name: 'Save account access' }).click();
+  await access.getByText('Access updated. Authorship and submitted records remain preserved.', { exact: true }).waitFor();
+  await teacher.page.getByRole('button', { name: 'Refresh access', exact: true }).click();
+  await teacher.page.getByText('Your account has no active school assignment. Contact the SMEA Coordinator.', { exact: true }).waitFor();
+  const denied = createClient(url, publicKey, { auth: { persistSession: false } });
+  assert.equal((await denied.auth.signInWithPassword(users.teacher)).error, null);
+  const disabledRecords = await denied.from('tanaw_submission_versions').select('submission_id');
+  assert.equal(disabledRecords.error, null); assert.deepEqual(disabledRecords.data, [], 'Disabled account must lose source access');
+  await coordinator.page.screenshot({ path: output + '/coordinator-access-managed.png', fullPage: true });
   for (const entry of pages) { assert.deepEqual(entry.errors, [], entry.role + ' must have no uncaught browser errors'); assert.equal(await entry.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false); await entry.context.close(); }
   console.log('Authenticated synthetic browser acceptance passed: teacher zero submission, subject review, school review, independent Head review, explicit Lock, district acceptance and raw-data denial.');
 } finally {

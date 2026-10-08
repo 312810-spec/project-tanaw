@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SchoolWorkflow } from "@/app/components/school-workflow";
+import { MemberManagement } from "@/app/components/member-management";
 import { ReportingCycles } from "@/app/components/reporting-cycles";
 import { createSupabaseBrowserClient } from "@/utils/supabase/client";
 
@@ -15,6 +16,7 @@ const configured = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.N
 
 export function AccountWorkspace() {
   const generation = useRef(0);
+  const invalidate = useCallback(() => { generation.current++; }, []);
   const [status, setStatus] = useState("Checking your account…");
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [selected, setSelected] = useState("");
@@ -49,7 +51,8 @@ export function AccountWorkspace() {
     finally { if (request === generation.current) setBusy(false); }
   }, []);
   useEffect(() => {
-    void load();
+    let cancelled = false;
+    queueMicrotask(() => { if (!cancelled) void load(); });
     if (!configured) return;
     const client = createSupabaseBrowserClient();
     const { data: subscription } = client.auth.onAuthStateChange((event) => {
@@ -59,8 +62,8 @@ export function AccountWorkspace() {
         setStatus("Signed out. Sign in to continue.");
       }
     });
-    return () => { generation.current++; subscription.subscription.unsubscribe(); };
-  }, [load]);
+    return () => { cancelled = true; invalidate(); subscription.subscription.unsubscribe(); };
+  }, [load, invalidate]);
   const membership = memberships.find((m) => m.school_id === selected);
   async function signOut() {
     generation.current++;
@@ -93,6 +96,7 @@ export function AccountWorkspace() {
       </div>}
       {membership && <ReportingCycles key={membership.school_id} schoolId={membership.school_id} canManage={membership.roles.includes("smeaCoordinator") && role === "smeaCoordinator"} />}
       {membership && actorId && <SchoolWorkflow key={membership.school_id + role} schoolId={membership.school_id} role={role} actorId={actorId} />}
+      {membership && actorId && role === "smeaCoordinator" && <MemberManagement key={membership.school_id} schoolId={membership.school_id} actorId={actorId} />}
       <div className="flex flex-wrap gap-3">
         <button type="button" onClick={() => void load()} disabled={busy} className="rounded-lg border border-brand px-4 py-2 text-sm text-brand disabled:opacity-50">Refresh access</button>
         {signedIn ? <button type="button" onClick={() => void signOut()} disabled={busy} className="rounded-lg border border-foreground/20 px-4 py-2 text-sm disabled:opacity-50">Sign out</button> : <a href="/login" className="rounded-lg bg-brand px-4 py-2 text-sm text-white">Sign in</a>}
