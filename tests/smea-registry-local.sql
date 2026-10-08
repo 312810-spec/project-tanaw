@@ -11,7 +11,7 @@ begin
      or not (select relrowsecurity from pg_class where oid = 'public.smea_indicator_evidence'::regclass) then
     raise exception 'SMEA RLS not enabled';
   end if;
-  if has_table_privilege('authenticated', 'public.smea_indicator_definitions', 'SELECT')
+  if has_table_privilege('authenticated', 'public.smea_indicator_definitions', 'INSERT,UPDATE,DELETE')
     or has_table_privilege('authenticated', 'public.smea_indicator_evidence', 'INSERT')
     or has_table_privilege('anon', 'public.smea_indicator_definitions', 'SELECT') then
     raise exception 'SMEA client grants are not fail-closed';
