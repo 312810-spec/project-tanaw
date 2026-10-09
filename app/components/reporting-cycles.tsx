@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { clearFormDirty } from "@/app/components/unsaved-work";
+import { workflowError } from "@/app/lib/workflow-ux";
 import { createSupabaseBrowserClient } from "@/utils/supabase/client";
 
 type Block = { id: string; school_year: string; label: string; end_date: string; source_order: string; source_url: string };
@@ -44,6 +46,7 @@ export function ReportingCycles({ schoolId, canManage }: { schoolId: string; can
   }, [load, invalidate]);
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const formElement = event.currentTarget;
     if (!ready || busy || refreshing || stale || !canManage || !blocks.some((block) => block.id === blockId)) return;
     if (!navigator.onLine) { setStatus("Connect to the internet to save a deadline."); return; }
     if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(deadline)) { setStatus("Enter a valid deadline in Philippine time."); return; }
@@ -66,10 +69,10 @@ export function ReportingCycles({ schoolId, canManage }: { schoolId: string; can
       });
       if (request !== generation.current) return;
       if (error) {
-        setStatus(error.code === "40001" ? "Another coordinator changed this cycle. Refresh before trying again." : "Deadline could not be saved. Refresh access and check whether the cycle has closed.");
+        setStatus(workflowError(error.code, error.message));
         return;
       }
-      setReason(""); setDeadline("");
+      clearFormDirty(formElement); setReason(""); setDeadline("");
       const refreshed = await load();
       setStatus(refreshed ? "Deadline saved with its change history." : "Deadline saved, but cycles could not be refreshed. Retry refresh before saving another change.");
     } catch { if (request === generation.current) setStatus("Connection interrupted. Refresh cycles before retrying to check whether the change was saved."); }

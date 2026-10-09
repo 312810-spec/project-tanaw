@@ -1,13 +1,6 @@
 import Link from "next/link";
 
-/**
- * Project TANAW — application identity shell.
- *
- * This is a foundation-stage shell, not a working product surface. The
- * capabilities listed below are planned and are presented as such; none of
- * them are implemented yet. No Supabase query, auth, or data workflow runs
- * on this page.
- */
+/** Public introduction. Workspace availability depends on authentication and school assignments. */
 
 const GOVERNANCE_CHAIN = [
   "Submit",
@@ -18,14 +11,14 @@ const GOVERNANCE_CHAIN = [
   "District review",
 ] as const;
 
-const PLANNED = [
+const CAPABILITIES = [
   {
-    title: "Governed packet consolidation",
-    body: "School MEA packets travel the governance chain — teacher to district — instead of raw district-wide submissions.",
+    title: "School submissions and review",
+    body: "Assigned accounts can record manual indicator evidence, review versions, and prepare a school packet with explicit review and Lock.",
   },
   {
-    title: "Evidence to district outputs",
-    body: "Evidence is assembled into subject, school, and district MEA packets that the district actually consumes.",
+    title: "District process review",
+    body: "The district sees locked packet process status and can return correction requests. Acceptance waits for governed indicator results.",
   },
   {
     title: "Explicit status semantics",
@@ -49,9 +42,9 @@ export default function Home() {
           </div>
           <span
             className="ml-auto hidden items-center rounded-full border border-gold/50 px-3 py-1 font-mono text-[11px] uppercase tracking-wider text-accent-text sm:inline-flex"
-            aria-label="Build stage: foundation"
+            aria-label="Build stage: development"
           >
-            Foundation stage
+            Development build
           </span>
         </div>
       </header>
@@ -101,20 +94,20 @@ export default function Home() {
           <Link href="/review" className="inline-flex rounded-md border border-brand px-4 py-2 text-sm font-medium text-brand hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
             View evidence review foundation
           </Link>
-          <p className="mt-2 text-xs text-foreground/60">Evidence preview is read-only · live school reporting is not yet connected</p>
+          <p className="mt-2 text-xs text-foreground/60">Evidence preview is read-only. Sign-in, verified indicators and school assignments are required for the workspace.</p>
         </div>
 
         <div className="mt-20 flex flex-col gap-5">
           <div className="flex items-baseline gap-3">
             <h2 className="text-xl font-semibold tracking-tight">
-              Planned capabilities
+              Workspace capabilities
             </h2>
             <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-foreground/65">
-              Not yet available
+              Configured access required
             </span>
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
-            {PLANNED.map(({ title, body }) => (
+            {CAPABILITIES.map(({ title, body }) => (
               <div
                 key={title}
                 className="flex flex-col gap-2 rounded-lg border border-black/[.08] p-5 dark:border-white/[.12]"
@@ -127,10 +120,7 @@ export default function Home() {
             ))}
           </div>
           <p className="max-w-2xl text-sm leading-relaxed text-foreground/65">
-            The Supabase client foundation and a local connectivity probe are in
-            place, but the capabilities above are design intent only. They are
-            listed here so the platform&rsquo;s direction is clear, not to imply
-            working features.
+            Class-record uploads, governed district results and AI-generated charts remain unavailable while their approved source and computation contracts are verified. No official data or approval is implied by this development build.
           </p>
         </div>
       </main>

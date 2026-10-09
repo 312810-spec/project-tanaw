@@ -20,7 +20,7 @@ export async function GET(request: Request) {
       }
     } catch { /* Invalid/unconfigured session returns the same recovery destination. */ }
   }
-  const response = NextResponse.redirect(new URL("/forgot-password", origin));
+  const response = NextResponse.redirect(new URL("/forgot-password?recovery=expired", origin));
   response.headers.set("Cache-Control", "no-store"); response.headers.set("Referrer-Policy", "no-referrer");
   return response;
 }

@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { confirmLeavingWork, clearFormDirty } from "@/app/components/unsaved-work";
+import { workflowError } from "@/app/lib/workflow-ux";
 import { createSupabaseBrowserClient } from "@/utils/supabase/client";
 
 type Member = { user_id: string; email: string; roles: string[]; subject_ids: string[]; active: boolean; revision: number };
@@ -42,7 +44,8 @@ export function MemberManagement({ schoolId, actorId }: { schoolId: string; acto
     event.preventDefault();
     if (!ready || busy || refreshing || stale || !selected || selected.user_id === actorId) return;
     if (!navigator.onLine) { setMessage("Connect to the internet to change account access."); return; }
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const subjects = [...new Set(String(form.get("subjects") ?? "").split(",").map((value) => value.trim()).filter(Boolean))];
     const assignedRoles = form.getAll("roles").map(String);
     if (!assignedRoles.length) { setMessage("Select at least one role. Use Disable access to suspend the account."); return; }
@@ -56,7 +59,8 @@ export function MemberManagement({ schoolId, actorId }: { schoolId: string; acto
         change_reason: String(form.get("reason") ?? "").trim(), expected_revision: selected.revision,
       });
       if (request !== generation.current) return;
-      if (error) { setMessage(error.code === "40001" ? "Another coordinator changed this account. Refresh and review the current access." : "Access change was rejected. Check your permission and the recorded reason."); return; }
+      if (error) { setMessage(workflowError(error.code, error.message)); return; }
+      clearFormDirty(formElement);
       const refreshed = await load(); setMessage(refreshed ? "Access updated. Authorship and submitted records remain preserved." : "Access updated, but the directory could not be refreshed. Retry refresh before making another change.");
     } catch { if (request === generation.current) setMessage("Connection interrupted. Refresh to check the access history before retrying."); }
     finally { setBusy(false); }
@@ -66,11 +70,11 @@ export function MemberManagement({ schoolId, actorId }: { schoolId: string; acto
     <p role="status" aria-live="polite" className="text-sm">{message}</p>
     <fieldset disabled={busy || refreshing || stale} className="min-w-0 space-y-4">
     {ready && <>
-      <label className="block text-sm">Assigned account<select className={input} value={selectedId} disabled={busy} onChange={(event) => setSelectedId(event.target.value)}><option value="">Select an account</option>{members.map((member) => <option key={member.user_id} value={member.user_id}>{member.email || member.user_id}{member.active ? "" : " · disabled"}</option>)}</select></label>
+      <label className="block text-sm">Assigned account<select className={input} value={selectedId} disabled={busy} onChange={(event) => { if (confirmLeavingWork(event.currentTarget.closest("section"))) setSelectedId(event.target.value); }}><option value="">Select an account</option>{members.map((member) => <option key={member.user_id} value={member.user_id}>{member.email || member.user_id}{member.active ? "" : " · disabled"}</option>)}</select></label>
       {selected && selected.user_id === actorId && <p className="text-sm">Your own privileges cannot be changed from this workspace.</p>}
       {selected && selected.user_id !== actorId && <form key={selected.user_id + selected.revision} onSubmit={save} className="space-y-4">
         <fieldset disabled={busy} className="space-y-2"><legend className="mb-2 text-sm font-medium">Assigned roles</legend>{Object.entries(roles).map(([value, label]) => <label key={value} className="flex items-center gap-2 text-sm"><input type="checkbox" name="roles" value={value} defaultChecked={selected.roles.includes(value)} />{label}</label>)}</fieldset>
-        <label className="block text-sm">Subject scopes (comma separated)<input name="subjects" defaultValue={selected.subject_ids.join(", ")} className={input} maxLength={2000} disabled={busy} /><span className="text-xs text-foreground/60">Use the exact subject identifiers assigned to submissions.</span></label>
+        <label className="block text-sm">Subject scopes (exact identifiers, comma separated)<input name="subjects" list="known-subject-scopes" defaultValue={selected.subject_ids.join(", ")} className={input} maxLength={2000} disabled={busy} /><datalist id="known-subject-scopes">{[...new Set(members.flatMap((member) => member.subject_ids))].sort().map((id) => <option key={id} value={id} />)}</datalist><span className="text-xs text-foreground/60">Suggestions come from provisioned school scopes. Separate multiple exact identifiers with commas; a new identifier needs an explicit school assignment.</span></label>
         <label className="flex items-center gap-2 text-sm"><input name="active" type="checkbox" defaultChecked={selected.active} disabled={busy} />Access enabled</label>
         <label className="block text-sm">Reason for access change<textarea name="reason" required maxLength={2000} className={input} disabled={busy} /></label>
         <p className="text-xs leading-5 text-foreground/65">Disabling access preserves records. Reassign unfinished work through a separate recorded handover before regular use.</p>
@@ -79,7 +83,7 @@ export function MemberManagement({ schoolId, actorId }: { schoolId: string; acto
       <details><summary className="cursor-pointer text-sm font-medium">Recent access history</summary><ul className="mt-3 space-y-3">{events.map((entry) => <li key={entry.id} className="break-words text-sm">{members.find((member) => member.user_id === entry.target_user_id)?.email || entry.target_user_id} · {entry.reason}<br /><span className="text-xs text-foreground/60">{new Date(entry.occurred_at).toLocaleString("en-PH", { timeZone: "Asia/Manila" })} · by {members.find((member) => member.user_id === entry.actor_id)?.email || entry.actor_id}</span></li>)}</ul>{!events.length && <p className="mt-3 text-sm">No access changes recorded.</p>}</details>
     </>}
     </fieldset>
-    <button type="button" disabled={busy || refreshing} className="text-sm underline underline-offset-4" onClick={() => void load()}>Refresh assigned accounts</button>
+    <button type="button" disabled={busy || refreshing} className="text-sm underline underline-offset-4" onClick={() => { if (confirmLeavingWork()) void load(); }}>Refresh assigned accounts</button>
     <p className="text-xs leading-5 text-foreground/60">This view manages provisioned accounts. Secure creation and recovery require the configured authentication service.</p>
   </section>;
 }

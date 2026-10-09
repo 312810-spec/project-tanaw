@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import { clearFormDirty } from "@/app/components/unsaved-work";
 import { decodeDraft, draftKey, emptyDraft, preserveUnreadableDraft, type DraftScope, type EvidenceDraft } from "@/app/lib/submission-drafts";
 
 const input = "w-full min-w-0 rounded-lg border border-foreground/20 bg-background p-3 text-sm";
@@ -41,9 +42,11 @@ export function ManualEvidenceForm({ scope, version, definitions, busy, onSubmit
   }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const formElement = event.currentTarget;
     if (!loaded || busy || unreadable !== null || draftVersion !== version) return;
     if (!navigator.onLine) { persist(fields, draftVersion); return; }
     if (await onSubmit(fields)) {
+      clearFormDirty(formElement);
       try { localStorage.removeItem(key); } catch { setMessage("Submission recorded; the device draft could not be cleared."); }
     }
   }
