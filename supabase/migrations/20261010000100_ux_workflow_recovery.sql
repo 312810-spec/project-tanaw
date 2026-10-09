@@ -144,7 +144,7 @@ alter table public.tanaw_district_decisions add column request_id uuid;
 create unique index tanaw_district_request on public.tanaw_district_decisions(packet_id,reviewer_id,request_id) where request_id is not null;
 create function public.tanaw_district_review_request(target_packet uuid,decision text,review_comment text,request_id uuid,expected_decision_id uuid)
 returns void language plpgsql security definer set search_path='' as $$
-declare p public.tanaw_school_packets; existing public.tanaw_district_decisions; latest_id uuid;
+declare p public.tanaw_school_packets; existing public.tanaw_district_decisions; latest public.tanaw_district_decisions; latest_id uuid;
 begin
  select * into p from public.tanaw_school_packets where id=target_packet for update;
  if not found or not tanaw_private.has_school_role(p.school_id,array['districtCoordinator']) then raise exception 'Assigned district reviewer required' using errcode='42501'; end if;
@@ -154,8 +154,10 @@ begin
   if existing.action<>decision or existing.comment<>review_comment then raise exception 'Request identity payload conflict' using errcode='40001'; end if;
   return;
  end if;
- select id into latest_id from public.tanaw_district_decisions where packet_id=p.id order by decision_revision desc limit 1;
+ select * into latest from public.tanaw_district_decisions where packet_id=p.id order by decision_revision desc limit 1;
+ latest_id=latest.id;
  if latest_id is distinct from expected_decision_id then raise exception 'District decision changed; refresh feedback' using errcode='40001'; end if;
+ if latest.reviewer_id=auth.uid() and latest.action=decision and latest.comment=review_comment then return; end if;
  insert into public.tanaw_district_decisions(packet_id,reviewer_id,action,comment,request_id) values(p.id,auth.uid(),decision,review_comment,request_id);
  insert into public.tanaw_workflow_events(school_id,cycle_id,actor_id,action,target_id,reason) values(p.school_id,p.cycle_id,auth.uid(),'districtreturn',p.id,review_comment);
 end; $$;

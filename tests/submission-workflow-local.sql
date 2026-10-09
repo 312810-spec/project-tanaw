@@ -143,6 +143,8 @@ do $$ begin
 end $$;
 select pg_temp.must_deny(format('select public.tanaw_district_review_request(%L,%L,%L,%L,null)',(select id from fixture_targets where label='packet1'),'return',' ','46000000-0000-0000-0000-000000000001'),'22023');
 select public.tanaw_district_review_request((select id from fixture_targets where label='packet1'),'return','Synthetic return comment','46000000-0000-0000-0000-000000000001',null);
+-- Reloaded retries with a fresh request identity also reconcile the unchanged decision.
+select public.tanaw_district_review_request((select id from fixture_targets where label='packet1'),'return','Synthetic return comment','46000000-0000-0000-0000-000000000009',(select id from public.tanaw_district_decisions where packet_id=(select id from fixture_targets where label='packet1')));
 -- A retry after an interrupted response reconciles rather than duplicating.
 select public.tanaw_district_review_request((select id from fixture_targets where label='packet1'),'return','Synthetic return comment','46000000-0000-0000-0000-000000000001',null);
 select pg_temp.must_deny(format('select public.tanaw_district_review_request(%L,%L,%L,%L,null)',(select id from fixture_targets where label='packet1'),'return','Changed payload','46000000-0000-0000-0000-000000000001'),'40001');

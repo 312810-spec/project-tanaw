@@ -28,6 +28,7 @@ export function AccountWorkspace() {
   const [busy, setBusy] = useState(false);
   const [accessVerified, setAccessVerified] = useState(false);
   const selection = useRef({ school: "", role: "" });
+  const identityId = useRef("");
   useEffect(() => { selection.current = { school: selected, role }; }, [selected, role]);
   const load = useCallback(async () => {
     const request = ++generation.current;
@@ -39,6 +40,8 @@ export function AccountWorkspace() {
       const { data: identity, error: identityError } = await client.auth.getUser();
       if (request !== generation.current) return;
       if (identityError || !identity.user) { setMemberships([]); setSelected(""); setRole(""); setSignedIn(false); setActorId(""); setStatus("Sign in with your assigned account to continue."); return; }
+      if (identityId.current && identityId.current !== identity.user.id) { setMemberships([]); setSelected(""); setRole(""); selection.current = { school: "", role: "" }; }
+      identityId.current = identity.user.id;
       setSignedIn(true); setActorId(identity.user.id);
       const { data, error } = await client.from("tanaw_memberships")
         .select("school_id,roles,subject_ids").eq("user_id", identity.user.id).eq("active", true);

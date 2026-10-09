@@ -5,8 +5,9 @@ import { clearFormDirty } from "@/app/components/unsaved-work";
 import { decodeDraft, draftKey, emptyDraft, preserveUnreadableDraft, type DraftScope, type EvidenceDraft } from "@/app/lib/submission-drafts";
 
 const input = "w-full min-w-0 rounded-lg border border-foreground/20 bg-background p-3 text-sm";
-export function ManualEvidenceForm({ scope, version, definitions, busy, onSubmit }: {
+export function ManualEvidenceForm({ scope, version, definitions, recordedEntries = [], canSubmit = true, eligibility, busy, onSubmit }: {
   scope: DraftScope; version: number; definitions: { id: string; label: string; unit: string }[];
+  recordedEntries?: { definitionId: string; value: number; sourceTitle: string; sourceLocator: string }[]; canSubmit?: boolean; eligibility?: string;
   busy: boolean; onSubmit: (fields: EvidenceDraft) => Promise<boolean>;
 }) {
   const [fields, setFields] = useState<EvidenceDraft>(emptyDraft);
@@ -43,13 +44,20 @@ export function ManualEvidenceForm({ scope, version, definitions, busy, onSubmit
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formElement = event.currentTarget;
-    if (!loaded || busy || unreadable !== null || draftVersion !== version) return;
+    if (!canSubmit || !loaded || busy || unreadable !== null || draftVersion !== version) return;
     if (!navigator.onLine) { persist(fields, draftVersion); return; }
     if (await onSubmit(fields)) {
-      clearFormDirty(formElement);
-      try { localStorage.removeItem(key); } catch { setMessage("Submission recorded; the device draft could not be cleared."); }
+      clearFormDirty(formElement); setFields(emptyDraft); setDraftVersion(version + 1);
+      try { localStorage.removeItem(key); setMessage("Submission recorded; working device draft cleared. The retained recovery copy, if any, remains available."); } catch { setMessage("Submission recorded; the device draft could not be cleared."); }
     }
   }
+  function chooseIndicator(id: string) {
+    if (fields.definition && fields.definition !== id && (fields.value || fields.sourceTitle || fields.sourceLocator) && !window.confirm("Switch indicators and replace the current entry fields with the selected recorded evidence? Cancel to keep these unsent edits.")) return;
+    const entry = recordedEntries.find((entry) => entry.definitionId === id);
+    const next = { ...fields, definition: id, value: entry ? String(entry.value) : "", sourceTitle: entry?.sourceTitle ?? "", sourceLocator: entry?.sourceLocator ?? "" };
+    setFields(next); persist(next, draftVersion);
+  }
+  const original = recordedEntries.find((entry) => entry.definitionId === fields.definition);
   function download(raw: string) {
     const url = URL.createObjectURL(new Blob([raw], { type: "text/plain;charset=utf-8" }));
     const link = document.createElement("a"); link.href = url; link.download = "TANAW-unreadable-draft.txt"; link.click(); URL.revokeObjectURL(url);
@@ -62,15 +70,17 @@ export function ManualEvidenceForm({ scope, version, definitions, busy, onSubmit
       catch { setMessage("Could not retain a recovery copy. The original remains protected; download it before contacting support."); }
     }}>Retain original and start a new draft</button></div>}
     {recovery !== null && <button type="button" className="text-sm underline" onClick={() => download(recovery)}>Download retained recovery copy</button>}
+    {eligibility && <p className="text-sm">{eligibility}</p>}
+    {original && <p className="break-words text-sm">Correction review · Recorded: {original.value} · Proposed: {fields.value || "not entered"}<br />Recorded source: {original.sourceTitle} · {original.sourceLocator}<br />Proposed source: {fields.sourceTitle} · {fields.sourceLocator}. Submitting preserves the old version and requires new reviews.</p>}
     {definitions.length === 0 && <p className="text-sm">No verified indicators are available for this reporting period. Ask your SMEA Coordinator to verify the indicator registry. Unsent edits remain available here.</p>}
-    {loaded && draftVersion !== version && <div className="space-y-2 rounded-lg border border-gold/50 p-3 text-sm"><p>This draft started from version {draftVersion}; the server now has version {version}. Compare the current evidence before using these edits.</p><button type="button" disabled={busy} className="underline" onClick={() => { setDraftVersion(version); persist(fields, version); }}>I reviewed current evidence; use this draft for the current version</button></div>}
+    {loaded && draftVersion !== version && <div className="space-y-2 rounded-lg border border-gold/50 p-3 text-sm"><p>This draft started from version {draftVersion}; the last verified view shows version {version}. Compare the current evidence before using these edits.</p><button type="button" disabled={busy} className="underline" onClick={() => { setDraftVersion(version); persist(fields, version); }}>I reviewed current evidence; use this draft for the current version</button></div>}
     <fieldset disabled={busy || !loaded || unreadable !== null} className="space-y-3">
-      <label className="block text-sm">Verified indicator<select name="definition" className={input} required value={fields.definition} onChange={(event) => change("definition", event.target.value)}><option value="">Select an indicator</option>{definitions.map((definition) => <option key={definition.id} value={definition.id}>{definition.label} ({definition.unit})</option>)}</select></label>
+      <label className="block text-sm">Verified indicator<select name="definition" className={input} required value={fields.definition} onChange={(event) => chooseIndicator(event.target.value)}><option value="">Select an indicator</option>{definitions.map((definition) => <option key={definition.id} value={definition.id}>{definition.label} ({definition.unit})</option>)}</select></label>
       <label className="block text-sm">Recorded value<input name="value" type="number" step="any" required className={input} value={fields.value} onChange={(event) => change("value", event.target.value)} /></label>
       <label className="block text-sm">Evidence title<input name="sourceTitle" required maxLength={200} className={input} value={fields.sourceTitle} onChange={(event) => change("sourceTitle", event.target.value)} /></label>
       <label className="block text-sm">Evidence location or reference<input name="sourceLocator" required maxLength={1000} className={input} value={fields.sourceLocator} onChange={(event) => change("sourceLocator", event.target.value)} /></label>
       <label className="block text-sm">Reason for submission or correction<textarea name="reason" required maxLength={2000} className={input} value={fields.reason} onChange={(event) => change("reason", event.target.value)} /></label>
-      <button className="rounded-lg border border-brand px-4 py-2 text-sm text-brand disabled:opacity-50" disabled={draftVersion !== version || definitions.length === 0}>Submit a new evidence version</button>
+      <button className="rounded-lg border border-brand px-4 py-2 text-sm text-brand disabled:opacity-50" disabled={!canSubmit || draftVersion !== version || definitions.length === 0}>Submit a new evidence version</button>
     </fieldset>
   </form>;
 }

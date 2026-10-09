@@ -1,5 +1,7 @@
 # Project TANAW — Operating Rules and Safety Record
 
+> Current implementation reference: `docs/confirmed-decisions-2026-10-08.md` governs the review sequence: Submit → Subject review → School review → Independent School Head review → Explicit SMEA Coordinator Lock → District review. Earlier phase descriptions below are historical; district acceptance is separate from Lock and awaits governed result content. Autonomous UX repair and branch publishing are authorized in the current task; hosted changes and deployment still require separate authorization.
+
 **Project:** Project TANAW — West 1 District MEA Platform
 
 **Development rule:** Issue → Workaround → Record. This file is the Record.

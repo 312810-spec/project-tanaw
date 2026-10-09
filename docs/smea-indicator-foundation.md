@@ -1,5 +1,7 @@
 # SMEA indicator foundation — implementation checkpoint
 
+> Current implementation reference: `docs/confirmed-decisions-2026-10-08.md` governs the review sequence: Submit → Subject review → School review → Independent School Head review → Explicit SMEA Coordinator Lock → District review. Earlier phase descriptions below are historical; district acceptance is separate from Lock and awaits governed result content. Autonomous UX repair and branch publishing are authorized in the current task; hosted changes and deployment still require separate authorization.
+
 Status: **PROVISIONAL vertical slice**. This is a source/evidence type model and tested arithmetic boundary, not an official Division DMET dictionary, not a reporting database, and not a submission workflow.
 
 ## Evidence and provenance

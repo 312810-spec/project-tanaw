@@ -51,6 +51,14 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
+button,
+summary {
+  min-height: 2.75rem;
+}
+summary {
+  padding-block: 0.5rem;
+}
+
 /* Visible keyboard focus for the interactive elements this shell exposes. */
 a:focus-visible,
 button:focus-visible,

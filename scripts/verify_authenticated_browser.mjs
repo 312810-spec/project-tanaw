@@ -32,7 +32,7 @@ for (const [role, user] of Object.entries(users)) sql += `insert into public.tan
 sql += `insert into public.tanaw_instructional_blocks(id,school_year,label,end_date,source_order,source_url,verified_at) values(${q(block)},'Fixture','Synthetic block',current_date-1,'SYNTHETIC','https://fixture.invalid/calendar',now());\n`;
 sql += `insert into public.tanaw_reporting_cycles(id,school_id,instructional_block_id,deadline_at,created_by) values(${q(cycle)},${q(school)},${q(block)},now()+interval '1 day',${q(users.smeaCoordinator.id)});\n`;
 sql += `insert into public.smea_indicator_definitions(id,school_id,indicator_code,label,unit,school_year,reporting_period,definition_status,source_id,source_title,source_locator,formula_expression,numerator_definition,denominator_definition,rounding_rule) values(${q(definition)},${q(school)},'FIXTURE','Synthetic manual indicator','count','Fixture','Synthetic block','verified','fixture','Synthetic source','https://fixture.invalid/indicator','fixture expression','fixture numerator','fixture denominator','fixture rounding');\n`;
-sql += `begin; set local role authenticated; select set_config('request.jwt.claim.sub',${q(users.smeaCoordinator.id)},true); select public.tanaw_assign_submission(${q(cycle)},${q(users.teacher.id)},'math','Synthetic class A','Synthetic browser assignment'); commit;`;
+sql += `begin; set local role authenticated; select set_config('request.jwt.claim.sub',${q(users.smeaCoordinator.id)},true); select public.tanaw_assign_submission(${q(cycle)},${q(users.teacher.id)},'math','Synthetic class A','Synthetic browser assignment'); select public.tanaw_set_slot_requirements((select id from public.tanaw_submissions where slot_id in (select id from public.tanaw_submission_slots where cycle_id=${q(cycle)})),0,array[${q(definition)}::uuid],'Synthetic browser requirements'); commit;`;
 const seed = spawnSync('docker', ['exec', '-i', 'supabase_db_project-tanaw', 'psql', '-U', 'postgres', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1'], { input: sql, encoding: 'utf8' });
 assert.equal(seed.status, 0, 'Synthetic local workflow setup must succeed');
 const build = spawnSync('npm', ['run', 'build'], { env: { ...process.env, NEXT_PUBLIC_SUPABASE_URL: url, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publicKey }, stdio: 'inherit' });
@@ -51,6 +51,7 @@ try {
   async function login(role) {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
     const page = await context.newPage();
+    page.on('dialog', (dialog) => dialog.accept());
     const errors = []; page.on('pageerror', (error) => errors.push(error.message));
     await page.route('**/*', (route) => { const target = new URL(route.request().url()); return [origin, url].includes(target.origin) || target.protocol === 'data:' ? route.continue() : route.abort(); });
     await page.goto(origin + '/login');
@@ -82,7 +83,7 @@ try {
   await teacher.page.context().setOffline(true);
   await teacher.ui.getByLabel('Evidence title').fill('Synthetic offline recorded zero');
   await teacher.ui.getByRole('button', { name: 'Submit a new evidence version' }).click();
-  await teacher.ui.getByText('Offline draft retained. Reconnect and refresh before submitting.', { exact: true }).waitFor();
+  await teacher.ui.getByText('Offline draft saved. Submit after reconnecting and refreshing access.', { exact: true }).waitFor();
   const deviceDraft = await teacher.page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith('tanaw:manual-draft:')).map((key) => JSON.parse(localStorage.getItem(key))));
   assert.equal(deviceDraft.length, 1); assert.equal(deviceDraft[0].fields.value, '0');
   assert.equal(deviceDraft[0].scope.actorId, users.teacher.id); assert.equal(deviceDraft[0].sourceVersion, 0);
@@ -116,6 +117,8 @@ try {
   await coordinator.ui.getByText('Locked · complete', { exact: true }).waitFor();
   await coordinator.page.screenshot({ path: output + '/coordinator-locked.png', fullPage: true });
   const district = await login('districtCoordinator');
+  await district.ui.getByLabel('Decision', { exact: true }).selectOption('return');
+  await district.ui.getByLabel('Review comments').fill('Synthetic governed result projection pending');
   await district.ui.getByRole('button', { name: 'Record district decision' }).click();
   await district.ui.getByText('Action recorded with its history.', { exact: true }).waitFor();
   await district.page.screenshot({ path: output + '/district-aggregate.png', fullPage: true });
