@@ -9,6 +9,10 @@
   --color-brand-strong: #14296b;
   --color-brand-soft: #e8edf9;
   --color-gold: #c9a227;
+  --color-action: #1b3a8c;
+  --color-on-action: #ffffff;
+  --color-accent-text: #806000;
+  --color-focus: #1b3a8c;
 }
 
 @theme inline {
@@ -18,6 +22,9 @@
   --color-brand-strong: var(--color-brand-strong);
   --color-brand-soft: var(--color-brand-soft);
   --color-gold: var(--color-gold);
+  --color-action: var(--color-action);
+  --color-on-action: var(--color-on-action);
+  --color-accent-text: var(--color-accent-text);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -32,6 +39,9 @@
     --color-brand-strong: #8aa5ee;
     --color-brand-soft: #141d33;
     --color-gold: #e6c35c;
+    --color-action: #365bbb;
+    --color-accent-text: #e6c35c;
+    --color-focus: #e6c35c;
   }
 }
 
@@ -43,8 +53,12 @@ body {
 
 /* Visible keyboard focus for the interactive elements this shell exposes. */
 a:focus-visible,
-button:focus-visible {
-  outline: 2px solid var(--color-gold);
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--color-focus);
   outline-offset: 2px;
   border-radius: 4px;
 }

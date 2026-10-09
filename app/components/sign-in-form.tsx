@@ -38,7 +38,7 @@ export function SignInForm() {
         <input id="password" name="password" type="password" autoComplete="current-password" required disabled={!configured || busy} className="rounded-lg border border-foreground/20 bg-background px-4 py-3" />
       </div>
       <p role="status" aria-live="polite" className="min-h-6 text-sm">{message}</p>
-      <button type="submit" disabled={!configured || busy} className="rounded-lg bg-brand px-4 py-3 font-medium text-white disabled:opacity-50">{busy ? "Signing in…" : "Sign in"}</button>
+      <button type="submit" disabled={!configured || busy} className="rounded-lg bg-action px-4 py-3 font-medium text-on-action disabled:opacity-50">{busy ? "Signing in…" : "Sign in"}</button>
       <Link href="/forgot-password" className="text-sm underline underline-offset-4">Forgot your password?</Link>
       <p className="text-xs leading-5 text-foreground/60">Accounts are assigned by the SMEA Coordinator. Contact your coordinator for account creation or disabled school access.</p>
     </form>

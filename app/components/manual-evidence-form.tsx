@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { decodeDraft, draftKey, emptyDraft, type DraftScope, type EvidenceDraft } from "@/app/lib/submission-drafts";
+import { decodeDraft, draftKey, emptyDraft, preserveUnreadableDraft, type DraftScope, type EvidenceDraft } from "@/app/lib/submission-drafts";
 
 const input = "w-full min-w-0 rounded-lg border border-foreground/20 bg-background p-3 text-sm";
 export function ManualEvidenceForm({ scope, version, definitions, busy, onSubmit }: {
@@ -11,6 +11,8 @@ export function ManualEvidenceForm({ scope, version, definitions, busy, onSubmit
   const [fields, setFields] = useState<EvidenceDraft>(emptyDraft);
   const [draftVersion, setDraftVersion] = useState(version);
   const [loaded, setLoaded] = useState(false);
+  const [unreadable, setUnreadable] = useState<string | null>(null);
+  const [recovery, setRecovery] = useState<string | null>(null);
   const [message, setMessage] = useState("Checking saved draft…");
   const key = draftKey(scope);
   useEffect(() => {
@@ -21,13 +23,15 @@ export function ManualEvidenceForm({ scope, version, definitions, busy, onSubmit
         const raw = localStorage.getItem(key);
         const saved = decodeDraft(raw, scope);
         if (saved) { setFields(saved.fields); setDraftVersion(saved.sourceVersion); setMessage("Device draft restored. Review it before submitting."); }
-        else { setMessage(raw ? "Saved draft could not be read. It has been preserved on this device." : "Drafts save on this device as you type."); }
+        else { setUnreadable(raw); setMessage(raw ? "This device draft cannot be read. Editing is paused to protect the original." : "Drafts save on this device as you type."); }
+        setRecovery(localStorage.getItem(key + ":unreadable"));
       } catch { setMessage("Device storage is unavailable. Keep this page open to preserve unsent edits."); }
       setLoaded(true);
     });
     return () => { cancelled = true; };
   }, [key, scope]);
   function persist(next: EvidenceDraft, sourceVersion: number) {
+    if (unreadable !== null) return;
     try { localStorage.setItem(key, JSON.stringify({ schema: 1, scope, sourceVersion, fields: next })); setMessage(navigator.onLine ? "Device draft saved. Submission requires your review." : "Offline draft saved. Submit after reconnecting and refreshing access."); }
     catch { setMessage("Device save failed. Unsent edits remain in this open page."); }
   }
@@ -37,17 +41,27 @@ export function ManualEvidenceForm({ scope, version, definitions, busy, onSubmit
   }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!loaded || busy || draftVersion !== version) return;
-    if (!navigator.onLine) { setMessage("Offline draft retained. Reconnect and refresh before submitting."); return; }
+    if (!loaded || busy || unreadable !== null || draftVersion !== version) return;
+    if (!navigator.onLine) { persist(fields, draftVersion); return; }
     if (await onSubmit(fields)) {
       try { localStorage.removeItem(key); } catch { setMessage("Submission recorded; the device draft could not be cleared."); }
     }
   }
+  function download(raw: string) {
+    const url = URL.createObjectURL(new Blob([raw], { type: "text/plain;charset=utf-8" }));
+    const link = document.createElement("a"); link.href = url; link.download = "TANAW-unreadable-draft.txt"; link.click(); URL.revokeObjectURL(url);
+  }
   return <form onSubmit={submit} className="space-y-3">
     <p className="text-sm text-foreground/65">Manual entry is for indicators without a class-record spreadsheet source. Class-record uploads remain unavailable while approved computations are being verified.</p>
     <p role="status" aria-live="polite" className="text-sm">{message}</p>
+    {unreadable !== null && <div className="space-y-3 rounded-lg border border-foreground/30 p-3 text-sm"><p>Download the original for recovery. Starting a new draft requires a verified retained copy; no submission will be sent automatically.</p><button type="button" className="underline" onClick={() => download(unreadable)}>Download unreadable original</button><button type="button" className="ml-3 underline" disabled={busy} onClick={() => {
+      try { preserveUnreadableDraft(localStorage, key, unreadable); setRecovery(unreadable); setUnreadable(null); setFields(emptyDraft); setDraftVersion(version); setMessage("Original retained separately on this device. You can prepare a new draft."); }
+      catch { setMessage("Could not retain a recovery copy. The original remains protected; download it before contacting support."); }
+    }}>Retain original and start a new draft</button></div>}
+    {recovery !== null && <button type="button" className="text-sm underline" onClick={() => download(recovery)}>Download retained recovery copy</button>}
+    {definitions.length === 0 && <p className="text-sm">No verified indicators are available for this reporting period. Ask your SMEA Coordinator to verify the indicator registry. Unsent edits remain available here.</p>}
     {loaded && draftVersion !== version && <div className="space-y-2 rounded-lg border border-gold/50 p-3 text-sm"><p>This draft started from version {draftVersion}; the server now has version {version}. Compare the current evidence before using these edits.</p><button type="button" disabled={busy} className="underline" onClick={() => { setDraftVersion(version); persist(fields, version); }}>I reviewed current evidence; use this draft for the current version</button></div>}
-    <fieldset disabled={busy || !loaded} className="space-y-3">
+    <fieldset disabled={busy || !loaded || unreadable !== null} className="space-y-3">
       <label className="block text-sm">Verified indicator<select name="definition" className={input} required value={fields.definition} onChange={(event) => change("definition", event.target.value)}><option value="">Select an indicator</option>{definitions.map((definition) => <option key={definition.id} value={definition.id}>{definition.label} ({definition.unit})</option>)}</select></label>
       <label className="block text-sm">Recorded value<input name="value" type="number" step="any" required className={input} value={fields.value} onChange={(event) => change("value", event.target.value)} /></label>
       <label className="block text-sm">Evidence title<input name="sourceTitle" required maxLength={200} className={input} value={fields.sourceTitle} onChange={(event) => change("sourceTitle", event.target.value)} /></label>

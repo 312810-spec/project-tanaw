@@ -99,7 +99,7 @@ export function AccountWorkspace() {
       {membership && actorId && role === "smeaCoordinator" && <MemberManagement key={membership.school_id} schoolId={membership.school_id} actorId={actorId} />}
       <div className="flex flex-wrap gap-3">
         <button type="button" onClick={() => void load()} disabled={busy} className="rounded-lg border border-brand px-4 py-2 text-sm text-brand disabled:opacity-50">Refresh access</button>
-        {signedIn ? <button type="button" onClick={() => void signOut()} disabled={busy} className="rounded-lg border border-foreground/20 px-4 py-2 text-sm disabled:opacity-50">Sign out</button> : <a href="/login" className="rounded-lg bg-brand px-4 py-2 text-sm text-white">Sign in</a>}
+        {signedIn ? <button type="button" onClick={() => void signOut()} disabled={busy} className="rounded-lg border border-foreground/20 px-4 py-2 text-sm disabled:opacity-50">Sign out</button> : <a href="/login" className="rounded-lg bg-action px-4 py-2 text-sm text-on-action">Sign in</a>}
       </div>
       <p className="text-xs leading-5 text-foreground/60">Class-record import is still being verified. No school results are shown until authorized records are available.</p>
     </div>

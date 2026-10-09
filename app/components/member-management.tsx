@@ -15,11 +15,14 @@ export function MemberManagement({ schoolId, actorId }: { schoolId: string; acto
   const [events, setEvents] = useState<Event[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [ready, setReady] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [stale, setStale] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("Loading assigned accounts…");
   const load = useCallback(async () => {
     const request = ++generation.current;
-    setReady(false);
+    setRefreshing(true); setStale(true);
+    setMessage("Refreshing assigned accounts… Changes are paused until access is verified.");
     try {
       const client = createSupabaseBrowserClient();
       const [directory, history] = await Promise.all([
@@ -29,19 +32,21 @@ export function MemberManagement({ schoolId, actorId }: { schoolId: string; acto
       if (request !== generation.current) return;
       if (directory.error || history.error) throw new Error("Access unavailable");
       setMembers(directory.data ?? []); setEvents(history.data ?? []);
-      setSelectedId(""); setReady(true); setMessage("Assigned accounts loaded. Changes require a recorded reason.");
-    } catch { if (request === generation.current) setMessage("Account access could not be verified. Refresh before making changes."); }
+      setReady(true); setStale(false); setMessage("Assigned accounts loaded. Changes require a recorded reason."); return true;
+    } catch { if (request === generation.current) setMessage("Account access refresh failed. Previously loaded information may be out of date; retry refresh before making changes."); return false; }
+    finally { if (request === generation.current) setRefreshing(false); }
   }, [schoolId]);
   useEffect(() => { let cancelled = false; queueMicrotask(() => { if (!cancelled) void load(); }); return () => { cancelled = true; invalidate(); }; }, [load, invalidate]);
   const selected = members.find((member) => member.user_id === selectedId);
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!ready || busy || !selected || selected.user_id === actorId) return;
+    if (!ready || busy || refreshing || stale || !selected || selected.user_id === actorId) return;
     if (!navigator.onLine) { setMessage("Connect to the internet to change account access."); return; }
     const form = new FormData(event.currentTarget);
     const subjects = [...new Set(String(form.get("subjects") ?? "").split(",").map((value) => value.trim()).filter(Boolean))];
     const assignedRoles = form.getAll("roles").map(String);
     if (!assignedRoles.length) { setMessage("Select at least one role. Use Disable access to suspend the account."); return; }
+    if (!window.confirm(`Change access for ${selected.email || selected.user_id}?\nRoles: ${assignedRoles.map((role) => roles[role as keyof typeof roles]).join(", ")}\nSubjects: ${subjects.join(", ") || "None"}\nAccess: ${form.get("active") === "on" ? "Enabled" : "Disabled"}\nReason: ${form.get("reason")}\nSubmitted records stay preserved. This does not hand over unfinished work.`)) return;
     const request = generation.current;
     setBusy(true); setMessage("Saving access change…");
     try {
@@ -52,13 +57,14 @@ export function MemberManagement({ schoolId, actorId }: { schoolId: string; acto
       });
       if (request !== generation.current) return;
       if (error) { setMessage(error.code === "40001" ? "Another coordinator changed this account. Refresh and review the current access." : "Access change was rejected. Check your permission and the recorded reason."); return; }
-      await load(); setMessage("Access updated. Authorship and submitted records remain preserved.");
+      const refreshed = await load(); setMessage(refreshed ? "Access updated. Authorship and submitted records remain preserved." : "Access updated, but the directory could not be refreshed. Retry refresh before making another change.");
     } catch { if (request === generation.current) setMessage("Connection interrupted. Refresh to check the access history before retrying."); }
     finally { setBusy(false); }
   }
-  return <section aria-labelledby="member-management-heading" className="space-y-4 rounded-xl border border-foreground/15 p-5">
+  return <section aria-busy={busy || refreshing} aria-labelledby="member-management-heading" className="space-y-4 rounded-xl border border-foreground/15 p-5">
     <h2 id="member-management-heading" className="text-lg font-semibold">Manage school access</h2>
     <p role="status" aria-live="polite" className="text-sm">{message}</p>
+    <fieldset disabled={busy || refreshing || stale} className="min-w-0 space-y-4">
     {ready && <>
       <label className="block text-sm">Assigned account<select className={input} value={selectedId} disabled={busy} onChange={(event) => setSelectedId(event.target.value)}><option value="">Select an account</option>{members.map((member) => <option key={member.user_id} value={member.user_id}>{member.email || member.user_id}{member.active ? "" : " · disabled"}</option>)}</select></label>
       {selected && selected.user_id === actorId && <p className="text-sm">Your own privileges cannot be changed from this workspace.</p>}
@@ -72,7 +78,8 @@ export function MemberManagement({ schoolId, actorId }: { schoolId: string; acto
       </form>}
       <details><summary className="cursor-pointer text-sm font-medium">Recent access history</summary><ul className="mt-3 space-y-3">{events.map((entry) => <li key={entry.id} className="break-words text-sm">{members.find((member) => member.user_id === entry.target_user_id)?.email || entry.target_user_id} · {entry.reason}<br /><span className="text-xs text-foreground/60">{new Date(entry.occurred_at).toLocaleString("en-PH", { timeZone: "Asia/Manila" })} · by {members.find((member) => member.user_id === entry.actor_id)?.email || entry.actor_id}</span></li>)}</ul>{!events.length && <p className="mt-3 text-sm">No access changes recorded.</p>}</details>
     </>}
-    <button type="button" disabled={busy} className="text-sm underline underline-offset-4" onClick={() => void load()}>Refresh assigned accounts</button>
+    </fieldset>
+    <button type="button" disabled={busy || refreshing} className="text-sm underline underline-offset-4" onClick={() => void load()}>Refresh assigned accounts</button>
     <p className="text-xs leading-5 text-foreground/60">This view manages provisioned accounts. Secure creation and recovery require the configured authentication service.</p>
   </section>;
 }

@@ -53,7 +53,7 @@ export function PasswordRecovery({ change = false }: { change?: boolean }) {
         <label className="block text-sm">New password<input name="password" type="password" autoComplete="new-password" minLength={12} maxLength={128} required className={input} /></label>
         <label className="block text-sm">Confirm new password<input name="confirmation" type="password" autoComplete="new-password" minLength={12} maxLength={128} required className={input} /></label>
       </> : <label className="block text-sm">Account email<input name="email" type="email" autoComplete="email" required className={input} /></label>}
-      <button className="rounded-lg bg-brand px-4 py-3 text-white disabled:opacity-50">{change ? "Save new password" : "Send recovery link"}</button>
+      <button className="rounded-lg bg-action px-4 py-3 text-on-action disabled:opacity-50">{change ? "Save new password" : "Send recovery link"}</button>
     </fieldset>}
     <Link href={done ? "/workspace" : "/login"} className="inline-block text-sm underline underline-offset-4">{done ? "Open school workspace" : "Back to sign in"}</Link>
   </form>;

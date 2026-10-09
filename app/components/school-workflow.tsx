@@ -28,6 +28,8 @@ export function SchoolWorkflow({ schoolId, role, actorId }: { schoolId: string; 
   useEffect(() => { const update = () => setNow(Date.now()); const timer = setInterval(update, 30000); queueMicrotask(update); return () => clearInterval(timer); }, []);
   const [status, setStatus] = useState("Loading school workflow…");
   const [ready, setReady] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [stale, setStale] = useState(true);
   const [busy, setBusy] = useState(false);
   const [cycles, setCycles] = useState<Cycle[]>([]);
   const [cycleId, setCycleId] = useState("");
@@ -40,19 +42,21 @@ export function SchoolWorkflow({ schoolId, role, actorId }: { schoolId: string; 
   const [submissionId, setSubmissionId] = useState("");
   const draftScope = useMemo(() => ({ actorId, schoolId, submissionId }), [actorId, schoolId, submissionId]);
   const [versions, setVersions] = useState<Version[]>([]);
+  const [historyRevision, setHistoryRevision] = useState(0);
   const [versionReady, setVersionReady] = useState(false);
   const [acknowledge, setAcknowledge] = useState(false);
   const [missingReasons, setMissingReasons] = useState<Record<string, string>>({});
   const load = useCallback(async () => {
     const request = ++generation.current;
-    setReady(false); setVersionReady(false); setSlots([]); setSubmissions([]); setPackets([]); setDistrict([]); setVersions([]); setReviews([]);
+    setRefreshing(true); setStale(true);
+    setStatus("Refreshing school workflow… Actions are paused until verification finishes.");
     try {
       const client = createSupabaseBrowserClient();
       if (role === "districtCoordinator") {
         const result = await client.rpc("tanaw_district_packets", { target_school: schoolId });
         if (request !== generation.current) return;
         if (result.error) throw result.error;
-        setDistrict(result.data ?? []); setReady(true); setStatus("Locked packet status loaded. Learner records are restricted to the school."); return;
+        setDistrict(result.data ?? []); setReady(true); setStale(false); setStatus("Locked packet status loaded. Learner records are restricted to the school."); return true;
       }
       if (role === "smeaCoordinator") {
         const directory = await client.rpc("tanaw_member_directory", { target_school: schoolId });
@@ -66,8 +70,8 @@ export function SchoolWorkflow({ schoolId, role, actorId }: { schoolId: string; 
       const list: Cycle[] = cycleResult.data ?? [];
       setCycles(list);
       const selected = list.some((cycle) => cycle.id === cycleId) ? cycleId : list[0]?.id ?? "";
-      if (selected !== cycleId) { setCycleId(selected); return; }
-      if (!selected) { setReady(true); setStatus("The coordinator has not created a reporting cycle yet."); return; }
+      if (selected !== cycleId) { setCycleId(selected); return false; }
+      if (!selected) { setReady(true); setStale(false); setStatus("The coordinator has not created a reporting cycle yet."); return true; }
       const calendar = await client.from("tanaw_instructional_blocks").select("school_year,label").eq("id", list.find((cycle) => cycle.id === selected)!.instructional_block_id).single();
       if (calendar.error || !calendar.data) throw new Error("Verified calendar reference unavailable");
       const [slotResult, definitionResult, packetResult] = await Promise.all([
@@ -87,8 +91,9 @@ export function SchoolWorkflow({ schoolId, role, actorId }: { schoolId: string; 
       if (request !== generation.current) return;
       if (reviewResult.error || reviewResult.count !== reviewResult.data?.length) throw new Error("Review page is incomplete");
       setReviews(reviewResult.data ?? []); setNow(Date.now());
-      setSubmissions(submissionResult.data ?? []); setReady(true); setStatus("School workflow loaded.");
-    } catch { if (request === generation.current) setStatus("Workflow could not be loaded completely. Refresh access before taking an action."); }
+      setSubmissions(submissionResult.data ?? []); setHistoryRevision((revision) => revision + 1); setReady(true); setStale(false); setStatus("School workflow loaded."); return true;
+    } catch { if (request === generation.current) setStatus("Workflow refresh failed. Previously loaded information may be out of date; actions are paused. Retry refresh."); return false; }
+    finally { if (request === generation.current) setRefreshing(false); }
   }, [schoolId, role, actorId, cycleId]);
   useEffect(() => { let cancelled = false; queueMicrotask(() => { if (!cancelled) { setSubmissionId(""); setMissingReasons({}); setAcknowledge(false); void load(); } }); return () => { cancelled = true; invalidate(); }; }, [load, invalidate]);
   useEffect(() => {
@@ -102,7 +107,7 @@ export function SchoolWorkflow({ schoolId, role, actorId }: { schoolId: string; 
       setVersions(result.data ?? []); setVersionReady(true);
     })();
     return () => { cancelled = true; };
-  }, [submissionId, ready]);
+  }, [submissionId, ready, historyRevision]);
   const selected = submissions.find((submission) => submission.id === submissionId);
   const selectedSlot = slots.find((slot) => slot.id === selected?.slot_id);
   const currentVersion = versions.find((version) => version.version === selected?.current_version);
@@ -110,15 +115,21 @@ export function SchoolWorkflow({ schoolId, role, actorId }: { schoolId: string; 
   const latest = packets[0];
   const reminders = cycle ? workflowReminders(cycle.deadline_at, !!cycle.locked_at, submissions, reviews, now) : null;
   async function action(name: string, args: Record<string, unknown>) {
-    if (!ready || busy) return false;
+    if (!ready || busy || refreshing || stale) return false;
     if (!navigator.onLine) { setStatus("Connect to the internet for submission and review actions."); return false; }
+    if (name === "tanaw_lock_packet" && !window.confirm(`Lock school packet version ${latest?.version} (${args.target_packet})?\nThis records an explicit school Lock. Corrections require an amendment and new reviews. District acceptance remains a separate decision.`)) return false;
+    if (name === "tanaw_district_review") {
+      if (!["accept", "return"].includes(String(args.decision))) { setStatus("Choose a district decision before recording it."); return false; }
+      if (args.decision === "return" && !String(args.review_comment).trim()) { setStatus("Explain what the school needs to correct before returning this packet."); return false; }
+      if (!window.confirm(`Record ${args.decision} for packet ${args.target_packet}?\nComments: ${args.review_comment || "None"}\nThis decision is recorded in the district review history.`)) return false;
+    }
     const request = generation.current;
     setBusy(true); setStatus("Recording action…");
     try {
       const { error } = await createSupabaseBrowserClient().rpc(name, args);
       if (request !== generation.current) return false;
       if (error) { setStatus(error.code === "40001" ? "The record changed. Refresh and review the current version before retrying." : "Action was not accepted. Check your assignment, deadline and required reviews, then refresh."); return false; }
-      await load(); setStatus("Action recorded with its history."); return true;
+      const refreshed = await load(); setStatus(refreshed ? "Action recorded with its history." : "Action recorded, but the view could not be refreshed. Retry refresh before taking another action."); return true;
     } catch { if (request === generation.current) setStatus("Connection interrupted. Refresh to check whether the action was recorded before retrying."); return false; }
     finally { setBusy(false); }
   }
@@ -142,9 +153,10 @@ export function SchoolWorkflow({ schoolId, role, actorId }: { schoolId: string; 
     if (!Number.isFinite(until.getTime()) || until.getTime() <= currentTime()) { setStatus("Choose a future cutoff in Philippine time."); return; }
     void action(name, name === "tanaw_open_amendment" ? { target_cycle: cycleId, amendment_deadline: until.toISOString(), change_reason: String(form.get("reason")) } : { target_submission: submissionId, until_time: until.toISOString(), change_reason: String(form.get("reason")) });
   }
-  return <section className="space-y-5 rounded-xl border border-foreground/15 p-5" aria-labelledby="school-workflow-heading">
+  return <section aria-busy={busy || refreshing} className="space-y-5 rounded-xl border border-foreground/15 p-5" aria-labelledby="school-workflow-heading">
     <h2 id="school-workflow-heading" className="text-lg font-semibold">Submissions and packet review</h2>
     <p role="status" aria-live="polite" className="text-sm">{status}</p>
+    <fieldset disabled={busy || refreshing || stale} className="space-y-5 min-w-0">
     {role !== "districtCoordinator" && cycles.length > 0 && <div><label htmlFor="workflow-cycle" className="block text-sm font-medium">Reporting cycle</label><select id="workflow-cycle" className={inputStyle} value={cycleId} disabled={busy} onChange={(event) => setCycleId(event.target.value)}>{cycles.map((entry, index) => <option key={entry.id} value={entry.id}>Cycle {index + 1} · {new Date(entry.deadline_at).toLocaleDateString("en-PH", { timeZone: "Asia/Manila" })}</option>)}</select></div>}
     {ready && role === "districtCoordinator" && <>
       {district.length === 0 && <p className="text-sm">No locked school packets are available.</p>}
@@ -152,7 +164,7 @@ export function SchoolWorkflow({ schoolId, role, actorId }: { schoolId: string; 
         <h3 className="font-medium">Packet version {packet.version} · {packet.completeness}</h3>
         <p className="text-sm">{packet.submission_count} submitted · {packet.missing_count} missing</p>
         <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); void action("tanaw_district_review", { target_packet: packet.packet_id, decision: String(form.get("decision")), review_comment: String(form.get("comment")) }); }}>
-          <label className="block text-sm">Decision<select name="decision" className={inputStyle} disabled={busy}><option value="accept">Accept</option><option value="return">Return with comments</option></select></label>
+          <label className="block text-sm">Decision<select name="decision" required defaultValue="" className={inputStyle} disabled={busy}><option value="" disabled>Choose a decision</option><option value="accept">Accept</option><option value="return">Return with comments</option></select></label>
           <label className="block text-sm">Review comments<textarea name="comment" className={inputStyle} maxLength={2000} disabled={busy} /></label>
           <button className={buttonStyle} disabled={busy}>Record district decision</button>
         </form>
@@ -162,11 +174,15 @@ export function SchoolWorkflow({ schoolId, role, actorId }: { schoolId: string; 
       {reminders && <aside aria-label="Deadline reminders" className="space-y-2 rounded-lg bg-foreground/5 p-4"><h3 className="text-sm font-semibold">{reminders.deadline}</h3><p className="text-sm">{reminders.missing} missing submission(s) · {reminders.awaitingSubjectReview} awaiting current-version subject review · {reminders.activeExtensions} active extension(s)</p><p className="text-xs text-foreground/60">Counts cover your visible assignments. Deadline alerts use this device’s clock; the server controls editing and final actions.</p></aside>}
       {slots.length === 0 && <p className="text-sm">No visible submission assignments for this cycle.</p>}
       {submissions.length > 0 && <div><label htmlFor="workflow-submission" className="block text-sm font-medium">Assigned submission</label><select id="workflow-submission" className={inputStyle} value={submissionId} disabled={busy} onChange={(event) => setSubmissionId(event.target.value)}><option value="">Select a submission</option>{submissions.map((submission) => { const slot = slots.find((entry) => entry.id === submission.slot_id); return <option key={submission.id} value={submission.id}>{slot?.scope_label} · {slot?.subject_id} · {submission.current_version ? "Version " + submission.current_version : "Missing"}</option>; })}</select></div>}
-      {selected && versionReady && <>
+      {selected && <>
         <p className="text-sm">{versions.length} recent source version(s). Current version: {selected.current_version || "not submitted"}.</p>
+        {!versionReady && <p role="status" className="text-sm">Verifying evidence history…</p>}
+        {selected.extension_until && <p className="text-sm">Submission extension cutoff: {new Date(selected.extension_until).toLocaleString("en-PH", { timeZone: "Asia/Manila" })} Philippine time. The server determines whether submission is allowed.</p>}
+        {reviews.some((review) => review.submission_id === selected.id && review.version === selected.current_version) && <p className="text-sm">Subject review is recorded for this version.</p>}
         {currentVersion && <div className="space-y-2 rounded-lg bg-foreground/5 p-4"><h3 className="font-medium">Current recorded evidence</h3>{currentVersion.evidence.entries.map((entry) => <p key={entry.definitionId} className="break-words text-sm">{definitions.find((definition) => definition.id === entry.definitionId)?.label ?? "Recorded indicator"}: {entry.value} · {entry.sourceTitle} · {entry.sourceLocator}</p>)}</div>}
-        {(role === "teacher" || (role === "smeaCoordinator" && selectedSlot?.author_id === actorId)) && <ManualEvidenceForm key={submissionId} scope={draftScope} version={selected.current_version} definitions={definitions} busy={busy} onSubmit={submitManual} />}
-        {role === "subjectCoordinator" && <button type="button" className={buttonStyle} disabled={busy || !currentVersion || selectedSlot?.author_id === actorId} onClick={() => void action("tanaw_review_submission", { target_submission: submissionId, expected_version: selected.current_version })}>Record subject review of this version</button>}
+        {versions.length > 0 && <details><summary className="cursor-pointer text-sm font-medium">Inspect recent evidence versions</summary><ol className="mt-3 space-y-4">{versions.map((entry) => <li key={entry.version} className="rounded-lg border border-foreground/20 p-3 text-sm"><h4 className="font-medium">Version {entry.version} · {new Date(entry.created_at).toLocaleString("en-PH", { timeZone: "Asia/Manila" })}</h4><p className="break-words">Reason: {entry.reason}</p>{entry.evidence.entries.map((evidence) => <p key={evidence.definitionId} className="break-words">{definitions.find((definition) => definition.id === evidence.definitionId)?.label ?? evidence.definitionId}: {evidence.value} · {evidence.sourceTitle} · {evidence.sourceLocator}</p>)}</li>)}</ol></details>}
+        {(role === "teacher" || (role === "smeaCoordinator" && selectedSlot?.author_id === actorId)) && <ManualEvidenceForm key={submissionId} scope={draftScope} version={selected.current_version} definitions={definitions} busy={busy || !versionReady || refreshing || stale} onSubmit={submitManual} />}
+        {role === "subjectCoordinator" && <button type="button" className={buttonStyle} disabled={busy || !versionReady || !currentVersion || selectedSlot?.author_id === actorId || reviews.some((review) => review.submission_id === selected.id && review.version === selected.current_version)} onClick={() => void action("tanaw_review_submission", { target_submission: submissionId, expected_version: selected.current_version })}>Record subject review of this version</button>}
         {role === "smeaCoordinator" && selected.current_version === 0 && !cycle?.locked_at && <details><summary className="cursor-pointer text-sm font-medium">Hand over an unsubmitted assignment</summary><form className="mt-3 space-y-3" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); void action("tanaw_handover_unsubmitted", { target_submission: selected.id, target_author: String(form.get("author")), expected_author: selectedSlot?.author_id, change_reason: String(form.get("reason")) }); }}>
           <p className="text-xs leading-5 text-foreground/65">The original account and handover reason remain in history. Device drafts stay with the original account; deadlines and extensions stay unchanged.</p>
           <label className="block text-sm">New assigned account<select name="author" required className={inputStyle} disabled={busy}><option value="">Select a replacement</option>{assignees.filter((member) => member.user_id !== selectedSlot?.author_id && (member.roles.includes("smeaCoordinator") || member.subject_ids.includes(selectedSlot?.subject_id ?? ""))).map((member) => <option key={member.user_id} value={member.user_id}>{member.email || member.user_id}</option>)}</select></label>
@@ -184,7 +200,8 @@ export function SchoolWorkflow({ schoolId, role, actorId }: { schoolId: string; 
         {!latest.locked_at && <><label className="flex gap-2 text-sm"><input type="checkbox" checked={acknowledge} onChange={(event) => setAcknowledge(event.target.checked)} disabled={busy} />I acknowledge the listed missing submissions.</label><button type="button" className={buttonStyle} disabled={busy} onClick={() => void action("tanaw_review_packet", { target_packet: latest.id, review_stage: role === "schoolHead" ? "head" : "school", acknowledge_missing: acknowledge })}>Record {role === "schoolHead" ? "School Head" : "school"} review</button>{role === "smeaCoordinator" && <button type="button" className={buttonStyle} disabled={busy} onClick={() => void action("tanaw_lock_packet", { target_packet: latest.id })}>Lock this school packet</button>}</>}
       </article>}
     </>}
-    <button type="button" className="text-sm underline underline-offset-4 disabled:opacity-50" disabled={busy} onClick={() => void load()}>Refresh workflow</button>
+    </fieldset>
+    <button type="button" className="text-sm underline underline-offset-4 disabled:opacity-50" disabled={busy || refreshing} onClick={() => void load()}>{refreshing ? "Refreshing workflow…" : "Refresh workflow"}</button>
     <p className="text-xs leading-5 text-foreground/60">Recorded evidence requires the assigned reviews. Deadline closure, school Lock and district acceptance are separate events.</p>
   </section>;
 }

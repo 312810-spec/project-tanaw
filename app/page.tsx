@@ -48,7 +48,7 @@ export default function Home() {
             </span>
           </div>
           <span
-            className="ml-auto hidden items-center rounded-full border border-gold/50 px-3 py-1 font-mono text-[11px] uppercase tracking-wider text-gold sm:inline-flex"
+            className="ml-auto hidden items-center rounded-full border border-gold/50 px-3 py-1 font-mono text-[11px] uppercase tracking-wider text-accent-text sm:inline-flex"
             aria-label="Build stage: foundation"
           >
             Foundation stage
@@ -73,7 +73,7 @@ export default function Home() {
           </div>
 
           <div className="mt-4 flex flex-col gap-3">
-            <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-foreground/50">
+            <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-foreground/65">
               Confirmed review sequence
             </span>
             <ol className="flex flex-wrap items-center gap-x-2 gap-y-3">
@@ -97,7 +97,7 @@ export default function Home() {
         </div>
 
         <div className="mt-12">
-          <Link href="/login" className="mb-4 mr-3 inline-flex rounded-md bg-brand px-4 py-2 text-sm font-medium text-white">Sign in to your workspace</Link>
+          <Link href="/login" className="mb-4 mr-3 inline-flex rounded-md bg-action px-4 py-2 text-sm font-medium text-on-action">Sign in to your workspace</Link>
           <Link href="/review" className="inline-flex rounded-md border border-brand px-4 py-2 text-sm font-medium text-brand hover:bg-brand-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
             View evidence review foundation
           </Link>
@@ -109,7 +109,7 @@ export default function Home() {
             <h2 className="text-xl font-semibold tracking-tight">
               Planned capabilities
             </h2>
-            <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-foreground/50">
+            <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-foreground/65">
               Not yet available
             </span>
           </div>
@@ -126,7 +126,7 @@ export default function Home() {
               </div>
             ))}
           </div>
-          <p className="max-w-2xl text-sm leading-relaxed text-foreground/50">
+          <p className="max-w-2xl text-sm leading-relaxed text-foreground/65">
             The Supabase client foundation and a local connectivity probe are in
             place, but the capabilities above are design intent only. They are
             listed here so the platform&rsquo;s direction is clear, not to imply
@@ -136,7 +136,7 @@ export default function Home() {
       </main>
 
       <footer className="mt-auto border-t border-black/[.08] dark:border-white/[.12]">
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-1 px-6 py-6 text-xs text-foreground/55 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-1 px-6 py-6 text-xs text-foreground/65 sm:flex-row sm:items-center sm:justify-between">
           <span>Project TANAW — TNHS SMEA Consolidator</span>
           <span>Local development build · DepEd West 1 District</span>
         </div>
