@@ -50,6 +50,7 @@ insert into fixture_targets select 'coSubmission',id from public.tanaw_submissio
 select pg_temp.must_deny($s$select public.tanaw_prepare_packet('44000000-0000-0000-0000-000000000001','[]')$s$,'22023');
 select public.tanaw_set_slot_requirements((select id from fixture_targets where label='teacherSubmission'),0,array['45000000-0000-0000-0000-000000000001'::uuid],'Synthetic requirements');
 select public.tanaw_set_slot_requirements((select id from fixture_targets where label='coSubmission'),0,array['45000000-0000-0000-0000-000000000001'::uuid],'Synthetic requirements');
+select pg_temp.must_deny(format('select public.tanaw_set_slot_requirements(%L,0,array[%L::uuid],%L,0)',(select id from fixture_targets where label='teacherSubmission'),'45000000-0000-0000-0000-000000000001','Stale requirements'),'40001');
 -- Handover subset is rolled back so the original end-to-end fixture remains unchanged.
 savepoint handover_fixture;
 select public.tanaw_handover_unsubmitted((select id from fixture_targets where label='teacherSubmission'),'41000000-0000-0000-0000-000000000006','41000000-0000-0000-0000-000000000001','Synthetic work handover');
@@ -92,7 +93,7 @@ select public.tanaw_review_submission((select id from fixture_targets where labe
 select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000003',true);
 -- A reviewed submitted slot remains incomplete if a required indicator is absent.
 savepoint partial_coverage;
-select public.tanaw_set_slot_requirements((select id from fixture_targets where label='teacherSubmission'),2,array['45000000-0000-0000-0000-000000000001'::uuid,'45000000-0000-0000-0000-000000000002'::uuid],'Synthetic expanded requirements');
+select public.tanaw_set_slot_requirements((select id from fixture_targets where label='teacherSubmission'),2,array['45000000-0000-0000-0000-000000000001'::uuid,'45000000-0000-0000-0000-000000000002'::uuid],'Synthetic expanded requirements',1);
 select pg_temp.must_deny(format('select public.tanaw_prepare_packet(%L,%L::jsonb)','44000000-0000-0000-0000-000000000001',jsonb_build_array(jsonb_build_object('slotId',(select id from fixture_targets where label='coSlot'),'reason','Missing'))),'22023');
 insert into fixture_targets values('partialPacket',public.tanaw_prepare_packet('44000000-0000-0000-0000-000000000001',jsonb_build_array(jsonb_build_object('slotId',(select id from fixture_targets where label='coSlot'),'reason','Missing'),jsonb_build_object('slotId',(select id from fixture_targets where label='teacherSlot'),'reason','Second indicator missing'))));
 do $$ begin if (select jsonb_array_length(missing) from public.tanaw_school_packets where id=(select id from fixture_targets where label='partialPacket'))<>2 then raise exception 'Partial coverage was treated as complete'; end if; end $$;

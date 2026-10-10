@@ -1,6 +1,7 @@
 -- Explicit scope requirements, expiry recovery and governed review safeguards.
 -- No official indicators, assignments or formulas are seeded.
-alter table public.tanaw_submission_slots add column required_indicator_ids uuid[];
+alter table public.tanaw_submission_slots add column required_indicator_ids uuid[],
+ add column requirements_revision integer not null default 0 check(requirements_revision>=0);
 alter table public.tanaw_district_decisions add column decision_revision bigint generated always as identity;
 
 create or replace function tanaw_private.slot_complete(target_slot uuid) returns boolean
@@ -21,7 +22,7 @@ language sql stable security definer set search_path='' as $$
 $$;
 revoke all on function tanaw_private.slot_complete(uuid) from public,anon,authenticated;
 
-create function public.tanaw_set_slot_requirements(target_submission uuid,expected_version integer,indicator_ids uuid[],change_reason text)
+create function public.tanaw_set_slot_requirements(target_submission uuid,expected_version integer,indicator_ids uuid[],change_reason text,expected_requirements_revision integer default 0)
 returns void language plpgsql security definer set search_path='' as $$
 declare sl public.tanaw_submission_slots; c public.tanaw_reporting_cycles; sub public.tanaw_submissions;
 begin
@@ -29,22 +30,23 @@ begin
  select * into c from public.tanaw_reporting_cycles where id=sl.cycle_id for update;
  if not found or not tanaw_private.has_school_role(c.school_id,array['smeaCoordinator']) then raise exception 'Coordinator required' using errcode='42501'; end if;
  if c.locked_at is not null and tanaw_private.open_amendment(c.id) is null then raise exception 'Active amendment required' using errcode='42501'; end if;
+ select * into sl from public.tanaw_submission_slots where id=sl.id;
  select * into sub from public.tanaw_submissions where id=target_submission;
- if expected_version is null or expected_version<>sub.current_version then raise exception 'Version conflict' using errcode='40001'; end if;
+ if expected_version is null or expected_version<>sub.current_version or expected_requirements_revision is null or expected_requirements_revision<>sl.requirements_revision then raise exception 'Version or requirements conflict' using errcode='40001'; end if;
  if indicator_ids is null or cardinality(indicator_ids)=0 or cardinality(indicator_ids)>200
  or cardinality(indicator_ids)<>(select count(distinct id) from unnest(indicator_ids) t(id))
  or nullif(btrim(change_reason),'') is null then raise exception 'Distinct required indicators and reason required' using errcode='22023'; end if;
  if exists(select 1 from unnest(indicator_ids) t(id) where not exists(select 1 from public.smea_indicator_definitions d join public.tanaw_instructional_blocks b on b.id=c.instructional_block_id where d.id=t.id and d.school_id=sl.school_id and d.definition_status='verified' and d.school_year=b.school_year and d.reporting_period=b.label)) then raise exception 'Verified period indicators required' using errcode='22023'; end if;
- update public.tanaw_submission_slots set required_indicator_ids=indicator_ids where id=sl.id;
+ update public.tanaw_submission_slots set required_indicator_ids=indicator_ids,requirements_revision=requirements_revision+1 where id=sl.id;
  insert into public.tanaw_workflow_events(school_id,cycle_id,actor_id,action,target_id,reason) values(c.school_id,c.id,auth.uid(),'setRequirements',sl.id,change_reason);
 end; $$;
-revoke all on function public.tanaw_set_slot_requirements(uuid,integer,uuid[],text) from public,anon,authenticated;
-grant execute on function public.tanaw_set_slot_requirements(uuid,integer,uuid[],text) to authenticated;
+revoke all on function public.tanaw_set_slot_requirements(uuid,integer,uuid[],text,integer) from public,anon,authenticated;
+grant execute on function public.tanaw_set_slot_requirements(uuid,integer,uuid[],text,integer) to authenticated;
 
 
 create or replace function tanaw_private.cycle_manifest(target_cycle uuid) returns jsonb
 language sql stable security definer set search_path='' as $$
- select coalesce(jsonb_agg(jsonb_build_object('slot',s.id,'submission',v.id,'version',v.current_version,'requiredIndicators',s.required_indicator_ids,'coverageComplete',tanaw_private.slot_complete(s.id)) order by s.id),'[]'::jsonb)
+ select coalesce(jsonb_agg(jsonb_build_object('slot',s.id,'submission',v.id,'version',v.current_version,'requiredIndicators',s.required_indicator_ids,'requirementsRevision',s.requirements_revision,'coverageComplete',tanaw_private.slot_complete(s.id)) order by s.id),'[]'::jsonb)
  from public.tanaw_submission_slots s left join public.tanaw_submissions v on v.slot_id=s.id
  where s.cycle_id=target_cycle;
 $$;
