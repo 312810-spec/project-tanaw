@@ -108,7 +108,24 @@ try {
   await teacher.ui.getByLabel('Assigned submission').selectOption({ index: 1 });
   await teacher.ui.getByText('Device draft restored. Review it before submitting.', { exact: true }).waitFor();
   assert.equal(await teacher.ui.getByLabel('Recorded value').inputValue(), '0');
+  // Commit the real RPC, then fail one subsequent read: do not fake success.
+  let failRefresh = false;
+  await teacher.page.route('**/rest/v1/rpc/tanaw_submit_evidence', async (route) => {
+    const response = await route.fetch();
+    assert.equal(response.ok(), true);
+    failRefresh = true;
+    await route.fulfill({ response });
+  });
+  await teacher.page.route('**/rest/v1/tanaw_reporting_cycles?*', (route) => {
+    if (failRefresh) { failRefresh = false; return route.abort('failed'); }
+    return route.continue();
+  });
   await teacher.ui.getByRole('button', { name: 'Submit a new evidence version' }).click();
+  await teacher.ui.getByText('Action recorded, but the view could not be refreshed. Retry refresh before taking another action.', { exact: true }).waitFor();
+  assert.equal(await teacher.page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith('tanaw:manual-draft:')).length), 0, 'Accepted write clears working draft even if presentation refresh fails');
+  await teacher.page.unroute('**/rest/v1/rpc/tanaw_submit_evidence');
+  await teacher.page.unroute('**/rest/v1/tanaw_reporting_cycles?*');
+  await teacher.ui.getByRole('button', { name: 'Refresh workflow' }).click();
   await teacher.ui.getByText('Current recorded evidence', { exact: true }).waitFor();
   await teacher.ui.getByText('Synthetic manual indicator: 0', { exact: false }).first().waitFor();
   assert.equal(await teacher.page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith('tanaw:manual-draft:')).length), 0, 'Only a successful submission clears the device draft');
@@ -146,6 +163,9 @@ try {
   await access.getByLabel('Assigned account').selectOption(users.teacher.id);
   await access.getByLabel('Access enabled').uncheck();
   await access.getByLabel('Reason for access change').fill('Synthetic browser account disable');
+  await coordinator.page.getByRole('navigation', { name: 'Workspace tasks' }).getByRole('button', { name: 'Submissions and review', exact: true }).click();
+  await coordinator.page.getByRole('navigation', { name: 'Workspace tasks' }).getByRole('button', { name: 'School access', exact: true }).click();
+  assert.equal(await access.getByLabel('Reason for access change').inputValue(), 'Synthetic browser account disable');
   await access.getByRole('button', { name: 'Save account access' }).click();
   await access.getByText('Access updated. Authorship and submitted records remain preserved.', { exact: true }).waitFor();
   await teacher.page.getByRole('button', { name: 'Refresh access', exact: true }).click();

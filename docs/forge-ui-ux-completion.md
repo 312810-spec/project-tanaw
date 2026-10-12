@@ -30,3 +30,9 @@ No hosted database mutation or deployment is part of this checkpoint. Main integ
 ## First exact-head CI result
 
 At `6ee226880ed3f95177bc820f04837c5fcfc0cf76`, fast domain run 38212582164 and public browser run 38212582159 passed. Isolated run 38212582184 passed build and all four SQL suites, including focused history/privacy/frozen definitions, then found an outdated browser fixture that blindly toggled an already-preserved open handover disclosure closed. The fixture now opens the disclosure only when its field is hidden. This preserves the real retention behavior rather than resetting forms to satisfy the old test. The next exact head must rerun authenticated acceptance. Legacy unlocked packet manifests without frozen definition metadata are now visibly stale; locked historical packets remain immutable.
+
+## Historical inspection and recovery checks
+
+Earlier packet snapshots are now reachable through a separately paged, read-only history view and an exact RLS-governed historical-evidence projection. Historical inspection never changes the current review/Lock target. School Head review appears before the evidence queue. Added acceptance checks commit a real synthetic submission and fail its subsequent presentation read, verifying truthful confirmation/draft cleanup and explicit refresh recovery; switching mounted tasks retains access-change rationale.
+
+At recovery refinement head `172fad38fea14bdd729afb86f1030f208de3e6c4`, domain/public browser/build/SQL checks passed. Authenticated acceptance reached the district view after teacher offline recovery, subject/school/Head review and Lock, then exposed an exact-label lookup mismatch in the wrapped decision select. The decision field now has a distinct explicit HTML label association. Final-head CI remains required.

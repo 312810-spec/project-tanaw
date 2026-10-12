@@ -19,6 +19,20 @@ $$;
 revoke all on function public.tanaw_workflow_evidence(uuid) from public,anon,authenticated;
 grant execute on function public.tanaw_workflow_evidence(uuid) to authenticated;
 
+-- Exact historical packet evidence follows the same school-only packet/source RLS.
+create function public.tanaw_packet_evidence(target_packet uuid)
+returns table(submission_id uuid,version integer,evidence jsonb,reason text,created_at timestamptz)
+language sql stable security invoker set search_path='' as $$
+ select v.submission_id,v.version,v.evidence,v.reason,v.created_at
+ from public.tanaw_school_packets p,jsonb_array_elements(p.manifest) item,
+ public.tanaw_submission_versions v
+ where p.id=target_packet and item->>'submission'=v.submission_id::text
+ and (item->>'version')::integer=v.version
+ order by v.submission_id,v.version;
+$$;
+revoke all on function public.tanaw_packet_evidence(uuid) from public,anon,authenticated;
+grant execute on function public.tanaw_packet_evidence(uuid) to authenticated;
+
 -- Staff labels are confined to the requesting school's authorized work scope.
 create function public.tanaw_workflow_people(target_school uuid)
 returns table(user_id uuid,label text)

@@ -172,6 +172,7 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000004',true);
 do $$ begin
  if (select count(*) from public.tanaw_workflow_evidence('44000000-0000-0000-0000-000000000001'))<>3 then raise exception 'Focused read returned history or lost exact snapshot'; end if;
+ if (select count(*) from public.tanaw_packet_evidence((select id from fixture_targets where label='packet1')))<>1 then raise exception 'Original historical packet evidence lost'; end if;
  if not exists(select 1 from public.tanaw_workflow_evidence('44000000-0000-0000-0000-000000000001') where version=1102) then raise exception 'Current evidence inaccessible after long history'; end if;
  if not exists(select 1 from public.tanaw_workflow_evidence('44000000-0000-0000-0000-000000000001') where submission_id=(select id from fixture_targets where label='teacherSubmission') and version=2) then raise exception 'Exact locked snapshot lost'; end if;
  if not exists(select 1 from public.tanaw_school_packets p,jsonb_array_elements(p.manifest) item,jsonb_array_elements(item->'definitions') d where p.id=(select id from fixture_targets where label='packet2') and d->>'label'='Synthetic manual indicator') then raise exception 'Historical definition rewritten'; end if;
@@ -179,7 +180,7 @@ do $$ begin
 end $$;
 select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000005',true);
 select pg_temp.must_deny($s$select public.tanaw_workflow_people('42000000-0000-0000-0000-000000000001')$s$,'42501');
-do $$ begin if (select count(*) from public.tanaw_workflow_evidence('44000000-0000-0000-0000-000000000001'))<>0 then raise exception 'District focused source leak'; end if; end $$;
+do $$ begin if (select count(*) from public.tanaw_workflow_evidence('44000000-0000-0000-0000-000000000001'))<>0 or (select count(*) from public.tanaw_packet_evidence((select id from fixture_targets where label='packet1')))<>0 then raise exception 'District focused source leak'; end if; end $$;
 select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000007',true);
 select pg_temp.must_deny($s$select public.tanaw_workflow_people('42000000-0000-0000-0000-000000000001')$s$,'42501');
 do $$ begin if (select count(*) from public.tanaw_workflow_evidence('44000000-0000-0000-0000-000000000001'))<>0 then raise exception 'Foreign-school focused source leak'; end if; end $$;
