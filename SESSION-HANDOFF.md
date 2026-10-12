@@ -2,6 +2,8 @@
 
 Checkpoint: 12 October 2026. This section supersedes the archived 8 October continuation below.
 
+**Blocker-resolution continuation:** full official calendar and current assessment sources are accessible through the official Learning Systems orientation page. Annex B national summary inspected and recorded without live provisioning. Private registered CO extraction/comparison works for all terms; independent-engine recalculation confirms the single entered final grade. Runtime import stays closed pending approved identity/scope/period mappings, full fixtures, runtime adapter, retention and atomic writes. See `docs/source-blockers-2026-10-12.md`, `docs/calendar-source-2026-2027.json` and `docs/ecr/co-private-preview.md`. Archived calendar-access failures below are superseded; local applicability/amendments and operational setup remain separate gates.
+
 **DONE:** FORGE UI/UX recovery and enhancement implementation. The existing 22 recovery mechanisms are integrated with focused/paged reads, immutable packet history, frozen definition semantics, role task queues/navigation, scoped identity/period labels, explicit review prerequisites, safe field errors, continued offline local drafting, working-note recovery and keyboard/theme improvements.
 
 **VERIFIED implementation:** `d659076799e4dd1df51e2abc075bb91680f2b96d`. All three exact-head CI workflows passed:
