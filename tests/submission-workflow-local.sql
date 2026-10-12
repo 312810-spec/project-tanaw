@@ -159,5 +159,30 @@ select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000007'
 select pg_temp.must_deny($s$select public.tanaw_school_feedback('44000000-0000-0000-0000-000000000001')$s$,'42501');
 select pg_temp.must_deny($s$select public.tanaw_district_packets('42000000-0000-0000-0000-000000000001')$s$,'42501');
 do $$ begin if (select count(*) from public.tanaw_submission_versions)<>0 then raise exception 'Cross-school raw access'; end if; end $$;
+
+-- Focused read projections scale with CURRENT/snapshot rows, not history length.
+reset role;
+insert into public.tanaw_submission_versions(submission_id,version,evidence,author_id,recorded_by,reason)
+ select (select id from fixture_targets where label='teacherSubmission'), n, pg_temp.evidence(0),
+ '41000000-0000-0000-0000-000000000001','41000000-0000-0000-0000-000000000001','Synthetic history load'
+ from generate_series(3,1102) n;
+update public.tanaw_submissions set current_version=1102 where id=(select id from fixture_targets where label='teacherSubmission');
+update public.smea_indicator_definitions set label='Synthetic changed current label' where id='45000000-0000-0000-0000-000000000001';
+set local role authenticated;
+select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000004',true);
+do $$ begin
+ if (select count(*) from public.tanaw_workflow_evidence('44000000-0000-0000-0000-000000000001'))<>3 then raise exception 'Focused read returned history or lost exact snapshot'; end if;
+ if not exists(select 1 from public.tanaw_workflow_evidence('44000000-0000-0000-0000-000000000001') where version=1102) then raise exception 'Current evidence inaccessible after long history'; end if;
+ if not exists(select 1 from public.tanaw_workflow_evidence('44000000-0000-0000-0000-000000000001') where submission_id=(select id from fixture_targets where label='teacherSubmission') and version=2) then raise exception 'Exact locked snapshot lost'; end if;
+ if not exists(select 1 from public.tanaw_school_packets p,jsonb_array_elements(p.manifest) item,jsonb_array_elements(item->'definitions') d where p.id=(select id from fixture_targets where label='packet2') and d->>'label'='Synthetic manual indicator') then raise exception 'Historical definition rewritten'; end if;
+ if not exists(select 1 from public.tanaw_workflow_people('42000000-0000-0000-0000-000000000001') where label='workflow-teacher@fixture.invalid') then raise exception 'Authorized staff label missing'; end if;
+end $$;
+select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000005',true);
+select pg_temp.must_deny($s$select public.tanaw_workflow_people('42000000-0000-0000-0000-000000000001')$s$,'42501');
+do $$ begin if (select count(*) from public.tanaw_workflow_evidence('44000000-0000-0000-0000-000000000001'))<>0 then raise exception 'District focused source leak'; end if; end $$;
+select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000007',true);
+select pg_temp.must_deny($s$select public.tanaw_workflow_people('42000000-0000-0000-0000-000000000001')$s$,'42501');
+do $$ begin if (select count(*) from public.tanaw_workflow_evidence('44000000-0000-0000-0000-000000000001'))<>0 then raise exception 'Foreign-school focused source leak'; end if; end $$;
+
 reset role;
 rollback;

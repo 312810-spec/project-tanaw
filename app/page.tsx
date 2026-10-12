@@ -49,7 +49,7 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-5xl flex-col px-6 py-20">
+      <main id="main-content" tabIndex={-1} className="mx-auto flex w-full max-w-5xl flex-col px-6 py-20">
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-4">
             <span className="font-mono text-xs uppercase tracking-[0.2em] text-brand">

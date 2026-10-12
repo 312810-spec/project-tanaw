@@ -26,6 +26,8 @@ export function AccountWorkspace() {
   const [actorId, setActorId] = useState("");
   const [signedIn, setSignedIn] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [view, setView] = useState("work");
+  const [notesMessage, setNotesMessage] = useState("");
   const [accessVerified, setAccessVerified] = useState(false);
   const selection = useRef({ school: "", role: "" });
   const identityId = useRef("");
@@ -91,6 +93,15 @@ export function AccountWorkspace() {
     } catch { setStatus("Sign-out could not be completed. Try again."); }
     finally { setBusy(false); }
   }
+  function downloadNotes() {
+    const notes = [...document.querySelectorAll<HTMLTextAreaElement>('textarea[name="reason"],textarea[name="comment"],#cycle-reason')].filter((field) => field.value.trim()).map((field) => ({ label: field.closest("label")?.textContent?.trim() ?? "Unsent note", text: field.value }));
+    if (!notes.length) { setNotesMessage("There are no unsent notes to download. Evidence drafts have their own device-save status."); return; }
+    const content = JSON.stringify({ kind: "Unsent TANAW working notes — not a submitted record", school: membership?.school_name ?? selected, workspace: roleLabels[role], notes }, null, 2);
+    const url = URL.createObjectURL(new Blob([content], { type: "text/plain;charset=utf-8" }));
+    const link = document.createElement("a"); link.href = url; link.download = "TANAW-unsent-notes.txt"; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setNotesMessage("Download requested. Check the file before leaving; these notes are not submitted and access changes are not applied.");
+  }
   return (
     <div className="mt-8 space-y-6">
       <p role="status" aria-live="polite" className="rounded-lg border border-foreground/15 p-4 text-sm">{status}</p>
@@ -99,28 +110,29 @@ export function AccountWorkspace() {
           <select id="school" value={selected} disabled={busy} onChange={(event) => {
             if (!confirmLeavingWork()) return;
             const next = memberships.find((m) => m.school_id === event.target.value);
-            setSelected(event.target.value); setRole(next?.roles[0] ?? "");
+            setSelected(event.target.value); setRole(next?.roles[0] ?? ""); setView("work");
           }} className="w-full rounded-lg border border-foreground/20 bg-background p-3">
             {memberships.map((m) => <option key={m.school_id} value={m.school_id}>{m.school_name ?? m.school_id}</option>)}
           </select>
         </div>
         <div className="space-y-2"><label htmlFor="role" className="block text-sm font-medium">Workspace</label>
-          <select id="role" value={role} disabled={busy} onChange={(event) => { if (confirmLeavingWork()) setRole(event.target.value); }} className="w-full rounded-lg border border-foreground/20 bg-background p-3">
+          <select id="role" value={role} disabled={busy} onChange={(event) => { if (confirmLeavingWork()) { setRole(event.target.value); setView("work"); } }} className="w-full rounded-lg border border-foreground/20 bg-background p-3">
             {membership.roles.map((r) => <option key={r} value={r}>{roleLabels[r]}</option>)}
           </select>
         </div>
         <p className="text-sm text-foreground/70 sm:col-span-2">{membership.subject_ids.length} assigned subject scope(s). Role selection changes this view; database permissions come from your coordinator-managed assignments.</p>
       </div>}
-      {membership && <nav aria-label="Workspace tasks" className="flex flex-wrap gap-3 text-sm"><a href="#school-workflow-heading" className="underline">Submissions and review</a><a href="#cycles-heading" className="underline">Reporting calendar</a>{role === "smeaCoordinator" && <a href="#member-management-heading" className="underline">School access</a>}</nav>}
-      <fieldset disabled={busy || !accessVerified} className="min-w-0 space-y-6">
-      {membership && actorId && <SchoolWorkflow key={membership.school_id + role} schoolId={membership.school_id} role={role} actorId={actorId} />}
-      {membership && <ReportingCycles key={membership.school_id} schoolId={membership.school_id} canManage={membership.roles.includes("smeaCoordinator") && role === "smeaCoordinator"} />}
-      {membership && actorId && role === "smeaCoordinator" && <MemberManagement key={membership.school_id} schoolId={membership.school_id} actorId={actorId} />}
-      </fieldset>
+      {membership && <><div className="context-panel"><p className="font-semibold">{membership.school_name ?? membership.school_id}</p><p className="text-sm">{roleLabels[role]} · {membership.subject_ids.length} assigned subject scope(s)</p></div><nav aria-label="Workspace tasks" className="task-navigation">{[["work", role === "teacher" ? "My evidence" : role === "schoolHead" ? "Packet review" : role === "districtCoordinator" ? "School packets" : "Submissions and review"], ["calendar", "Reporting calendar"], ...(role === "smeaCoordinator" ? [["access", "School access"]] : [])].map(([id, label]) => <button type="button" key={id} aria-pressed={view === id} onClick={() => setView(id)}>{label}</button>)}</nav></>}
+      <div className="min-w-0 space-y-6">
+      {membership && actorId && <div hidden={view !== "work"}><SchoolWorkflow key={membership.school_id + role} schoolId={membership.school_id} role={role} actorId={actorId} schoolName={membership.school_name} accessVerified={accessVerified && !busy} /></div>}
+      {membership && <div hidden={view !== "calendar"}><fieldset disabled={busy || !accessVerified} className="min-w-0"><ReportingCycles key={membership.school_id} schoolId={membership.school_id} canManage={membership.roles.includes("smeaCoordinator") && role === "smeaCoordinator"} /></fieldset></div>}
+      {membership && actorId && role === "smeaCoordinator" && <div hidden={view !== "access"}><fieldset disabled={busy || !accessVerified} className="min-w-0"><MemberManagement key={membership.school_id} schoolId={membership.school_id} actorId={actorId} /></fieldset></div>}
+      </div>
       <div className="flex flex-wrap gap-3">
         <button type="button" onClick={() => { if (confirmLeavingWork()) void load(); }} disabled={busy} className="rounded-lg border border-brand px-4 py-2 text-sm text-brand disabled:opacity-50">Refresh access</button>
         {signedIn ? <button type="button" onClick={() => void signOut()} disabled={busy} className="rounded-lg border border-foreground/20 px-4 py-2 text-sm disabled:opacity-50">Sign out</button> : <a href="/login" className="rounded-lg bg-action px-4 py-2 text-sm text-on-action">Sign in</a>}
       </div>
+      {membership && <div className="space-y-2"><button type="button" className="text-sm underline" onClick={downloadNotes}>Download unsent notes before leaving</button><p role="status" className="text-sm">{notesMessage}</p></div>}
       <p className="text-xs leading-5 text-foreground/60">Class-record import is still being verified. No school results are shown until authorized records are available.</p>
     </div>
   );

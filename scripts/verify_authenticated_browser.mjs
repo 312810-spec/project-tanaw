@@ -55,6 +55,10 @@ try {
     const errors = []; page.on('pageerror', (error) => errors.push(error.message));
     await page.route('**/*', (route) => { const target = new URL(route.request().url()); return [origin, url].includes(target.origin) || target.protocol === 'data:' ? route.continue() : route.abort(); });
     await page.goto(origin + '/login');
+    await page.keyboard.press('Tab');
+    assert.equal(await page.evaluate(() => document.activeElement?.textContent), 'Skip to main content', 'Keyboard entry starts at skip link');
+    await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'main-content', 'Skip link focuses main content');
     await page.getByLabel('Email address').fill(users[role].email);
     await page.getByLabel('Password', { exact: true }).fill(users[role].password);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
@@ -80,10 +84,21 @@ try {
   await teacher.ui.getByLabel('Evidence title').fill('Synthetic recorded zero');
   await teacher.ui.getByLabel('Evidence location or reference').fill('https://fixture.invalid/evidence');
   await teacher.ui.getByLabel('Reason for submission or correction').fill('Synthetic browser acceptance test');
+  // Whitespace input gets a field-linked error without losing numeric zero.
+  await teacher.ui.getByLabel('Evidence title').fill(' ');
+  await teacher.ui.getByRole('button', { name: 'Submit a new evidence version' }).click();
+  await teacher.ui.locator('#manual-sourceTitle-error').waitFor();
+  assert.equal(await teacher.ui.getByLabel('Recorded value').inputValue(), '0');
+  await teacher.ui.getByLabel('Evidence title').fill('Synthetic recorded zero');
   await teacher.page.context().setOffline(true);
   await teacher.ui.getByLabel('Evidence title').fill('Synthetic offline recorded zero');
   await teacher.ui.getByRole('button', { name: 'Submit a new evidence version' }).click();
   await teacher.ui.getByText('Offline draft saved. Submit after reconnecting and refreshing access.', { exact: true }).waitFor();
+  await teacher.ui.getByRole('button', { name: 'Refresh workflow' }).click();
+  await teacher.ui.getByText('Workflow refresh failed. Previously loaded information may be out of date; actions are paused. Retry refresh.', { exact: true }).waitFor();
+  assert.equal(await teacher.ui.getByLabel('Recorded value').isEnabled(), true, 'Offline refresh must retain local editing');
+  await teacher.ui.getByLabel('Evidence title').fill('Synthetic offline recorded zero');
+  assert.equal(await teacher.ui.getByRole('button', { name: 'Submit a new evidence version' }).isDisabled(), true);
   const deviceDraft = await teacher.page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith('tanaw:manual-draft:')).map((key) => JSON.parse(localStorage.getItem(key))));
   assert.equal(deviceDraft.length, 1); assert.equal(deviceDraft[0].fields.value, '0');
   assert.equal(deviceDraft[0].scope.actorId, users.teacher.id); assert.equal(deviceDraft[0].sourceVersion, 0);
@@ -95,7 +110,7 @@ try {
   assert.equal(await teacher.ui.getByLabel('Recorded value').inputValue(), '0');
   await teacher.ui.getByRole('button', { name: 'Submit a new evidence version' }).click();
   await teacher.ui.getByText('Current recorded evidence', { exact: true }).waitFor();
-  await teacher.ui.getByText('Synthetic manual indicator: 0', { exact: false }).waitFor();
+  await teacher.ui.getByText('Synthetic manual indicator: 0', { exact: false }).first().waitFor();
   assert.equal(await teacher.page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith('tanaw:manual-draft:')).length), 0, 'Only a successful submission clears the device draft');
   await teacher.page.getByRole('complementary', { name: 'Deadline reminders' }).getByText('0 missing submission(s)', { exact: false }).waitFor();
   await teacher.page.screenshot({ path: output + '/teacher-submitted.png', fullPage: true });
@@ -126,6 +141,7 @@ try {
   assert.equal((await districtClient.auth.signInWithPassword(users.districtCoordinator)).error, null);
   const raw = await districtClient.from('tanaw_submission_versions').select('submission_id');
   assert.equal(raw.error, null); assert.deepEqual(raw.data, [], 'District must have no learner/source version access');
+  await coordinator.page.getByRole('navigation', { name: 'Workspace tasks' }).getByRole('button', { name: 'School access', exact: true }).click();
   const access = coordinator.page.getByRole('region', { name: 'Manage school access' });
   await access.getByLabel('Assigned account').selectOption(users.teacher.id);
   await access.getByLabel('Access enabled').uncheck();
@@ -182,8 +198,18 @@ try {
   await anonymousPage.getByText('Open a valid recovery link from your email to continue.', { exact: true }).waitFor();
   assert.equal(await anonymousPage.getByLabel('New password', { exact: true }).isDisabled(), true);
   await anonymousContext.close();
+  // All role surfaces must fit narrow Android widths and both supported themes.
+  for (const entry of pages) {
+    for (const colorScheme of ['light', 'dark']) {
+      await entry.page.emulateMedia({ colorScheme });
+      for (const width of [320, 390, 1440]) {
+        await entry.page.setViewportSize({ width, height: 900 });
+        assert.equal(await entry.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, entry.role + ' layout overflow at ' + width);
+      }
+    }
+  }
   for (const entry of pages) { assert.deepEqual(entry.errors, [], entry.role + ' must have no uncaught browser errors'); assert.equal(await entry.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false); await entry.context.close(); }
-  console.log('Authenticated synthetic browser acceptance passed: teacher zero submission, subject review, school review, independent Head review, explicit Lock, district acceptance and raw-data denial.');
+  console.log('Authenticated synthetic browser acceptance passed: teacher zero submission, subject review, school review, independent Head review, explicit Lock, district return/reconciliation and raw-data denial; offline refresh retention, field validation and narrow light/dark layouts.');
 } finally {
   if (browser) await browser.close();
   if (server.pid) { try { process.kill(-server.pid, 'SIGTERM'); } catch {} }

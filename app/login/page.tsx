@@ -4,7 +4,7 @@ import { SignInForm } from "@/app/components/sign-in-form";
 export const metadata = { title: "Sign in" };
 
 export default function SignInPage() {
-  return <main className="mx-auto w-full max-w-md flex-1 px-6 py-12">
+  return <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-md flex-1 px-6 py-12">
     <Link href="/" className="text-sm underline underline-offset-4">Back to TANAW</Link>
     <p className="mt-12 text-xs uppercase tracking-widest text-brand">Project TANAW</p>
     <h1 className="mt-3 text-3xl font-semibold tracking-tight">Your school workspace</h1>
