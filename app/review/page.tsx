@@ -8,7 +8,7 @@ export const metadata = {
 
 export default function EvidenceReviewPage() {
   return (
-    <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-12 text-foreground">
+    <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-4xl flex-1 px-6 py-12 text-foreground">
       <Link href="/" className="text-sm underline underline-offset-4">
         Back to TANAW
       </Link>

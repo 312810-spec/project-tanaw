@@ -1,5 +1,7 @@
 # Project TANAW — Operating Rules and Safety Record
 
+> Current implementation reference: `docs/confirmed-decisions-2026-10-08.md` governs the review sequence: Submit → Subject review → School review → Independent School Head review → Explicit SMEA Coordinator Lock → District review. Earlier phase descriptions below are historical; district acceptance is separate from Lock and awaits governed result content. Autonomous UX repair and branch publishing are authorized in the current task; hosted changes and deployment still require separate authorization.
+
 **Project:** Project TANAW — West 1 District MEA Platform
 
 **Development rule:** Issue → Workaround → Record. This file is the Record.
@@ -190,6 +192,18 @@ When a workaround is required, follow:
 Issue → Workaround → Record
 
 Record non-obvious constraints and verified workarounds in this file so the same failure is not repeated.
+
+**2026-10-10 — UX verification under a blocked live browser.** In the Work session,
+Chromium failed to create its singleton socket (`Operation not permitted`) and the
+cloud browser separately rejected the local app under its URL policy. These are
+environment restrictions; changing application code does not repair them. Do not
+route the same blocked browser action through proxies, tunnels, alternate browser
+surfaces or launch flags. Continue permitted source review, build, lint, type and
+domain tests. Existing GitHub Actions results may be read as historical evidence,
+but must retain their tested commit and date. They do not verify new UX changes.
+Fresh rendered screenshots, keyboard/focus behavior and mutation/read-failure UI
+tests remain unverified until supported browser access is available. See
+`docs/forge-ux-recovery.md` for the first implementation batch and remaining gates.
 
 ---
 

@@ -1,4 +1,31 @@
-# Project TANAW — Current Session Handoff
+# Project TANAW — current implementation handoff
+
+Checkpoint: 12 October 2026. This section supersedes the archived 8 October continuation below.
+
+**DONE:** FORGE UI/UX recovery and enhancement implementation. The existing 22 recovery mechanisms are integrated with focused/paged reads, immutable packet history, frozen definition semantics, role task queues/navigation, scoped identity/period labels, explicit review prerequisites, safe field errors, continued offline local drafting, working-note recovery and keyboard/theme improvements.
+
+**VERIFIED implementation:** `d659076799e4dd1df51e2abc075bb91680f2b96d`. All three exact-head CI workflows passed:
+- Fast domain: https://github.com/312810-spec/project-tanaw/actions/runs/38214385440
+- Public desktop/mobile: https://github.com/312810-spec/project-tanaw/actions/runs/38214385281
+- Isolated build/database/authenticated browser: https://github.com/312810-spec/project-tanaw/actions/runs/38214385329
+
+Evidence: 78 domain tests, nine synthetic workbook-audit tests, lint/build/baseline and four SQL suites. Authenticated acceptance covers recorded zero, scoped handover, field validation, offline-refresh draft editing, a real accepted write followed by failed refresh and reconciliation, independent reviews/Lock, historical inspection, district return/raw-data denial, retained access rationale, disabled access, local email/password recovery, keyboard skip entry and 320/390/1440-width light/dark assertions.
+
+Integration record: https://github.com/312810-spec/project-tanaw/pull/25 . The tested SHA identifies implementation; documentation and merge commits have separate identities. See current GitHub PR/main metadata for the exact merge commit. The final checkpoint changes documentation only and leaves tested code unchanged.
+
+**PENDING/BLOCKED:** approved runtime workbook adapters and independent formula/mapping/rounding fixtures; applicable official indicator/calendar sources; governed district aggregate results; approved editable Excel/PPT/PDF output templates; secure operational provisioning/SMTP and designated TNHS pilot participants/confirmed records. District acceptance remains unavailable until governed results exist. Live AI remains deferred. No official data, record, date, formula, approval or participant was invented.
+
+**Limits:** automated viewport assertions are not physical Android/TalkBack or complete WCAG conformance. CI uses synthetic local records; production delivery, deployment and a real pilot are not established. No hosted mutation or deployment occurred.
+
+**NEXT:** preserve these verified UI/workflow controls. Continue the approved import/result vertical slice only from verified source evidence; park missing mappings/formulas/templates explicitly. Re-enable district acceptance only after its governed result projection and privacy checks pass. Production configuration/pilot remain separate operational work.
+
+Detailed implementation/evidence: `docs/forge-ui-ux-completion.md` and `docs/forge-ux-recovery.md`.
+
+---
+
+## Archived 8 October implementation checkpoint
+
+### Previous session handoff
 
 Checkpoint: 8 October 2026. This file supersedes the archived foundation notes in `docs/session-handoff-2026-10-08-foundations.md` and `docs/session-handoff-phase-0.6c.md`.
 

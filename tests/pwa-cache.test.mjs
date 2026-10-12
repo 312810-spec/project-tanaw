@@ -9,7 +9,7 @@ function worker(network) {
     self: { location: { origin: 'https://fixture.invalid' }, clients: { claim: async () => {} }, addEventListener: (name, handler) => { handlers[name] = handler; } },
     URL, Response, Request: class { constructor(url, options) { this.url = url; this.credentials = options.credentials; } },
     fetch: network,
-    caches: { match: async () => new Response('Public fallback'), keys: async () => ['unrelated-user-cache', 'tanaw-offline-shell-v0', 'tanaw-offline-shell-v1'], delete: async (key) => { deleted.push(key); }, open: async () => ({ add: async (request) => { assert.equal(request.url, '/offline.html'); assert.equal(request.credentials, 'omit'); } }) },
+    caches: { match: async () => new Response('Public fallback'), keys: async () => ['unrelated-user-cache', 'tanaw-offline-shell-v0', 'tanaw-offline-shell-v1', 'tanaw-offline-shell-v2'], delete: async (key) => { deleted.push(key); }, open: async () => ({ add: async (request) => { assert.equal(request.url, '/offline.html'); assert.equal(request.credentials, 'omit'); } }) },
   });
   return { handlers, deleted };
 }
@@ -36,5 +36,5 @@ test('installation caches a credential-free public page; activation preserves un
   let operation;
   handlers.install({ waitUntil: (promise) => { operation = promise; } }); await operation;
   handlers.activate({ waitUntil: (promise) => { operation = promise; } }); await operation;
-  assert.deepEqual(deleted, ['tanaw-offline-shell-v0']);
+  assert.deepEqual(deleted, ['tanaw-offline-shell-v0', 'tanaw-offline-shell-v1']);
 });

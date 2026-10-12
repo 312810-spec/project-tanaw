@@ -5,6 +5,15 @@ export const emptyDraft: EvidenceDraft = { definition: "", value: "", sourceTitl
 export function draftKey(scope: DraftScope): string {
   return "tanaw:manual-draft:" + JSON.stringify([scope.actorId, scope.schoolId, scope.submissionId]);
 }
+// Never overwrite an unreadable draft or an earlier recovery copy.
+export function preserveUnreadableDraft(storage: Pick<Storage, "getItem" | "setItem">, key: string, raw: string): string {
+  const recoveryKey = key + ":unreadable";
+  const previous = storage.getItem(recoveryKey);
+  if (previous !== null && previous !== raw) throw new Error("An earlier recovery copy already exists");
+  storage.setItem(recoveryKey, raw);
+  if (storage.getItem(recoveryKey) !== raw) throw new Error("Recovery copy could not be verified");
+  return recoveryKey;
+}
 export function decodeDraft(raw: string | null, scope: DraftScope): SavedDraft | null {
   if (!raw) return null;
   try {

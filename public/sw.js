@@ -1,5 +1,5 @@
 // Cache only the public fallback. School pages, tokens, APIs and records are never cached.
-const CACHE = "tanaw-offline-shell-v1";
+const CACHE = "tanaw-offline-shell-v2";
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.add(new Request("/offline.html", { credentials: "omit" }))));
 });
@@ -11,5 +11,5 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/auth/")) return;
   if (request.method !== "GET" || request.mode !== "navigate" || url.origin !== self.location.origin) return;
-  event.respondWith(fetch(request, { cache: "no-store" }).catch(async () => (await caches.match("/offline.html")) || new Response("TANAW is offline. Reconnect to reopen your workspace. Device drafts are preserved.", { status: 503, headers: { "Content-Type": "text/plain" } })));
+  event.respondWith(fetch(request, { cache: "no-store" }).catch(async () => (await caches.match("/offline.html")) || new Response("TANAW is offline. Reconnect to reopen your workspace. Check your device draft status after reconnecting.", { status: 503, headers: { "Content-Type": "text/plain" } })));
 });

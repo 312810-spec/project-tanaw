@@ -9,6 +9,10 @@
   --color-brand-strong: #14296b;
   --color-brand-soft: #e8edf9;
   --color-gold: #c9a227;
+  --color-action: #1b3a8c;
+  --color-on-action: #ffffff;
+  --color-accent-text: #806000;
+  --color-focus: #1b3a8c;
 }
 
 @theme inline {
@@ -18,6 +22,9 @@
   --color-brand-strong: var(--color-brand-strong);
   --color-brand-soft: var(--color-brand-soft);
   --color-gold: var(--color-gold);
+  --color-action: var(--color-action);
+  --color-on-action: var(--color-on-action);
+  --color-accent-text: var(--color-accent-text);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -32,6 +39,9 @@
     --color-brand-strong: #8aa5ee;
     --color-brand-soft: #141d33;
     --color-gold: #e6c35c;
+    --color-action: #365bbb;
+    --color-accent-text: #e6c35c;
+    --color-focus: #e6c35c;
   }
 }
 
@@ -41,10 +51,39 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
+button,
+summary {
+  min-height: 2.75rem;
+}
+summary {
+  padding-block: 0.5rem;
+}
+
 /* Visible keyboard focus for the interactive elements this shell exposes. */
 a:focus-visible,
-button:focus-visible {
-  outline: 2px solid var(--color-gold);
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--color-focus);
   outline-offset: 2px;
   border-radius: 4px;
 }
+
+/* Shared work surfaces: solid, readable, no decorative motion. */
+.context-panel, .status-panel { padding: 1rem; border: 1px solid color-mix(in srgb, var(--foreground) 18%, transparent); border-radius: .75rem; background: var(--color-brand-soft); overflow-wrap: anywhere; }
+.task-navigation { display: flex; flex-wrap: wrap; gap: .5rem; border-bottom: 1px solid color-mix(in srgb, var(--foreground) 18%, transparent); padding-bottom: .75rem; }
+.task-navigation button { padding: .65rem 1rem; border-radius: .5rem; border: 1px solid transparent; font-size: .875rem; }
+.task-navigation button[aria-pressed="true"] { background: var(--color-action); color: var(--color-on-action); }
+.task-queue { padding: 1rem; background: var(--color-brand-soft); border-radius: .75rem; display: grid; gap: 1rem; }
+.task-row { width: 100%; padding: .75rem; text-align: left; display: grid; gap: .25rem; border-radius: .5rem; overflow-wrap: anywhere; }
+.task-row[aria-pressed="true"] { outline: 2px solid var(--color-focus); outline-offset: -2px; }
+.skip-link { position: absolute; left: 1rem; top: 1rem; transform: translateY(-200%); padding: .75rem; background: var(--color-action); color: var(--color-on-action); z-index: 10; }
+.skip-link:focus { transform: none; }
+[hidden] { display: none !important; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; } }
+
+input, select, textarea { max-width: 100%; }
+section, article, fieldset { min-width: 0; }
+p, li { overflow-wrap: anywhere; }

@@ -14,7 +14,7 @@ export function PwaStatus() {
     window.addEventListener("beforeinstallprompt", prompt); window.addEventListener("appinstalled", installed);
     queueMicrotask(update);
     if (process.env.NODE_ENV === "production" && "serviceWorker" in navigator) {
-      void navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" }).catch(() => setMessage("Offline page is unavailable. Drafts can still save in an open workspace."));
+      void navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" }).catch(() => setMessage("Offline page is unavailable. Keep your workspace open and check each draft’s save status."));
     }
     return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); window.removeEventListener("beforeinstallprompt", prompt); window.removeEventListener("appinstalled", installed); };
   }, []);

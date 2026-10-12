@@ -32,7 +32,7 @@ for (const [role, user] of Object.entries(users)) sql += `insert into public.tan
 sql += `insert into public.tanaw_instructional_blocks(id,school_year,label,end_date,source_order,source_url,verified_at) values(${q(block)},'Fixture','Synthetic block',current_date-1,'SYNTHETIC','https://fixture.invalid/calendar',now());\n`;
 sql += `insert into public.tanaw_reporting_cycles(id,school_id,instructional_block_id,deadline_at,created_by) values(${q(cycle)},${q(school)},${q(block)},now()+interval '1 day',${q(users.smeaCoordinator.id)});\n`;
 sql += `insert into public.smea_indicator_definitions(id,school_id,indicator_code,label,unit,school_year,reporting_period,definition_status,source_id,source_title,source_locator,formula_expression,numerator_definition,denominator_definition,rounding_rule) values(${q(definition)},${q(school)},'FIXTURE','Synthetic manual indicator','count','Fixture','Synthetic block','verified','fixture','Synthetic source','https://fixture.invalid/indicator','fixture expression','fixture numerator','fixture denominator','fixture rounding');\n`;
-sql += `begin; set local role authenticated; select set_config('request.jwt.claim.sub',${q(users.smeaCoordinator.id)},true); select public.tanaw_assign_submission(${q(cycle)},${q(users.teacher.id)},'math','Synthetic class A','Synthetic browser assignment'); commit;`;
+sql += `begin; set local role authenticated; select set_config('request.jwt.claim.sub',${q(users.smeaCoordinator.id)},true); select public.tanaw_assign_submission(${q(cycle)},${q(users.teacher.id)},'math','Synthetic class A','Synthetic browser assignment'); select public.tanaw_set_slot_requirements((select id from public.tanaw_submissions where slot_id in (select id from public.tanaw_submission_slots where cycle_id=${q(cycle)})),0,array[${q(definition)}::uuid],'Synthetic browser requirements'); commit;`;
 const seed = spawnSync('docker', ['exec', '-i', 'supabase_db_project-tanaw', 'psql', '-U', 'postgres', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1'], { input: sql, encoding: 'utf8' });
 assert.equal(seed.status, 0, 'Synthetic local workflow setup must succeed');
 const build = spawnSync('npm', ['run', 'build'], { env: { ...process.env, NEXT_PUBLIC_SUPABASE_URL: url, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publicKey }, stdio: 'inherit' });
@@ -51,9 +51,14 @@ try {
   async function login(role) {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
     const page = await context.newPage();
+    page.on('dialog', (dialog) => dialog.accept());
     const errors = []; page.on('pageerror', (error) => errors.push(error.message));
     await page.route('**/*', (route) => { const target = new URL(route.request().url()); return [origin, url].includes(target.origin) || target.protocol === 'data:' ? route.continue() : route.abort(); });
     await page.goto(origin + '/login');
+    await page.keyboard.press('Tab');
+    assert.equal(await page.evaluate(() => document.activeElement?.textContent), 'Skip to main content', 'Keyboard entry starts at skip link');
+    await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'main-content', 'Skip link focuses main content');
     await page.getByLabel('Email address').fill(users[role].email);
     await page.getByLabel('Password', { exact: true }).fill(users[role].password);
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
@@ -66,7 +71,7 @@ try {
   const handoverCoordinator = await login('smeaCoordinator');
   for (const target of [users.smeaCoordinator.id, users.teacher.id]) {
     await handoverCoordinator.ui.getByLabel('Assigned submission').selectOption({ index: 1 });
-    await handoverCoordinator.ui.getByText('Hand over an unsubmitted assignment', { exact: true }).click();
+    if (!await handoverCoordinator.ui.getByLabel('New assigned account').isVisible()) await handoverCoordinator.ui.getByText('Hand over an unsubmitted assignment', { exact: true }).click();
     await handoverCoordinator.ui.getByLabel('New assigned account').selectOption(target);
     await handoverCoordinator.ui.getByLabel('Handover reason').fill('Synthetic browser recorded handover');
     await handoverCoordinator.ui.getByRole('button', { name: 'Record assignment handover' }).click();
@@ -79,10 +84,21 @@ try {
   await teacher.ui.getByLabel('Evidence title').fill('Synthetic recorded zero');
   await teacher.ui.getByLabel('Evidence location or reference').fill('https://fixture.invalid/evidence');
   await teacher.ui.getByLabel('Reason for submission or correction').fill('Synthetic browser acceptance test');
+  // Whitespace input gets a field-linked error without losing numeric zero.
+  await teacher.ui.getByLabel('Evidence title').fill(' ');
+  await teacher.ui.getByRole('button', { name: 'Submit a new evidence version' }).click();
+  await teacher.ui.locator('#manual-sourceTitle-error').waitFor();
+  assert.equal(await teacher.ui.getByLabel('Recorded value').inputValue(), '0');
+  await teacher.ui.getByLabel('Evidence title').fill('Synthetic recorded zero');
   await teacher.page.context().setOffline(true);
   await teacher.ui.getByLabel('Evidence title').fill('Synthetic offline recorded zero');
   await teacher.ui.getByRole('button', { name: 'Submit a new evidence version' }).click();
-  await teacher.ui.getByText('Offline draft retained. Reconnect and refresh before submitting.', { exact: true }).waitFor();
+  await teacher.ui.getByText('Offline draft saved. Submit after reconnecting and refreshing access.', { exact: true }).waitFor();
+  await teacher.ui.getByRole('button', { name: 'Refresh workflow' }).click();
+  await teacher.ui.getByText('Workflow refresh failed. Previously loaded information may be out of date; actions are paused. Retry refresh.', { exact: true }).waitFor();
+  assert.equal(await teacher.ui.getByLabel('Recorded value').isEnabled(), true, 'Offline refresh must retain local editing');
+  await teacher.ui.getByLabel('Evidence title').fill('Synthetic offline recorded zero');
+  assert.equal(await teacher.ui.getByRole('button', { name: 'Submit a new evidence version' }).isDisabled(), true);
   const deviceDraft = await teacher.page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith('tanaw:manual-draft:')).map((key) => JSON.parse(localStorage.getItem(key))));
   assert.equal(deviceDraft.length, 1); assert.equal(deviceDraft[0].fields.value, '0');
   assert.equal(deviceDraft[0].scope.actorId, users.teacher.id); assert.equal(deviceDraft[0].sourceVersion, 0);
@@ -92,9 +108,26 @@ try {
   await teacher.ui.getByLabel('Assigned submission').selectOption({ index: 1 });
   await teacher.ui.getByText('Device draft restored. Review it before submitting.', { exact: true }).waitFor();
   assert.equal(await teacher.ui.getByLabel('Recorded value').inputValue(), '0');
+  // Commit the real RPC; sustain the refresh fault through SDK GET retries.
+  let failRefresh = false;
+  await teacher.page.route('**/rest/v1/rpc/tanaw_submit_evidence', async (route) => {
+    const response = await route.fetch();
+    assert.equal(response.ok(), true);
+    failRefresh = true;
+    await route.fulfill({ response });
+  });
+  await teacher.page.route('**/rest/v1/tanaw_reporting_cycles?*', (route) => {
+    if (failRefresh) return route.abort('failed');
+    return route.continue();
+  });
   await teacher.ui.getByRole('button', { name: 'Submit a new evidence version' }).click();
+  await teacher.ui.getByText('Action recorded, but the view could not be refreshed. Retry refresh before taking another action.', { exact: true }).waitFor();
+  assert.equal(await teacher.page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith('tanaw:manual-draft:')).length), 0, 'Accepted write clears working draft even if presentation refresh fails');
+  await teacher.page.unroute('**/rest/v1/rpc/tanaw_submit_evidence');
+  await teacher.page.unroute('**/rest/v1/tanaw_reporting_cycles?*');
+  await teacher.ui.getByRole('button', { name: 'Refresh workflow' }).click();
   await teacher.ui.getByText('Current recorded evidence', { exact: true }).waitFor();
-  await teacher.ui.getByText('Synthetic manual indicator: 0', { exact: false }).waitFor();
+  await teacher.ui.getByText('Synthetic manual indicator: 0', { exact: false }).first().waitFor();
   assert.equal(await teacher.page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith('tanaw:manual-draft:')).length), 0, 'Only a successful submission clears the device draft');
   await teacher.page.getByRole('complementary', { name: 'Deadline reminders' }).getByText('0 missing submission(s)', { exact: false }).waitFor();
   await teacher.page.screenshot({ path: output + '/teacher-submitted.png', fullPage: true });
@@ -111,11 +144,17 @@ try {
   const head = await login('schoolHead');
   await head.ui.getByRole('button', { name: 'Record School Head review' }).click();
   await head.ui.getByText('Action recorded with its history.', { exact: true }).waitFor();
+  await head.ui.getByText('School packet history', { exact: true }).click();
+  await head.ui.getByRole('button', { name: 'Load packet history', exact: true }).click();
+  await head.ui.getByLabel('Historical packet', { exact: false }).selectOption({ index: 1 });
+  await head.ui.getByText('Exact historical evidence loaded. Inspection does not change or approve this packet.', { exact: true }).waitFor();
   await coordinator.ui.getByRole('button', { name: 'Refresh workflow' }).click();
   await coordinator.ui.getByRole('button', { name: 'Lock this school packet' }).click();
   await coordinator.ui.getByText('Locked · complete', { exact: true }).waitFor();
   await coordinator.page.screenshot({ path: output + '/coordinator-locked.png', fullPage: true });
   const district = await login('districtCoordinator');
+  await district.ui.getByLabel('Decision', { exact: true }).selectOption('return');
+  await district.ui.getByLabel('Review comments').fill('Synthetic governed result projection pending');
   await district.ui.getByRole('button', { name: 'Record district decision' }).click();
   await district.ui.getByText('Action recorded with its history.', { exact: true }).waitFor();
   await district.page.screenshot({ path: output + '/district-aggregate.png', fullPage: true });
@@ -123,10 +162,14 @@ try {
   assert.equal((await districtClient.auth.signInWithPassword(users.districtCoordinator)).error, null);
   const raw = await districtClient.from('tanaw_submission_versions').select('submission_id');
   assert.equal(raw.error, null); assert.deepEqual(raw.data, [], 'District must have no learner/source version access');
+  await coordinator.page.getByRole('navigation', { name: 'Workspace tasks' }).getByRole('button', { name: 'School access', exact: true }).click();
   const access = coordinator.page.getByRole('region', { name: 'Manage school access' });
   await access.getByLabel('Assigned account').selectOption(users.teacher.id);
   await access.getByLabel('Access enabled').uncheck();
   await access.getByLabel('Reason for access change').fill('Synthetic browser account disable');
+  await coordinator.page.getByRole('navigation', { name: 'Workspace tasks' }).getByRole('button', { name: 'Submissions and review', exact: true }).click();
+  await coordinator.page.getByRole('navigation', { name: 'Workspace tasks' }).getByRole('button', { name: 'School access', exact: true }).click();
+  assert.equal(await access.getByLabel('Reason for access change').inputValue(), 'Synthetic browser account disable');
   await access.getByRole('button', { name: 'Save account access' }).click();
   await access.getByText('Access updated. Authorship and submitted records remain preserved.', { exact: true }).waitFor();
   await teacher.page.getByRole('button', { name: 'Refresh access', exact: true }).click();
@@ -179,8 +222,21 @@ try {
   await anonymousPage.getByText('Open a valid recovery link from your email to continue.', { exact: true }).waitFor();
   assert.equal(await anonymousPage.getByLabel('New password', { exact: true }).isDisabled(), true);
   await anonymousContext.close();
+  // All role surfaces must fit narrow Android widths and both supported themes.
+  for (const entry of pages) {
+    for (const colorScheme of ['light', 'dark']) {
+      await entry.page.emulateMedia({ colorScheme });
+      for (const width of [320, 390, 1440]) {
+        await entry.page.setViewportSize({ width, height: 900 });
+        assert.equal(await entry.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, entry.role + ' layout overflow at ' + width);
+      }
+    }
+  }
   for (const entry of pages) { assert.deepEqual(entry.errors, [], entry.role + ' must have no uncaught browser errors'); assert.equal(await entry.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false); await entry.context.close(); }
-  console.log('Authenticated synthetic browser acceptance passed: teacher zero submission, subject review, school review, independent Head review, explicit Lock, district acceptance and raw-data denial.');
+  console.log('Authenticated synthetic browser acceptance passed: teacher zero submission, subject review, school review, independent Head review, explicit Lock, district return/reconciliation and raw-data denial; offline refresh retention, field validation and narrow light/dark layouts.');
+} catch (error) {
+  for (const entry of pages) { try { await entry.page.screenshot({ path: output + '/failure-' + entry.role + '.png', fullPage: true }); } catch {} }
+  throw error;
 } finally {
   if (browser) await browser.close();
   if (server.pid) { try { process.kill(-server.pid, 'SIGTERM'); } catch {} }
