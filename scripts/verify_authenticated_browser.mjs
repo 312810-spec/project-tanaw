@@ -108,7 +108,7 @@ try {
   await teacher.ui.getByLabel('Assigned submission').selectOption({ index: 1 });
   await teacher.ui.getByText('Device draft restored. Review it before submitting.', { exact: true }).waitFor();
   assert.equal(await teacher.ui.getByLabel('Recorded value').inputValue(), '0');
-  // Commit the real RPC, then fail one subsequent read: do not fake success.
+  // Commit the real RPC; sustain the refresh fault through SDK GET retries.
   let failRefresh = false;
   await teacher.page.route('**/rest/v1/rpc/tanaw_submit_evidence', async (route) => {
     const response = await route.fetch();
@@ -117,7 +117,7 @@ try {
     await route.fulfill({ response });
   });
   await teacher.page.route('**/rest/v1/tanaw_reporting_cycles?*', (route) => {
-    if (failRefresh) { failRefresh = false; return route.abort('failed'); }
+    if (failRefresh) return route.abort('failed');
     return route.continue();
   });
   await teacher.ui.getByRole('button', { name: 'Submit a new evidence version' }).click();
