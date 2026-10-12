@@ -262,3 +262,31 @@ Phase 0.1 recommendation, recorded without any plugin change:
 - Do not alter that other project's registrations from Project TANAW.
 - Do not install a duplicate Project TANAW security plugin during Phase 0.1.
 
+---
+
+## 15. Workbook source verification — 12 October 2026
+
+**Source fidelity is separate from current-policy conformity.** 405 independently
+recalculated synthetic CO cases reproduce the registered source, but forty exact
+minimum-value points per term disagree with DO 015 s. 2026 Table 4. The separately
+tested boundary candidate is an experiment; it does not approve a replacement
+source or authorize rewriting submitted/locked history. Runtime import remains
+disabled. See `docs/ecr/independent-engine-verification.md`.
+
+**External dependencies include defined names.** Division core has 69 custom
+defined-name entries containing numeric external-workbook indices, despite no
+such indices in the visible cell-formula scan. Its thirteen external-link records
+must not be stripped based on that narrower scan. The SHS file labelled Corrected
+also has an external link/name; filenames are not verification evidence.
+
+**Historical official templates are dated evidence.** Mandaue's retrieved 2016
+SMET/DsMET files do not establish current 2026–2027 requirements. Sparse or failed
+embedded-index retrieval does not prove absence of a current memo. Preserve
+source version, coverage, formulas and approval provenance explicitly.
+
+Issue → Workaround → Record: missing independent source fixtures were addressed
+with formula-only extraction, synthetic workbook generation, independent engine
+recalculation and public synthetic regression receipts. Normal CI regresses those
+receipts; it does not claim a fresh spreadsheet-engine run. No private workbook,
+learner name, actual score or hosted mutation is part of this record.
+
