@@ -69,6 +69,7 @@ class CoPreviewTests(unittest.TestCase):
         self.assertEqual(summary["learnerCount"], 1)
         self.assertEqual(summary["excludedBlankRows"], 99)
         self.assertIn("unverified-computation", [item["code"] for item in summary["errors"]])
+        self.assertIn("source-policy-conflict", [item["code"] for item in summary["errors"]])
         self.assertIn("incomplete-learner-identity", [item["code"] for item in summary["errors"]])
         self.assertNotIn("PRIVATE_SYNTHETIC_MARKER", result.stdout + result.stderr)
         self.assertNotIn("acceptedRows", summary)

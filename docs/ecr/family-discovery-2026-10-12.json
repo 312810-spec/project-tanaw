@@ -1,0 +1,114 @@
+{
+  "schema": "tanaw-ecr-family-discovery-v1",
+  "inspected_on": "2026-10-12",
+  "scope": "Original bytes, structure, selected lookup anchors and dependency metadata only. Archive checks used no protected numeric ranges; these are not approved runtime fingerprints or full family formula verification.",
+  "additional_sources": [
+    {
+      "development_label": "co-shs-corrected",
+      "drive_source_id": "1B22lBknMVHL-ZsSsqW8llzOFQzUYs-zo",
+      "original_sha256": "db2c0bb68b74f9ced13df58545ffde4cc80a30f77c31e18f0c925fe075d3d491",
+      "formula_cells": 5743,
+      "sheet_names": [
+        "INSTRUCTIONS",
+        "INPUT DATA",
+        "Term 1",
+        "Term 2",
+        "Term 3",
+        "FINAL GRADES",
+        "HELPER"
+      ],
+      "archive_gate_passed": false,
+      "external_link_records": 1,
+      "external_defined_name_entries": 1,
+      "lookup_offset_pattern_observed": false,
+      "runtime_import_enabled": false,
+      "status": "structure-inspected-family-verification-pending"
+    },
+    {
+      "development_label": "co-tle",
+      "drive_source_id": "1HhlMHGjdyX5XUUQRY5ZpMggRG591GH1U",
+      "original_sha256": "15240bc92a6225ff0b9ed916d67e3ab202b125e1cd79158340fd38c348418604",
+      "formula_cells": 5242,
+      "sheet_names": [
+        "INPUT DATA",
+        "TERM 1",
+        "TERM 2",
+        "TERM 3",
+        "FINAL GRADES",
+        "HELPER"
+      ],
+      "archive_gate_passed": true,
+      "external_link_records": 0,
+      "external_defined_name_entries": 0,
+      "lookup_offset_pattern_observed": true,
+      "runtime_import_enabled": false,
+      "status": "structure-inspected-family-verification-pending"
+    },
+    {
+      "development_label": "co-tle-components",
+      "drive_source_id": "1zCBhuqiBD5XS9IekcS2ovzPyoYes--3o",
+      "original_sha256": "883bdbfdead0a9423fa0bf296c0cf6045b487d3f4d24c71dbb7f343a4560e5db",
+      "formula_cells": 10369,
+      "sheet_names": [
+        "INPUT DATA",
+        "TERM 1 ICT",
+        "TERM 1 AFA",
+        "TERM 2 ICT",
+        "TERM 2 FCS",
+        "TERM 3 ICT",
+        "TERM 3 IA",
+        "FINAL GRADES",
+        "HELPER"
+      ],
+      "archive_gate_passed": true,
+      "external_link_records": 0,
+      "external_defined_name_entries": 0,
+      "lookup_offset_pattern_observed": true,
+      "runtime_import_enabled": false,
+      "status": "structure-inspected-family-verification-pending"
+    },
+    {
+      "development_label": "co-mapeh",
+      "drive_source_id": "1Uydpn0-ZnqAJuQ9dR_mNFhQWsfVgCqN0",
+      "original_sha256": "372027d0ee722b9d68f6b825261e44680f1e04d0dea9fe8c8419880752a03e70",
+      "formula_cells": 10369,
+      "sheet_names": [
+        "INPUT DATA",
+        "TERM 1 M and A",
+        "TERM 1 PE and H",
+        "TERM 2 M and A",
+        "TERM 2 PE and H",
+        "TERM 3 M and A",
+        "TERM 3 PE and H",
+        "FINAL GRADES",
+        "HELPER"
+      ],
+      "archive_gate_passed": true,
+      "external_link_records": 0,
+      "external_defined_name_entries": 0,
+      "lookup_offset_pattern_observed": true,
+      "runtime_import_enabled": false,
+      "status": "structure-inspected-family-verification-pending"
+    },
+    {
+      "development_label": "co-gmrc",
+      "drive_source_id": "1ymTWhRNVqx7BY3k4M5C_v-KAT8dfEQBR",
+      "original_sha256": "ba9b68f1647b3276a3bde3e5cf78b93e4c9b422287dd8cd7321562286df42315",
+      "formula_cells": 7951,
+      "sheet_names": [
+        "INPUT DATA",
+        "TERM 1",
+        "TERM 2",
+        "TERM 3",
+        "FINAL GRADES",
+        "HELPER"
+      ],
+      "archive_gate_passed": true,
+      "external_link_records": 0,
+      "external_defined_name_entries": 0,
+      "lookup_offset_pattern_observed": true,
+      "runtime_import_enabled": false,
+      "status": "structure-inspected-family-verification-pending"
+    }
+  ]
+}

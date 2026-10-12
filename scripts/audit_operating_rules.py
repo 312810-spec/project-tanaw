@@ -69,10 +69,10 @@ def check_exists(doc):
 
 def check_sections(doc):
     nums = [int(n) for n in re.findall(r"^## (\d+)\. ", doc, re.M)]
-    expected = list(range(1, 15))
+    expected = list(range(1, 16))
     if nums != expected:
         return False, "headings are %s, expected %s" % (nums, expected)
-    return True, "sections 1-14 present in sequence"
+    return True, "sections 1-15 present in sequence"
 
 
 def check_duplicates(doc):
@@ -166,7 +166,7 @@ def run():
 
     checks = [
         ("file exists", check_exists),
-        ("sections 1-14", check_sections),
+        ("sections 1-15", check_sections),
         ("no duplicate headings", check_duplicates),
         ("section 1 table", check_table),
         ("required content", check_content),

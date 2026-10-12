@@ -8,7 +8,9 @@
       "structural_fingerprint": "1baa11b3de6bc493b016a0dcd49b2f86ef49d465ec6668913b6915c83122b820",
       "formula_cells": 5242,
       "runtime_import_enabled": false,
-      "verification_state": "source-inspected-adapter-pending",
+      "verification_state": "source-expression-engine-verified-policy-conflict",
+      "engine_fixture_evidence": {"receipt": "tests/fixtures/ecr-co-engine.json", "cases": 405, "terms": 3, "scope": "Row-18 expressions, lookup boundaries and synthetic component profiles; not full runtime serialization"},
+      "policy_conflict_evidence": {"source": "docs/ecr/policy-fixed-points.json", "conflicting_exact_points_per_term": 40, "replacement_version_approved": false},
       "protected_numeric_cells": {
         "HELPER": [
           "B8",
