@@ -2,6 +2,8 @@
 
 Development extraction/comparison is implemented; runtime import stays disabled.
 
+Continuation: 405 independent synthetic source-expression fixtures now pass; the original conflicts with DO 015 at forty exact minimums per term. The private diagnostic reports `source-policy-conflict`. See `docs/ecr/independent-engine-verification.md` for the separate tested candidate and scope. The historical single-source-example limit below is superseded for the newly tested synthetic cases; runtime serialization, mapping, precision and version approval still remain open.
+
 ```bash
 python scripts/prepare_ecr_co_preview.py /private/co.xlsx /private/new-preview.json --term 'TERM 1'
 node --experimental-strip-types scripts/inspect_ecr_co_preview.mjs /private/new-preview.json

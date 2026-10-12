@@ -21,9 +21,10 @@ try {
     comparisonTolerance: 0, // Exact final-grade comparison; not an approved cache tolerance.
   }, rows });
   console.log(JSON.stringify({ status: "diagnostic-only", term: data.term, learnerCount: preview.learnerCount,
-    excludedBlankRows: preview.excludedBlankRows, errors: [...calculationErrors, ...preview.errors],
+    excludedBlankRows: preview.excludedBlankRows, errors: [...calculationErrors, ...preview.errors, { rowNumber: null, code: "source-policy-conflict" }],
     canImport: false, runtimeImportEnabled: false,
-    remainingGates: ["approved-learner-identity-mapping", "independent-engine-fixtures", "scope-period-mapping", "private-retention-and-atomic-import"] }, null, 2));
+    sourceExpressionFixtures: "405 independent engine cases verified; current source fails policy fixed points",
+    remainingGates: ["approved-policy-consistent-source-version", "approved-learner-identity-mapping", "runtime-serialization-fixtures", "scope-period-mapping", "private-retention-and-atomic-import"] }, null, 2));
 } catch {
   console.log(JSON.stringify({ error: "invalid-private-preview", canImport: false }));
   process.exitCode = 1;

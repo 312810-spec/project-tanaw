@@ -1,5 +1,7 @@
 # Blocker resolution — 12 October 2026
 
+Latest evidence: `docs/intensive-blocker-research-2026-10-12.md` supersedes the single-example engine limit in this earlier checkpoint. The new 405 synthetic cases resolve independent expression verification within the documented scope, while forty exact source-policy conflicts per term keep runtime imports gated. Other implementation, source and owner inputs below remain unfinished.
+
 Base main: `620fdf86b67c3a605e87f3f47fb93ccca5ddf247` (PR #25). The archived full-calendar access failure is superseded. Reporting and operational work remains incomplete.
 
 | Work item | Resolution/progress | Remaining gate |
