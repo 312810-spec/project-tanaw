@@ -144,6 +144,10 @@ try {
   const head = await login('schoolHead');
   await head.ui.getByRole('button', { name: 'Record School Head review' }).click();
   await head.ui.getByText('Action recorded with its history.', { exact: true }).waitFor();
+  await head.ui.getByText('School packet history', { exact: true }).click();
+  await head.ui.getByRole('button', { name: 'Load packet history', exact: true }).click();
+  await head.ui.getByLabel('Historical packet', { exact: false }).selectOption({ index: 1 });
+  await head.ui.getByText('Exact historical evidence loaded. Inspection does not change or approve this packet.', { exact: true }).waitFor();
   await coordinator.ui.getByRole('button', { name: 'Refresh workflow' }).click();
   await coordinator.ui.getByRole('button', { name: 'Lock this school packet' }).click();
   await coordinator.ui.getByText('Locked · complete', { exact: true }).waitFor();
