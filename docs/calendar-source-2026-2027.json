@@ -1,0 +1,20 @@
+{
+  "schema": "tanaw-calendar-source-evidence-v1",
+  "status": "national-summary-inspected-local-applicability-pending",
+  "runtime_provisioning_enabled": false,
+  "school_year": "2026-2027",
+  "source_order": "DepEd Order 009, s. 2026",
+  "official_link_page": "https://sites.google.com/deped.gov.ph/lsguide/orientation-package",
+  "source_url": "https://drive.google.com/file/d/1k01ORf8sZ1nV-tg6CuyIrQd-P488iA3r/view",
+  "sha256": "b02ce38c20c3ee6e1236e56b5966f96ab5f85cf4053c1627f3ab2d493c05b40c",
+  "pdf_pages": 58,
+  "summary_locator": "Annex B, printed page 27, PDF page 29",
+  "verified_on": "2026-10-12",
+  "terms": [
+    {"label": "Term 1", "term_start": "2026-06-08", "instructional_start": "2026-06-15", "instructional_end": "2026-09-01", "end_of_term_start": "2026-09-02", "term_end": "2026-09-15"},
+    {"label": "Term 2", "term_start": "2026-09-16", "instructional_start": "2026-09-16", "instructional_end": "2026-12-04", "end_of_term_start": "2026-12-07", "term_end": "2026-12-18"},
+    {"label": "Term 3", "term_start": "2027-01-04", "instructional_start": "2027-01-04", "instructional_end": "2027-03-23", "end_of_term_start": "2027-03-24", "term_end": "2027-04-08"}
+  ],
+  "remaining_gates": ["applicable-amendment-check", "local-source-reconciliation", "separately-authorized-hosted-provisioning"],
+  "deadline_policy": "Coordinator deadlines are assigned independently; this evidence never changes existing cycles or deadlines."
+}

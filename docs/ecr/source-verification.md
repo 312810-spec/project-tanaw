@@ -1,5 +1,7 @@
 # ECR source verification checkpoint
 
+Continuation: private CO diagnostic extraction/comparison and independent single-example recalculation are now available; see `docs/ecr/co-private-preview.md`. Runtime upload/import remains closed. The historical statement below about no independent engine recalculation is superseded only for the single unchanged populated source example, not complete fixture or tolerance approval.
+
 This increment is development source verification and a pure CO-core calculator. It does not enable XLSX upload, certify school results, register a production template or alter an approved workbook. Coordinator-managed runtime registration, the XLSX parser, raw-file retention, comparison UI and atomic versioned persistence remain pending.
 
 ## Source identity and structure
