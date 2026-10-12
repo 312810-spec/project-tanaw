@@ -26,3 +26,7 @@ Updated isolated SQL tests exercise 1,100 extra historical versions, exact snaps
 Runtime XLSX import, authoritative indicator/calendar population, governed district result content, approved editable exports and actual pilot/production setup remain dependent on the verified source and operational gates in `SESSION-HANDOFF.md`. This UX increment supplies no invented official formulas, dates, templates, identities, records or approvals. Live AI remains deferred. District acceptance stays unavailable until governed results exist.
 
 No hosted database mutation or deployment is part of this checkpoint. Main integration requires passing relevant CI on the submitted implementation.
+
+## First exact-head CI result
+
+At `6ee226880ed3f95177bc820f04837c5fcfc0cf76`, fast domain run 38212582164 and public browser run 38212582159 passed. Isolated run 38212582184 passed build and all four SQL suites, including focused history/privacy/frozen definitions, then found an outdated browser fixture that blindly toggled an already-preserved open handover disclosure closed. The fixture now opens the disclosure only when its field is hidden. This preserves the real retention behavior rather than resetting forms to satisfy the old test. The next exact head must rerun authenticated acceptance. Legacy unlocked packet manifests without frozen definition metadata are now visibly stale; locked historical packets remain immutable.

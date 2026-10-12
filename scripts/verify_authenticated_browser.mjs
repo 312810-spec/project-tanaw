@@ -71,7 +71,7 @@ try {
   const handoverCoordinator = await login('smeaCoordinator');
   for (const target of [users.smeaCoordinator.id, users.teacher.id]) {
     await handoverCoordinator.ui.getByLabel('Assigned submission').selectOption({ index: 1 });
-    await handoverCoordinator.ui.getByText('Hand over an unsubmitted assignment', { exact: true }).click();
+    if (!await handoverCoordinator.ui.getByLabel('New assigned account').isVisible()) await handoverCoordinator.ui.getByText('Hand over an unsubmitted assignment', { exact: true }).click();
     await handoverCoordinator.ui.getByLabel('New assigned account').selectOption(target);
     await handoverCoordinator.ui.getByLabel('Handover reason').fill('Synthetic browser recorded handover');
     await handoverCoordinator.ui.getByRole('button', { name: 'Record assignment handover' }).click();
@@ -210,6 +210,9 @@ try {
   }
   for (const entry of pages) { assert.deepEqual(entry.errors, [], entry.role + ' must have no uncaught browser errors'); assert.equal(await entry.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false); await entry.context.close(); }
   console.log('Authenticated synthetic browser acceptance passed: teacher zero submission, subject review, school review, independent Head review, explicit Lock, district return/reconciliation and raw-data denial; offline refresh retention, field validation and narrow light/dark layouts.');
+} catch (error) {
+  for (const entry of pages) { try { await entry.page.screenshot({ path: output + '/failure-' + entry.role + '.png', fullPage: true }); } catch {} }
+  throw error;
 } finally {
   if (browser) await browser.close();
   if (server.pid) { try { process.kill(-server.pid, 'SIGTERM'); } catch {} }
