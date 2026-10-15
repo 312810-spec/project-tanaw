@@ -290,3 +290,16 @@ recalculation and public synthetic regression receipts. Normal CI regresses thos
 receipts; it does not claim a fresh spreadsheet-engine run. No private workbook,
 learner name, actual score or hosted mutation is part of this record.
 
+
+### OOXML singleton ambiguity — 16 October 2026
+
+**Selecting the first element or final dictionary entry does not validate
+uniqueness.** Synthetic duplicate cell values/formulas and overwritten workbook
+relationship IDs could retain the v1 structural fingerprint while leaving
+competing interpretations in the archive. The audit now rejects duplicate
+supported cell children, conflicting inline-string representations, repeated
+consumed singleton sections and missing/duplicate per-part relationship IDs
+before fingerprint comparison. Private normalization reuses the cell checks.
+The valid-input digest encoding and registered digest remain unchanged. This is
+bounded serialization validation, not full Excel compatibility or import approval.
+See `docs/ecr/byte-extraction.md` and `tests/ecr_serialization_test.py`.

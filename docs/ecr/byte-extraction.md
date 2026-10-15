@@ -53,3 +53,27 @@ T02 is PARTIAL: Next.js service integration, upload/registry boundary and full
 approved serialization support remain. Never expose a caller-selected registry,
 claim policy conflict resolved, import partial rosters or skip authorized mapping,
 private staging/atomic commit. T01/T03–T07 retain their separate requirements.
+
+## Ambiguous supported serialization — 16 October 2026
+
+The audit now rejects competing `f`, `v` or `is` children in any worksheet cell,
+inline-string containers on other cell types, and numeric/formula children on
+inline-string cells. Workbook/worksheet sections consumed as singletons
+(`sheets`, `definedNames`, `calcPr`, `sheetData`, `mergeCells`) cannot repeat.
+Relationship IDs must be nonempty and distinct within each `.rels` part;
+reuse across different parts remains valid. Private scalar normalization uses
+the same cell checks, so direct helper calls cannot silently choose a value.
+
+Before this fix, synthetic added formulas/values and an earlier overwritten
+relationship could retain the base-main structural digest. Regression cases
+reproduced that behavior before the fix. The new validation runs before a
+fingerprint can match. It does not change the v1 digest encoding or the registered
+source digest: valid golden fixtures, ordinary raw/cache changes, shared/inline
+strings, shared/array formulas, all terms, explicit zero and missing blanks remain
+covered by the existing suites. Ten new Python tests cover rejection and private
+worker output; the worker still returns only its static rejection contract.
+
+This is a narrower fail-closed boundary, not a complete OOXML schema validator or
+approval of all Excel resaves. Registered-original positive HTTP recognition,
+full approved serialization, computation-policy and period binding remain open.
+No official workbook, registry, formula receipt or active import was changed.
