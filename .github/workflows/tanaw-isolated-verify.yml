@@ -80,6 +80,8 @@ jobs:
         run: docker exec -i supabase_db_project-tanaw psql -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/reporting-cycle-local.sql
       - name: Verify persistent submission and packet workflow
         run: docker exec -i supabase_db_project-tanaw psql -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/submission-workflow-local.sql
+      - name: Verify pending roster declarations and privacy
+        run: docker exec -i supabase_db_project-tanaw psql -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/roster-declarations-local.sql
       - name: Run baseline checks against local stack
         run: npm run verify
       - name: Install isolated authenticated browser tooling

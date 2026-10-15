@@ -1,6 +1,6 @@
 # TANAW — canonical remaining-task ledger
 
-15 October 2026. Baseline main `191238535f2abd30306b73df4b57423ce1fbed1c` (PR #30).
+15 October 2026. Baseline main `dcb15bb42fe24e3bca09498a0cd29d9ed1645283` (PR #31).
 READY = bounded synthetic/local development; GATED = activation awaits evidence;
 BLOCKED = external input required; PARTIAL never means operationally done.
 
@@ -8,7 +8,7 @@ BLOCKED = external input required; PARTIAL never means operationally done.
 |---|---|---|
 | T01 | CO policy/version — BLOCKED activation | Reviewed applicable formula/precision/completeness/rounding version; preserve historical formulas. |
 | T02 | Runtime parser/preview — PARTIAL | Opt-in owned file-check API and teacher panel added; complete serialization, registered-original positive HTTP evidence, approved computation and period mapping remain. |
-| T03 | Learner/scope mapping — PARTIAL | Explicit consistency validator; authorized roster acquisition and coordinator-reviewed mappings still needed. |
+| T03 | Learner/scope mapping — PARTIAL | Explicit consistency validator and pending-only versioned source declarations; authorized roster acquisition, approval and coordinator-reviewed mappings still needed. |
 | T04 | Private staging/atomic import — READY design/tests | Approved retention/storage, source/mapping, transactional idempotency, cutoff/Lock/scope checks. |
 | T05 | Template registry/families — GATED | Coordinator version controls and per-family verification; resolve Division/SHS external dependencies. |
 | T06 | Current indicators/templates — BLOCKED activation | Applicable memo/approved dictionary, DMET/West 1 mappings, coverage and 77/69 source reconciliation. |
