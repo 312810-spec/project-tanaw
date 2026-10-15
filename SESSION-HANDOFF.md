@@ -1,54 +1,54 @@
 # TANAW — active checkpoint
 
-16 October 2026. Repo `312810-spec/project-tanaw`; base main
-`f3fa465f7a586a3f8bdcb3879c7e185c4e9b3126` (PR #34).
-Branch `forge/frozen-result-diagnostic-20261016`. Inspect current Git/PR metadata
-and open work on resume. Commits, publishing, syncing and verified integration
-authorized. Hourly TANAW continuation enabled; avoid overlapping changes.
+16 October 2026 (Manila). Repo `312810-spec/project-tanaw`; base main
+`8e7460387c60abb0a3f2bd80c90ef272b7ad68fd` (PR #35).
+PR #36 / branch `forge/atomic-import-model-20261016`. Inspect live Git/PR state on resume.
+Commits, publishing, syncing and verified integration authorized; hosted actions,
+deployment and actual learner operations remain separately gated.
 
 ## Current slice
 
-T08 deterministic synthetic result foundation uses existing locked manifests and
-exact historical RPC rows. Explicit count-sum or pooled-population percentage
-contracts, exact frozen definition semantics, complete slot/version coverage,
-explicit disjoint synthetic membership and once-only rational half-up rounding.
-Whole result withheld on missing/malformed/stale/overlapping input. Output allows
-only aggregate math/coverage and packet/contract/partition version references;
-no raw source details, learner keys or submission IDs. Publication and district
-acceptance are always false. No runtime route, UI, SQL, grant or import changed.
-See [contract/evidence](docs/frozen-result-diagnostic.md) and
+T04 executable synthetic transaction model plus contract/tests. Current access
+and six scope fields are rechecked, batches reject atomically, exact request retry
+reconciles lost receipts, stale writers/consumed stages reject, deadline/extension
+and Lock are distinct. Corrections require exact confirmation, append immutable
+history and reset review state; current contributions select one version. Missing
+stays null, explicit zero stays zero. No runtime caller, storage, schema or route.
+All outputs retain runtimeImportEnabled false. See
+[contract/limits](docs/ecr/atomic-import-model.md) and
 [canonical ledger](docs/remaining-tasks.md).
 
 ## Rules
 
-Read CLAUDE/AGENTS and relevant operating rules; retain all 29 decisions. Missing
-is not zero; frozen history is immutable. Submit → Subject → SMEA → independent
-Head → explicit SMEA Lock → district review; retain SMEA self-review exception.
-District acceptance gated, AI deferred, Drive development-only. No hosted change,
-deployment or actual learner record. Pending declarations never confer authority.
+Read CLAUDE/AGENTS/operating rules and all 29 confirmed decisions. Submit → Subject
+→ SMEA → independent Head → explicit SMEA Lock → district review. Preserve SMEA
+self-review exception, scoped access and aggregate-only district visibility.
+Pending declarations never approve identities/mappings. CO source fidelity does
+not resolve policy conflict. Drive development-only; live AI deferred.
 
 ## Evidence
 
-PR #34 parser hardening merged. Head `ec2bbebcad19e0c358015cb1ce9f1b2a2ee45621`
-passed [domain](https://github.com/312810-spec/project-tanaw/actions/runs/38768012249),
-[public](https://github.com/312810-spec/project-tanaw/actions/runs/38768010433),
-[isolated SQL/authenticated](https://github.com/312810-spec/project-tanaw/actions/runs/38768010684).
-
-New slice passes 135 domain / 40 Python tests, lint, typecheck, baseline and
-production build locally. Its 12 new domain tests include exact ties, pooled versus averaged
-percentages, amendments, missing/zero, coverage, snapshot semantics and privacy.
-Authenticated CI adds actual locked synthetic packet/RPC-shaped projection and
-district private-input denial. Its script now explicitly enables Node type
-stripping for the imported pure TypeScript calculator. Require exact-head CI
-before integration. Docker absent locally; never count its skip as
-a pass. CI is not physical Android/TalkBack or full manual WCAG evidence.
+PR #34 merged; inspect its exact-head CI metadata rather than assuming old
+receipts verify this slice. Thirteen new domain cases test synthetic authority,
+null/zero, immutable snapshots, invalid whole batches, version/source changes,
+retry conflicts, deadline equality, extensions, corrections and locked history.
+With PR #35 integrated: 148 domain cases executed directly, 40 Python tests,
+lint/typecheck and
+baseline pass (Docker unavailable). Local production build is blocked by
+Turbopack process/port binding permission; require isolated CI build evidence.
+The model specifies SQL transactions; it does not prove them. No physical
+Android/TalkBack test or pilot occurs. No token saving measured.
 
 ## Next / gates
 
-Verify/publish/pass CI, integrate/sync. T08 remains partial: applicable approved
-result dictionary/population policy, reviewed contract persistence, authorized
-immutable projection commit and aggregate-only charts/district RPC. T02 needs
-registered-original positive HTTP evidence/full approved serialization/computation
-and period binding; T03 authorized roster provenance/keys/reviewed mappings; T04
-private staging/atomic commit. Exports/source/device/pilot gates persist. Load
-relevant sections and reuse valid receipts; no measured token saving is claimed.
+Finish local checks, publish draft PR, require all applicable CI on unchanged
+head before expected-head merge, then sync main. Update this checkpoint/ledger.
+T04 still needs approved private retention, server-owned immutable stages and
+isolated transactional persistence/rollback/parallelism evidence. Source and
+mapping approval gate activation, not independent synthetic implementation.
+T02 remains partial (registered-original positive HTTP evidence, full approved
+serialization, computation/period binding). T03 needs roster provenance and
+approved review/mapping workflow. PR #35 added T08 frozen headcount/pooled-percentage diagnostic and authenticated
+projection/privacy checks. Preserve its new calculator, CI flag and ledger state.
+T08 persistence/charts and T10 synthetic exports remain implementable work. Indicators/calendar/device/pilot and
+production recovery dependencies remain; do not claim the roadmap complete.

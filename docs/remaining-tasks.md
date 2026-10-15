@@ -1,6 +1,6 @@
 # TANAW — canonical remaining-task ledger
 
-16 October 2026. Baseline main `f3fa465f7a586a3f8bdcb3879c7e185c4e9b3126` (PR #34).
+16 October 2026. Baseline main `8e7460387c60abb0a3f2bd80c90ef272b7ad68fd` (PR #35).
 READY = bounded synthetic/local development; GATED = activation awaits evidence;
 BLOCKED = external input required; PARTIAL never means operationally done.
 
@@ -9,7 +9,7 @@ BLOCKED = external input required; PARTIAL never means operationally done.
 | T01 | CO policy/version — BLOCKED activation | Reviewed applicable formula/precision/completeness/rounding version; preserve historical formulas. |
 | T02 | Runtime parser/preview — PARTIAL | Owned file-check API/panel and ambiguous-OOXML rejection added; complete approved serialization, registered-original positive HTTP evidence, approved computation and period mapping remain. |
 | T03 | Learner/scope mapping — PARTIAL | Explicit consistency validator, pending-only registry and coordinator entry/history; authorized roster acquisition, approval and coordinator-reviewed mappings still needed. |
-| T04 | Private staging/atomic import — READY design/tests | Approved retention/storage, source/mapping, transactional idempotency, cutoff/Lock/scope checks. |
+| T04 | Private staging/atomic import — PARTIAL synthetic model | [Executable transaction contract](ecr/atomic-import-model.md) covers retry/CAS/cutoff/Lock/confirmed corrections; private storage, isolated SQL atomicity and approved source/mapping remain. |
 | T05 | Template registry/families — GATED | Coordinator version controls and per-family verification; resolve Division/SHS external dependencies. |
 | T06 | Current indicators/templates — BLOCKED activation | Applicable memo/approved dictionary, DMET/West 1 mappings, coverage and 77/69 source reconciliation. |
 | T07 | Calendar provisioning — GATED | Applicable amendments/local reconciliation, Term 3 inconsistency; preserve assigned deadlines. |
