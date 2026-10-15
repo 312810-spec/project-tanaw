@@ -5,10 +5,17 @@ import { runCoPreviewWorker } from "@/app/lib/ecr-worker";
 
 export const runtime = "nodejs";
 
+function available() {
+  return process.env.TANAW_ECR_PREVIEW_ENABLED === "1" && isAbsolute(process.env.TANAW_ECR_PYTHON ?? "") && Boolean(process.env.TANAW_APP_ORIGIN);
+}
+export async function GET() {
+  return Response.json({ available: available() }, { headers: { "Cache-Control": "no-store, private", "X-Content-Type-Options": "nosniff" } });
+}
+
 export async function POST(request: Request) {
   const python = process.env.TANAW_ECR_PYTHON ?? "";
   return handleEcrUpload(request, {
-    enabled: process.env.TANAW_ECR_PREVIEW_ENABLED === "1" && isAbsolute(python),
+    enabled: available(),
     origin: process.env.TANAW_APP_ORIGIN,
     async authorize(submission) {
       const client = await createSupabaseServerClient();

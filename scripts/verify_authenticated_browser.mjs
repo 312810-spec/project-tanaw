@@ -102,6 +102,88 @@ try {
   const unchangedUpload = await admin.from('tanaw_submissions').select('current_version').eq('id', uploadSubmission.data.id).single();
   assert.equal(unchangedUpload.error, null);
   assert.equal(unchangedUpload.data.current_version, uploadSubmission.data.current_version, 'File checks never create a submission version');
+  assert.deepEqual(await (await teacher.page.context().request.get(origin + '/api/ecr/preview')).json(), { available: true });
+  await teacher.ui.getByText('Check a class-record file', { exact: true }).click();
+  let fileForm = teacher.ui.getByRole('form', { name: 'Class-record file check' });
+  await fileForm.getByRole('button', { name: 'Check file format', exact: true }).click();
+  await fileForm.getByText('Choose a workbook to check.', { exact: true }).waitFor();
+  assert.equal(await fileForm.getByLabel('Class-record workbook').getAttribute('aria-invalid'), 'true');
+  assert.equal(await fileForm.getByLabel('Class-record workbook').evaluate(element => element === document.activeElement), true);
+  const workbookFixture = { name: 'synthetic-unregistered.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: Buffer.from('PRIVATE_SYNTHETIC_WORKBOOK_PAYLOAD') };
+  await fileForm.getByLabel('Class-record workbook').setInputFiles(workbookFixture);
+  await fileForm.getByRole('button', { name: 'Check file format', exact: true }).click();
+  await fileForm.getByText('Choose the term shown in this workbook.', { exact: true }).waitFor();
+  await fileForm.getByLabel('Workbook term').selectOption('TERM 1');
+  await fileForm.getByRole('button', { name: 'Check file format', exact: true }).click();
+  await fileForm.getByText('This workbook could not pass the file check. Verify its approved template and try again.', { exact: true }).waitFor();
+  assert.equal(await fileForm.getByLabel('Class-record workbook').evaluate(element => element.files[0].name), workbookFixture.name);
+  assert.doesNotMatch(await fileForm.innerText(), /PRIVATE_SYNTHETIC_WORKBOOK_PAYLOAD/);
+
+  // Explicit UI response fixtures only: these do not verify a registered original.
+  let responseMode = 'recognized', posts = 0, releaseHeld, signalHeld;
+  const recognizedFixture = { code: 'recognized-diagnostic-only', canImport: false, runtimeImportEnabled: false,
+    computationComparison: 'not-performed', term: 'TERM 1', sourceHash: 'a'.repeat(64), rowSlots: 100, occupiedRows: 1, excludedBlankRows: 99 };
+  await teacher.page.route('**/api/ecr/preview?*', async route => {
+    posts++;
+    if (responseMode === 'hold') { signalHeld(); await new Promise(resolve => { releaseHeld = resolve; }); }
+    const body = responseMode === 'malformed' ? { ...recognizedFixture, canImport: true, private: 'PRIVATE_RESPONSE_MARKER' } : recognizedFixture;
+    try { await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) }); } catch { /* canceled test request */ }
+  });
+  await fileForm.getByRole('button', { name: 'Check file format', exact: true }).click();
+  await fileForm.getByRole('region', { name: 'File-check result' }).getByText('Format recognized · TERM 1', { exact: true }).waitFor();
+  await fileForm.getByText('Grades were not calculated or submitted.', { exact: false }).waitFor();
+  await fileForm.getByText('File reference', { exact: true }).click();
+  for (const colorScheme of ['light', 'dark']) {
+    await teacher.page.emulateMedia({ colorScheme });
+    for (const width of [320, 390, 1440]) {
+      await teacher.page.setViewportSize({ width, height: 1000 });
+      assert.equal(await teacher.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, 'File-check result must fit narrow themes');
+    }
+  }
+  const beforeOffline = posts;
+  await teacher.page.context().setOffline(true);
+  await fileForm.getByText('You are offline. File checks need a connection.', { exact: true }).waitFor();
+  assert.equal(await fileForm.getByRole('button', { name: 'Check file format', exact: true }).isDisabled(), true);
+  assert.equal(await fileForm.getByLabel('Class-record workbook').evaluate(element => element.files.length), 1);
+  await teacher.page.context().setOffline(false);
+  await teacher.page.waitForFunction(() => !document.querySelector('form[aria-label="Class-record file check"] fieldset').disabled);
+  await fileForm.getByText('Connection restored. Review the selection before checking.', { exact: true }).waitFor();
+  assert.equal(posts, beforeOffline, 'Reconnect never sends a workbook automatically');
+  const heldStarted = new Promise(resolve => { signalHeld = resolve; }); responseMode = 'hold';
+  await fileForm.getByRole('button', { name: 'Check file format', exact: true }).click(); await heldStarted;
+  await fileForm.getByRole('button', { name: 'Cancel file check', exact: true }).click();
+  releaseHeld();
+  await fileForm.getByText('File check canceled. Your file remains selected; no records were submitted.', { exact: true }).waitFor();
+  await teacher.page.waitForFunction(() => document.activeElement?.textContent === 'Check file format');
+  assert.equal(await fileForm.getByRole('region', { name: 'File-check result' }).count(), 0, 'Canceled stale response stays hidden');
+  responseMode = 'malformed';
+  await fileForm.getByRole('button', { name: 'Check file format', exact: true }).click();
+  await fileForm.getByText('The file check could not finish. Keep your file selected and try again. No records were submitted.', { exact: true }).waitFor();
+  assert.doesNotMatch(await fileForm.innerText(), /PRIVATE_RESPONSE_MARKER/);
+  await teacher.page.unroute('**/api/ecr/preview?*');
+  await fileForm.getByRole('button', { name: 'Clear selected file', exact: true }).focus();
+  await teacher.page.keyboard.press('Enter');
+  assert.equal(await fileForm.getByLabel('Class-record workbook').evaluate(element => element.files.length), 0);
+  assert.equal(await fileForm.getByLabel('Workbook term').inputValue(), '');
+  await teacher.page.waitForFunction(() => document.activeElement?.getAttribute('type') === 'file');
+  await teacher.page.route('**/api/ecr/preview', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ available: false }) }));
+  await teacher.ui.getByLabel('Assigned submission').selectOption(''); await teacher.ui.getByLabel('Assigned submission').selectOption({ index: 1 });
+  await teacher.ui.getByText('Check a class-record file', { exact: true }).click();
+  fileForm = teacher.ui.getByRole('form', { name: 'Class-record file check' });
+  await fileForm.getByText('File checks are not enabled on this server. Manual evidence entry remains available.', { exact: true }).waitFor();
+  assert.equal(await fileForm.getByLabel('Class-record workbook').isDisabled(), true);
+  await teacher.page.unroute('**/api/ecr/preview');
+  await fileForm.getByRole('button', { name: 'Retry file-check availability', exact: true }).click();
+  await teacher.page.waitForFunction(() => !document.querySelector('form[aria-label="Class-record file check"] fieldset').disabled);
+  await fileForm.getByLabel('Class-record workbook').setInputFiles(workbookFixture);
+  await teacher.ui.getByLabel('Assigned submission').selectOption(''); await teacher.ui.getByLabel('Assigned submission').selectOption({ index: 1 });
+  await teacher.ui.getByText('Check a class-record file', { exact: true }).click();
+  fileForm = teacher.ui.getByRole('form', { name: 'Class-record file check' });
+  assert.equal(await fileForm.getByLabel('Class-record workbook').evaluate(element => element.files.length), 0, 'File selection never restores into another mounted assignment');
+  assert.equal(await fileForm.getByRole('region', { name: 'File-check result' }).count(), 0);
+  const unchangedAfterFileUi = await admin.from('tanaw_submissions').select('current_version').eq('id', uploadSubmission.data.id).single();
+  assert.equal(unchangedAfterFileUi.error, null);
+  assert.equal(unchangedAfterFileUi.data.current_version, uploadSubmission.data.current_version, 'File-check UI never submits evidence');
   await teacher.ui.getByLabel('Verified indicator').selectOption(definition);
   await teacher.ui.getByLabel('Recorded value').fill('0');
   await teacher.ui.getByLabel('Evidence title').fill('Synthetic recorded zero');
