@@ -57,6 +57,9 @@ try {
       checks.push({ device, path, status: "passed" });
     }
     const callback = await page.request.get(origin + '/auth/callback?next=https://other.invalid', { maxRedirects: 0 });
+    const unavailableUpload = await page.request.post(origin + '/api/ecr/preview', { data: 'synthetic' });
+    assert.equal(unavailableUpload.status(), 503, 'Unconfigured file preview stays unavailable');
+    assert.equal((await unavailableUpload.json()).canImport, false);
     assert.equal(new URL(callback.headers().location).pathname, '/forgot-password');
     assert.equal(new URL(callback.headers().location).origin, origin);
     assert.equal(callback.headers()['cache-control'], 'no-store');

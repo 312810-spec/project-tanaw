@@ -37,7 +37,9 @@ const seed = spawnSync('docker', ['exec', '-i', 'supabase_db_project-tanaw', 'ps
 assert.equal(seed.status, 0, 'Synthetic local workflow setup must succeed');
 const build = spawnSync('npm', ['run', 'build'], { env: { ...process.env, NEXT_PUBLIC_SUPABASE_URL: url, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publicKey }, stdio: 'inherit' });
 assert.equal(build.status, 0, 'Configured local preview must build');
-const server = spawn('npm', ['run', 'start', '--', '--hostname', '127.0.0.1', '--port', '3000'], { detached: true, stdio: 'ignore', env: { ...process.env, TANAW_APP_ORIGIN: 'http://127.0.0.1:3000' } });
+const python = spawnSync('python3', ['-c', 'import sys; print(sys.executable)'], { encoding: 'utf8' });
+assert.equal(python.status, 0, 'Isolated preview worker needs an installed Python');
+const server = spawn('npm', ['run', 'start', '--', '--hostname', '127.0.0.1', '--port', '3000'], { detached: true, stdio: 'ignore', env: { ...process.env, TANAW_APP_ORIGIN: 'http://127.0.0.1:3000', TANAW_ECR_PREVIEW_ENABLED: '1', TANAW_ECR_PYTHON: python.stdout.trim() } });
 const origin = 'http://127.0.0.1:3000';
 let browser;
 const pages = [];
@@ -79,6 +81,27 @@ try {
   }
   const teacher = await login('teacher');
   await teacher.ui.getByLabel('Assigned submission').selectOption({ index: 1 });
+  const uploadSlot = await admin.from('tanaw_submission_slots').select('id').eq('cycle_id', cycle).eq('author_id', users.teacher.id).single();
+  assert.equal(uploadSlot.error, null);
+  const uploadSubmission = await admin.from('tanaw_submissions').select('id,current_version').eq('slot_id', uploadSlot.data.id).single();
+  assert.equal(uploadSubmission.error, null);
+  const uploadUrl = origin + '/api/ecr/preview?submission=' + uploadSubmission.data.id + '&term=TERM%201';
+  const uploadOptions = { headers: { origin, 'content-type': 'application/octet-stream' }, data: 'PRIVATE_SYNTHETIC_UNREGISTERED_WORKBOOK' };
+  const anonymousUpload = await fetch(uploadUrl, { method: 'POST', headers: uploadOptions.headers, body: uploadOptions.data });
+  assert.equal(anonymousUpload.status, 401);
+  const ownUpload = await teacher.page.context().request.post(uploadUrl, uploadOptions);
+  assert.equal(ownUpload.status(), 422, 'Authorized file reaches actual registered-source Python gate');
+  assert.equal(ownUpload.headers()['cache-control'], 'no-store, private');
+  const ownSummary = await ownUpload.json();
+  assert.equal(ownSummary.code, 'workbook-rejected'); assert.equal(ownSummary.canImport, false);
+  assert.doesNotMatch(JSON.stringify(ownSummary), /PRIVATE_SYNTHETIC/);
+  const foreignUpload = await teacher.page.context().request.post(origin + '/api/ecr/preview?submission=' + randomUUID() + '&term=TERM%201', uploadOptions);
+  assert.equal(foreignUpload.status(), 403);
+  const coordinatorUpload = await handoverCoordinator.page.context().request.post(uploadUrl, uploadOptions);
+  assert.equal(coordinatorUpload.status(), 403, 'School-wide read permission does not bypass upload ownership');
+  const unchangedUpload = await admin.from('tanaw_submissions').select('current_version').eq('id', uploadSubmission.data.id).single();
+  assert.equal(unchangedUpload.error, null);
+  assert.equal(unchangedUpload.data.current_version, uploadSubmission.data.current_version, 'File checks never create a submission version');
   await teacher.ui.getByLabel('Verified indicator').selectOption(definition);
   await teacher.ui.getByLabel('Recorded value').fill('0');
   await teacher.ui.getByLabel('Evidence title').fill('Synthetic recorded zero');
@@ -153,6 +176,7 @@ try {
   await coordinator.ui.getByText('Locked · complete', { exact: true }).waitFor();
   await coordinator.page.screenshot({ path: output + '/coordinator-locked.png', fullPage: true });
   const district = await login('districtCoordinator');
+  assert.equal((await district.page.context().request.post(uploadUrl, uploadOptions)).status(), 403, 'District cannot use school raw-file checks');
   await district.ui.getByLabel('Decision', { exact: true }).selectOption('return');
   await district.ui.getByLabel('Review comments').fill('Synthetic governed result projection pending');
   await district.ui.getByRole('button', { name: 'Record district decision' }).click();
@@ -174,6 +198,7 @@ try {
   await access.getByText('Access updated. Authorship and submitted records remain preserved.', { exact: true }).waitFor();
   await teacher.page.getByRole('button', { name: 'Refresh access', exact: true }).click();
   await teacher.page.getByText('Your account has no active school assignment. Contact the SMEA Coordinator.', { exact: true }).waitFor();
+  assert.equal((await teacher.page.context().request.post(uploadUrl, uploadOptions)).status(), 403, 'Disabled membership cannot run a file check');
   const denied = createClient(url, publicKey, { auth: { persistSession: false } });
   assert.equal((await denied.auth.signInWithPassword(users.teacher)).error, null);
   const disabledRecords = await denied.from('tanaw_submission_versions').select('submission_id');

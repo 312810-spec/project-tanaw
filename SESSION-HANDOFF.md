@@ -1,52 +1,52 @@
 # TANAW — active checkpoint
 
-15 October 2026. Repo: `312810-spec/project-tanaw`. Base main:
-`55c88c6edf97da98af72fb9f96071b99c4f7a9bc` (merged PR #28).
-Branch: `forge/co-byte-boundary-20261015`. Inspect current Git/PR metadata on resume.
-Publishing/syncing/commit authorized by the user on 15 October.
+15 October 2026. Repo `312810-spec/project-tanaw`; base main
+`bb78437e060766cbb824b49bd36c47481f2b80d3` (PR #29).
+Branch `forge/ecr-upload-preview-20261015`. Inspect current Git/PR metadata on resume.
+User authorized pushing/syncing/commit on 15 October; preserve hosted boundaries.
 
-## Outcome / current slice
+## Current slice
 
-T02 bounded CO extraction: `fingerprint_bytes` retains v1 digests;
-`extract_co_diagnostic` audits and normalizes one immutable snapshot without
-raw-workbook disk staging. The private preparation CLI now uses that boundary
-and a bounded source read. Mapping pipeline tests use the shared extractor.
-See [task ledger](docs/remaining-tasks.md) and
-[byte evidence](docs/ecr/byte-extraction.md). No Next.js upload endpoint exists.
+T02 app-side adapter: opt-in `POST /api/ecr/preview` accepts bounded raw XLSX for
+an owned assignment. Fresh session/RLS membership/subject checks run before body
+read and again before returning a count-only summary. Same-origin validation,
+size/time/concurrency limits, a no-shell isolated Python worker and private
+no-store responses preserve source/record boundaries. Default disabled; Python
+must be installed/configured on an authorized Node host. No file-picker UI yet.
+See [adapter evidence](docs/ecr/upload-preview.md) and
+[canonical ledger](docs/remaining-tasks.md).
 
-## Rules to retain
+## Rules
 
-Read `CLAUDE.md`, `AGENTS.md` and relevant operating rules. All 29
-[confirmed decisions](docs/confirmed-decisions-2026-10-08.md) remain. Missing is
-not zero; preserve frozen versions and history. Submit → Subject → SMEA →
-independent Head → explicit SMEA Lock → district review. Preserve SMEA self-review
-exception. Runtime imports and district acceptance stay gated; AI deferred;
-Drive is development-only. No hosted changes/deployment are established here.
+Read `CLAUDE.md`, `AGENTS.md` and relevant operating rules. All 29 confirmed
+decisions remain. Missing is not zero; frozen history stays immutable. Submit →
+Subject → SMEA → independent Head → explicit SMEA Lock → district review.
+Preserve SMEA self-review exception. Imports and district acceptance stay gated;
+AI deferred; Drive development-only. No hosted change/deployment or real records.
+Never trust a client-selected source registry or roster as authority.
 
-## Verified integration
+## Evidence
 
-PR #28 head `1f97407683cf6331fbe551b23d61d1320f618e63` passed all three workflows:
-[domain](https://github.com/312810-spec/project-tanaw/actions/runs/38702762079),
-[public browser](https://github.com/312810-spec/project-tanaw/actions/runs/38702762107),
-[build/SQL/authenticated browser](https://github.com/312810-spec/project-tanaw/actions/runs/38702761980).
-Merged as `55c88c6`. Its 100 domain/22 Python tests and local build/lint/type/baseline
-passed. New byte-slice evidence is separate; never infer its checks from PR #28.
-Current byte slice: 100 domain / 30 Python tests, lint and baseline/typecheck
-passed locally; local Docker reachability skipped. Exact-head CI remains required.
-The historical 405 independent expression cases remain unchanged and bounded.
+PR #28 mapping and PR #29 byte extraction merged after all exact-head CI passed.
+PR #29 tested head `d1aa8ad2c746ba8fec61accd67974ecd980a9b12`:
+[domain](https://github.com/312810-spec/project-tanaw/actions/runs/38703989172),
+[public browser](https://github.com/312810-spec/project-tanaw/actions/runs/38703989368),
+[build/SQL/authenticated](https://github.com/312810-spec/project-tanaw/actions/runs/38703989278).
+Its 100 domain/30 Python tests are prior evidence, not new-adapter verification.
+Current-adapter checks and exact published head belong in the current PR.
+Local adapter: 113 domain/worker and 30 Python tests, lint, baseline/typecheck and
+build passed. Local Docker reachability skipped; actual authorized HTTP is a CI gate.
+Build tracing includes all five required worker/library/registry files; it does
+not install Python. Registered-original positive HTTP recognition remains
+unverified; synthetic/negative HTTP coverage must not imply that result.
 
-## Pending / next
+## Next / gates
 
-T02/T03 partial: Next.js runtime bridge/upload route, full registered serialization,
-authorized roster acquisition and coordinator mapping review remain. Mapping
-consistency is not authority; never accept a client-selected source registry.
-Private staging, atomic persistence, approved policy version, indicators/calendar,
-exports and operational/pilot gates remain. Online-only consequential actions
-cannot be replayed blindly after cutoff or access change.
-
-Next: verify current diff and publish the scoped byte slice, require exact-head CI,
-then continue the next READY task. Preserve physical Android/TalkBack and actual
-TNHS pilot as unverified. Prior details: [mapping](docs/ecr/identity-mapping.md),
-[12 October archive](docs/session-handoff-2026-10-12-archive.md),
-[blocker research](docs/intensive-blocker-research-2026-10-12.md).
+Verify actual authenticated HTTP ownership/anonymous/district/disabled denial
+and fixed-registry rejection in isolated CI, then integrate the scoped adapter.
+T02 remains partial: teacher picker/result UI, full serialization/original-source
+HTTP evidence and period binding. T03 roster acquisition/review, T04 private
+staging/atomic imports, policy/version, indicators/calendar, exports and operational
+pilot gates remain. Preview is not submission, retention or approval.
+Prior detail: mapping/byte evidence, 12 October archive and blocker research.
 Load only active-task sections; update this checkpoint and ledger.
