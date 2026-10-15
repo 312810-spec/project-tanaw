@@ -28,12 +28,12 @@ export function EcrFileCheck({ submissionId, paused }: { submissionId: string; p
   useEffect(() => {
     let mounted = true;
     queueMicrotask(() => { if (mounted) { setOnline(navigator.onLine); void loadAvailability(); } });
-    const connected = () => setOnline(true);
-    const disconnected = () => { setOnline(false); stop("Offline. Your file remains selected in this open assignment. Reconnect before checking it again."); };
+    const connected = () => { setOnline(true); setMessage((current) => current.startsWith("Offline.") ? "Connection restored. Review the selection before checking." : current); };
+    const disconnected = () => { setOnline(false); stop("Offline. Reconnect before checking a file. Existing selections stay in this open assignment."); };
     window.addEventListener("online", connected); window.addEventListener("offline", disconnected);
     return () => { mounted = false; invalidateUpload(); capability.current?.abort(); window.removeEventListener("online", connected); window.removeEventListener("offline", disconnected); };
   }, [loadAvailability, stop, invalidateUpload]);
-  useEffect(() => { if (paused) queueMicrotask(() => stop("File checks are paused while school access or workflow information is being refreshed.")); }, [paused, stop]);
+  useEffect(() => { if (paused) queueMicrotask(() => stop("")); }, [paused, stop]);
   function changed() { stop(""); setErrors({}); if (form.current) clearFormDirty(form.current); }
   async function check(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

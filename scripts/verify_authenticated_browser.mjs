@@ -146,6 +146,7 @@ try {
   assert.equal(await fileForm.getByLabel('Class-record workbook').evaluate(element => element.files.length), 1);
   await teacher.page.context().setOffline(false);
   await teacher.page.waitForFunction(() => !document.querySelector('form[aria-label="Class-record file check"] fieldset').disabled);
+  await fileForm.getByText('Connection restored. Review the selection before checking.', { exact: true }).waitFor();
   assert.equal(posts, beforeOffline, 'Reconnect never sends a workbook automatically');
   const heldStarted = new Promise(resolve => { signalHeld = resolve; }); responseMode = 'hold';
   await fileForm.getByRole('button', { name: 'Check file format', exact: true }).click(); await heldStarted;
