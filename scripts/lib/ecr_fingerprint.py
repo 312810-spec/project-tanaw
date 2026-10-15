@@ -21,6 +21,31 @@ class EcrAuditError(ValueError):
     """Only static, non-personal audit error codes."""
 
 
+def validate_cell_serialization(cell):
+    """Reject competing supported values before find()/dict can select one."""
+    counts = {name: len(cell.findall("s:" + name, NS)) for name in ("f", "v", "is")}
+    if (any(count > 1 for count in counts.values())
+            or (counts["is"] and cell.get("t", "n") != "inlineStr")
+            or (cell.get("t") == "inlineStr" and (counts["v"] or counts["f"]))):
+        raise EcrAuditError("ambiguous-cell-serialization")
+
+
+def relationship_map(root):
+    """Relationship IDs must be explicit and unique within their own part."""
+    result = {}
+    for relation in root:
+        identifier = relation.get("Id")
+        if not identifier or identifier in result:
+            raise EcrAuditError("invalid-relationship-ids")
+        result[identifier] = relation
+    return result
+
+
+def validate_singletons(root, sections):
+    if any(len(root.findall("s:" + name, NS)) > 1 for name in sections):
+        raise EcrAuditError("ambiguous-ooxml-structure")
+
+
 def fingerprint(path, lookup_ranges):
     """Hash formula definitions, sheet topology, merges and explicit numeric lookups."""
     if path.stat().st_size > MAX_BYTES:
@@ -57,10 +82,13 @@ def fingerprint_bytes(data, lookup_ranges):
         # Reject external relationships anywhere, without exposing their targets.
         for name in names:
             if name.endswith(".rels"):
-                if any(rel.get("TargetMode") == "External" for rel in xml(name)):
+                root = xml(name)
+                if any(rel.get("TargetMode") == "External" for rel in root):
                     raise EcrAuditError("unsupported-external-relationship")
+                relationship_map(root)
         workbook = xml("xl/workbook.xml")
-        relations = {rel.get("Id"): rel for rel in xml("xl/_rels/workbook.xml.rels")}
+        validate_singletons(workbook, ("sheets", "definedNames", "calcPr"))
+        relations = relationship_map(xml("xl/_rels/workbook.xml.rels"))
         sheets = []
         seen = set()
         for sheet in workbook.findall("s:sheets/s:sheet", NS):
@@ -76,6 +104,9 @@ def fingerprint_bytes(data, lookup_ranges):
             if not source.startswith("xl/worksheets/"):
                 raise EcrAuditError("unsafe-sheet-target")
             root = xml(source)
+            validate_singletons(root, ("sheetData", "mergeCells"))
+            for cell in root.findall("s:sheetData/s:row/s:c", NS):
+                validate_cell_serialization(cell)
             cells = {cell.get("r"): cell for cell in root.findall("s:sheetData/s:row/s:c", NS)}
             if len(cells) != len(root.findall("s:sheetData/s:row/s:c", NS)):
                 raise EcrAuditError("duplicate-cell")

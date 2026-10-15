@@ -7,7 +7,7 @@ import math
 import posixpath
 from xml.etree import ElementTree as ET
 
-from lib.ecr_fingerprint import EcrAuditError, NS, DOC_REL
+from lib.ecr_fingerprint import EcrAuditError, NS, DOC_REL, relationship_map, validate_cell_serialization
 
 
 def xml(archive, name):
@@ -20,6 +20,7 @@ def xml(archive, name):
 def cells(root):
     result = {}
     for cell in root.findall("s:sheetData/s:row/s:c", NS):
+        validate_cell_serialization(cell)
         address = cell.get("r")
         if not address or address in result:
             raise EcrAuditError("invalid-or-duplicate-cell")
@@ -30,6 +31,7 @@ def cells(root):
 def number(cell, *, cache=False):
     if cell is None:
         return None
+    validate_cell_serialization(cell)
     if not cache and cell.find("s:f", NS) is not None:
         raise EcrAuditError("formula-in-raw-input")
     value = cell.find("s:v", NS)
@@ -52,6 +54,7 @@ def number(cell, *, cache=False):
 def text(cell, strings):
     if cell is None:
         return None
+    validate_cell_serialization(cell)
     if cell.find("s:f", NS) is not None:
         raise EcrAuditError("formula-in-identity")
     kind = cell.get("t", "n")
@@ -98,7 +101,7 @@ def normalize_archive(archive, term):
     if term not in ["TERM 1", "TERM 2", "TERM 3"]:
         raise EcrAuditError("invalid-term")
     workbook = xml(archive, "xl/workbook.xml")
-    relationships = {item.get("Id"): item for item in xml(archive, "xl/_rels/workbook.xml.rels")}
+    relationships = relationship_map(xml(archive, "xl/_rels/workbook.xml.rels"))
     sheets = {}
     for item in workbook.findall("s:sheets/s:sheet", NS):
         relation = relationships[item.get("{" + DOC_REL + "}id")]
