@@ -60,6 +60,10 @@ try {
     const unavailableUpload = await page.request.post(origin + '/api/ecr/preview', { data: 'synthetic' });
     assert.equal(unavailableUpload.status(), 503, 'Unconfigured file preview stays unavailable');
     assert.equal((await unavailableUpload.json()).canImport, false);
+    const capability = await page.request.get(origin + '/api/ecr/preview');
+    assert.equal(capability.status(), 200);
+    assert.deepEqual(await capability.json(), { available: false });
+    assert.equal(capability.headers()['cache-control'], 'no-store, private');
     assert.equal(new URL(callback.headers().location).pathname, '/forgot-password');
     assert.equal(new URL(callback.headers().location).origin, origin);
     assert.equal(callback.headers()['cache-control'], 'no-store');

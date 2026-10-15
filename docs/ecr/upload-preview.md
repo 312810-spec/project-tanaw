@@ -2,6 +2,11 @@
 
 15 October 2026. Base main `bb78437e060766cbb824b49bd36c47481f2b80d3`.
 
+UI continuation: the owned Teacher/SMEA file-check panel and boolean capability
+GET are described in `docs/ecr/file-check-ui.md`. Its configured capability flag
+is not authorization or interpreter health. Historical no-picker statements
+below describe the initial adapter increment, not the later UI addition.
+
 ## Behavior
 
 `POST /api/ecr/preview?submission=<UUID>&term=TERM%201` accepts one raw XLSX

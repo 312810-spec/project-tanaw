@@ -75,7 +75,7 @@ export function ManualEvidenceForm({ scope, version, definitions, recordedEntrie
     const link = document.createElement("a"); link.href = url; link.download = "TANAW-unreadable-draft.txt"; link.click(); URL.revokeObjectURL(url);
   }
   return <form onSubmit={submit} className="space-y-3">
-    <p className="text-sm text-foreground/65">Manual entry is for indicators without a class-record spreadsheet source. Class-record uploads remain unavailable while approved computations are being verified.</p>
+    <p className="text-sm text-foreground/65">Manual entry is for indicators without a class-record spreadsheet source. Class-record submission remains unavailable while approved computations are being verified.</p>
     <p id="manual-draft-status" role="status" aria-live="polite" className="text-sm">{message}</p>
     {unreadable !== null && <div className="space-y-3 rounded-lg border border-foreground/30 p-3 text-sm"><p>Download the original for recovery. Starting a new draft requires a verified retained copy; no submission will be sent automatically.</p><button type="button" className="underline" onClick={() => download(unreadable)}>Download unreadable original</button><button type="button" className="ml-3 underline" disabled={busy} onClick={() => {
       try { preserveUnreadableDraft(localStorage, key, unreadable); setRecovery(unreadable); setUnreadable(null); setFields(emptyDraft); setDraftVersion(version); setMessage("Original retained separately on this device. You can prepare a new draft."); }
