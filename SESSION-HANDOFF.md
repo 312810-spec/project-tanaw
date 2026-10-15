@@ -1,20 +1,22 @@
 # TANAW — active checkpoint
 
-16 October 2026 (Manila). Repo `312810-spec/project-tanaw`; base main
-`9199cb84f665af724398fab0507f895f958bf3eb` (PR #33).
-Branch `forge/ooxml-ambiguity-20261016`. Inspect current Git/PR metadata on resume.
-Pushing/syncing/commit and verified integration authorized; preserve hosted boundaries.
+16 October 2026. Repo `312810-spec/project-tanaw`; base main
+`f3fa465f7a586a3f8bdcb3879c7e185c4e9b3126` (PR #34).
+Branch `forge/frozen-result-diagnostic-20261016`. Inspect current Git/PR metadata
+and open work on resume. Commits, publishing, syncing and verified integration
+authorized. Hourly TANAW continuation enabled; avoid overlapping changes.
 
 ## Current slice
 
-T02 fails closed on ambiguous supported OOXML serialization before a structural
-fingerprint can match: duplicate formula/value/inline-string cell nodes,
-conflicting inline types, repeated consumed singleton workbook/worksheet sections,
-and missing/duplicate relationship IDs within each part. Private scalar helpers
-reuse the cell checks. Base-main reproduction confirmed extra formulas/values
-and overwritten relationship entries could retain the prior digest. No valid
-v1 encoding, registered digest, formula receipt, source or approval changed.
-See [contract/evidence](docs/ecr/byte-extraction.md) and
+T08 deterministic synthetic result foundation uses existing locked manifests and
+exact historical RPC rows. Explicit count-sum or pooled-population percentage
+contracts, exact frozen definition semantics, complete slot/version coverage,
+explicit disjoint synthetic membership and once-only rational half-up rounding.
+Whole result withheld on missing/malformed/stale/overlapping input. Output allows
+only aggregate math/coverage and packet/contract/partition version references;
+no raw source details, learner keys or submission IDs. Publication and district
+acceptance are always false. No runtime route, UI, SQL, grant or import changed.
+See [contract/evidence](docs/frozen-result-diagnostic.md) and
 [canonical ledger](docs/remaining-tasks.md).
 
 ## Rules
@@ -27,26 +29,26 @@ deployment or actual learner record. Pending declarations never confer authority
 
 ## Evidence
 
-PR #33 coordinator pending roster UI merged. Head
-`fe644dfc5aed241a1c4c6a0236c55c8291e6abc1` passed
-[domain](https://github.com/312810-spec/project-tanaw/actions/runs/38747081938),
-[public browser](https://github.com/312810-spec/project-tanaw/actions/runs/38747081770),
-[isolated SQL/authenticated](https://github.com/312810-spec/project-tanaw/actions/runs/38747081944).
+PR #34 parser hardening merged. Head `ec2bbebcad19e0c358015cb1ce9f1b2a2ee45621`
+passed [domain](https://github.com/312810-spec/project-tanaw/actions/runs/38768012249),
+[public](https://github.com/312810-spec/project-tanaw/actions/runs/38768010433),
+[isolated SQL/authenticated](https://github.com/312810-spec/project-tanaw/actions/runs/38768010684).
 
-Current parser slice: 123 domain / 40 Python tests pass locally, including ten
-new synthetic serialization regressions, unchanged golden fingerprint, explicit
-zero and all-term/shared/inline/array coverage. Static private worker errors
-remain verified. Baseline, lint, typecheck and build pass locally. Require
-exact-head CI before integration.
-Docker absent locally; isolated CI supplies Supabase evidence. Browser CI is not
-physical Android/TalkBack or full manual WCAG evidence. No token saving measured.
+New slice passes 135 domain / 40 Python tests, lint, typecheck, baseline and
+production build locally. Its 12 new domain tests include exact ties, pooled versus averaged
+percentages, amendments, missing/zero, coverage, snapshot semantics and privacy.
+Authenticated CI adds actual locked synthetic packet/RPC-shaped projection and
+district private-input denial. Its script now explicitly enables Node type
+stripping for the imported pure TypeScript calculator. Require exact-head CI
+before integration. Docker absent locally; never count its skip as
+a pass. CI is not physical Android/TalkBack or full manual WCAG evidence.
 
 ## Next / gates
 
-Finish checks, publish, pass exact-head CI, integrate and sync. T02 remains
-partial: registered-original positive HTTP recognition, full approved
-serialization, approved computations and period binding. T03 requires authorized
-roster provenance/key verification, retention/review and approved mapping workflow;
-T04 private staging/atomic commit. Indicators/calendar/exports/pilot gates persist.
-Load relevant task/contract sections and update checkpoint/ledger rather than
-creating competing audits. Never claim all project tasks complete from one slice.
+Verify/publish/pass CI, integrate/sync. T08 remains partial: applicable approved
+result dictionary/population policy, reviewed contract persistence, authorized
+immutable projection commit and aggregate-only charts/district RPC. T02 needs
+registered-original positive HTTP evidence/full approved serialization/computation
+and period binding; T03 authorized roster provenance/keys/reviewed mappings; T04
+private staging/atomic commit. Exports/source/device/pilot gates persist. Load
+relevant sections and reuse valid receipts; no measured token saving is claimed.
