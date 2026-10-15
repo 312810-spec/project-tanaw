@@ -4,9 +4,10 @@
 `6f9331d83a06cffcf633e5d72b15daee3ade5b74` (PR #27).
 Branch: `forge/import-mapping-20261015`. Inspect current Git/PR metadata on resume.
 Local implementation: `178585fa1d5461cb717a5c141ce217656269ae15`.
-Publication blocked: automatic approval review rejected its push to this repo,
-citing missing authorization for this specific branch/payload/destination.
-Do not publish through another tool as a workaround. No PR/merge is confirmed.
+Publication authorization received on 15 October 2026 for pushing/syncing/commit.
+Published implementation: `32701f33a94b933b3aa0e5a83baaf586b7d80888`;
+its file tree exactly matches local checkpoint `685194b`. Current PR/CI metadata
+governs integration status; no merge or deployment is established here.
 
 ## Outcome / active slice
 
@@ -51,8 +52,8 @@ T06 indicator/template, T07 calendar and T12/T14 operational gates remain.
 Next B2 slice: runtime parser boundary/serialization and reviewed roster acquisition,
 then staging/atomic persistence under verified source/identity contracts.
 Continue independent synthetic work; activate nothing from a self-supplied bundle.
-Immediate publication prerequisite: explicit authorization for the branch above,
-its eight-file implementation/checkpoint payload and destination repository.
+Publication prerequisite resolved by explicit user authorization. Next integration
+gate: exact-head CI for the published branch before considering merge.
 
 Offline carryover: current scoped local drafts retain pending preparation;
 submission is explicit after reconnection/access refresh, never automatic. Full

@@ -77,10 +77,11 @@ stack reachability was not tested). The handoff archive matches base main's
 original bytes. Current PR/CI metadata identifies the exact published head;
 local tests do not establish authenticated integration or production readiness.
 Implementation commit: `178585fa1d5461cb717a5c141ce217656269ae15`.
-Automatic approval review rejected publishing this branch to the existing TANAW
-repository, citing missing branch/payload/destination authorization. No remote
-publication, PR, fresh CI, merge or deployment is established for this increment.
-Do not substitute another publishing mechanism for the rejected action.
+An initial automatic approval review rejected publication. The user subsequently
+authorized pushing/syncing/commit on 15 October 2026. Published implementation
+`32701f33a94b933b3aa0e5a83baaf586b7d80888` has exactly the same file tree as local
+checkpoint `685194b`. Current PR/CI metadata establishes subsequent verification;
+no merge, hosted change or deployment is claimed by this record.
 
 ## Next
 
