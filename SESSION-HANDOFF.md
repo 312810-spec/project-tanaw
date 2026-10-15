@@ -1,19 +1,20 @@
 # TANAW — active checkpoint
 
 15 October 2026. Repo `312810-spec/project-tanaw`; base main
-`191238535f2abd30306b73df4b57423ce1fbed1c` (PR #30).
-Branch `forge/ecr-file-check-ui-20261015`. Inspect current Git/PR metadata on resume.
-Pushing/syncing/commit authorized 15 October; preserve hosted boundaries.
+`dcb15bb42fe24e3bca09498a0cd29d9ed1645283` (PR #31).
+Branch `forge/roster-declarations-20261015`. Inspect current Git/PR metadata on resume.
+Pushing/syncing/commit authorized; preserve hosted boundaries.
 
 ## Current slice
 
-Owned Teacher/SMEA assignments now have a secondary file-check panel. Availability
-GET exposes only a configured boolean; POST remains owner-authorized. Local
-validation, explicit term, safe recognized counts/hash, offline/access pause,
-cancel/stale-response protection, scoped memory-only selection and retry/clear
-remain separate from manual evidence and submission. Imports stay disabled.
-See [UI evidence](docs/ecr/file-check-ui.md), [adapter](docs/ecr/upload-preview.md)
-and [canonical ledger](docs/remaining-tasks.md).
+Pending-only immutable roster-source declarations use existing assignment scope.
+Active school SMEA coordinator RPC, explicit bounded source metadata/learner keys,
+assignment year check, request reconciliation and per-slot revision conflict
+checks. Existing scoped readers only; no district/raw cross-school access.
+No approval transition, active roster, mapping activation, UI or import connection.
+Hash/keys are declarations, not independently verified official identities.
+See [contract/evidence](docs/ecr/roster-declarations.md) and
+[canonical ledger](docs/remaining-tasks.md).
 
 ## Rules
 
@@ -25,24 +26,26 @@ deployment or actual learner record. Client capability/mapping is not authority.
 
 ## Evidence
 
-PR #30 backend head `6776f65055dcfb1189245cb93faf31c1f5547549` passed all exact-head
-CI, including real anonymous/non-owner/district/disabled HTTP denial, authorized
-registered-source rejection and unchanged versions. Runs:
-[domain](https://github.com/312810-spec/project-tanaw/actions/runs/38709249326),
-[public](https://github.com/312810-spec/project-tanaw/actions/runs/38709249460),
-[build/SQL/authenticated](https://github.com/312810-spec/project-tanaw/actions/runs/38709249434).
-Those checks do not verify the new UI. New local UI scope: 118 domain/30 Python,
-lint and build pass; current PR records baseline and exact-head browser results.
-Positive UI responses are labelled intercepted fixtures, not registered-original
-HTTP evidence. Narrow rendered assertions are not manual visual/WCAG certification
-or physical Android/TalkBack. No new screenshot deliverable is part of this work.
+PR #31 file-check UI merged. Head `d644093486a3360560178140cc4b38b99fe24f45`
+passed [domain](https://github.com/312810-spec/project-tanaw/actions/runs/38714486609),
+[public](https://github.com/312810-spec/project-tanaw/actions/runs/38714486570),
+[build/SQL/authenticated](https://github.com/312810-spec/project-tanaw/actions/runs/38714486612).
+Positive UI responses were labelled intercepted fixtures, not registered-original
+HTTP evidence. Browser CI is not physical Android/TalkBack or full manual WCAG.
+
+New source-registry slice: all nine migrations/five rollback SQL suites passed
+PGlite 0.5.10 with synthetic auth bootstrap. This is supplemental PostgreSQL
+validation; current PR must pass isolated Supabase and existing browser CI before
+integration. No runtime dependency added. Docker remains absent locally.
 
 ## Next / gates
 
-Pass the new UI scenarios in exact-head CI, integrate and sync the scoped slice.
-T02 remains partial: full serialization/original-source success, approved
-computations/period binding; T03 authorized roster/review; T04 private staging and
-atomic commit. Indicators/calendar/exports/operational pilot gates persist.
-Never auto-send a file after reconnect or treat recognition as submitted/approved.
-Prior details stay in source evidence and the archived handoff. Load only current
-task sections; update this checkpoint and ledger rather than duplicating audits.
+Verify/publish this slice, pass exact-head CI, integrate and sync. T03 remains
+partial: acquire authorized roster, independently verify provenance and keys,
+resolve retention/review, then build approval/mapping workflow. Never treat a
+pending declaration as an approved roster. T02 still needs serialization,
+registered-original positive HTTP evidence, approved computations/period binding;
+T04 private staging/atomic commit. Indicators/calendar/exports/pilot gates persist.
+Load current task sections, retain hashes/tested SHAs, and update this checkpoint
+and ledger rather than duplicating audits. Prior details remain in source evidence
+and the archived handoff. No measured token-saving percentage is claimed.
