@@ -45,6 +45,16 @@ test('unlocked, incomplete and contradictory packet states withhold all values',
   for (const patch of [{locked_at:null},{locked_at:'invented'},{completeness:'incomplete'},{missing:[{reason:privateText}]}]) {const f=fixture();Object.assign(f.packet,patch);blocked(f,'packetNotLockedComplete');}
   const f=fixture();f.packet.manifest[0].coverageComplete=false;blocked(f,'invalidManifest');
 });
+test('impossible lock calendar dates and normalized clock times fail closed', () => {
+  for (const stamp of ['2026-02-30T00:00:00Z', '2026-02-29T00:00:00Z', '2100-02-29T00:00:00Z', '2026-04-31T00:00:00+08:00', '2026-01-01T24:00:00Z', '2026-00-01T00:00:00Z', '2026-01-00T00:00:00Z', '2026-01-01T00:60:00Z', '2026-01-01T00:00:60Z', '2026-01-01T00:00:00+24:00', '2026-01-01T00:00:00+08:60']) {
+    const f=fixture();f.packet.locked_at=stamp;blocked(f,'packetNotLockedComplete');
+  }
+});
+test('valid leap days, month boundaries and timezone-bearing lock instants remain usable', () => {
+  for (const stamp of ['2024-02-29T23:59:59.123456+08:00', '2000-02-29T00:00:00Z', '2026-04-30T00:00:00-05:30', '2026-12-31T23:59:59Z', '2026-01-01T00:00:00+00:00']) {
+    const f=fixture();f.packet.locked_at=stamp;assert.equal(run(f).status,'readyDiagnosticOnly',stamp);
+  }
+});
 test('school, cycle, year, period and frozen semantics must match', () => {
   for (const field of ['school_id','cycle_id']) {const f=fixture();f.packet[field]=id(99);blocked(f,'scopeMismatch');}
   for (const field of ['label','unit','sourceLocator','formula','numerator','denominator','rounding','schoolYear','period']) {const f=fixture();f.packet.manifest[0].definitions[0][field]='changed';blocked(f,'definitionMismatch');}

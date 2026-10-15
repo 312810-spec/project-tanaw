@@ -79,3 +79,19 @@ aggregate-only district RPC/chart UI and export bindings. General decimal or
 financial aggregation, arbitrary formulas, partial-packet results and multi-period
 population rules require separate reviewed contracts. Current official source,
 T09 acceptance, T10 approved-template and physical-device gates remain open.
+
+## Lock instant validation follow-up — 16 October 2026
+
+The initial timestamp check used `Date.parse`, which normalizes some impossible
+calendar dates and `24:00:00` to a different day. A regression first reproduced
+February 30 incorrectly reaching `readyDiagnosticOnly`. The diagnostic now
+validates Gregorian month/day bounds (including century leap-year rules), clock
+and offset fields before parsing. Invalid instants produce
+`packetNotLockedComplete` and withhold the result. Valid leap days, month ends,
+fractional seconds and timezone offsets retain their prior diagnostic behavior.
+This validates input syntax/calendar meaning, not actual Lock authority.
+
+Local verification: 137 domain tests (14 frozen-result cases), 40 Python tests,
+lint, typecheck, baseline and production build passed. Local database verification
+was skipped because Docker is unavailable; full isolated CI remains the merge
+gate. No database, runtime endpoint, UI, import or approval gate changed.
