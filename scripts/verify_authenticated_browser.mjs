@@ -242,6 +242,82 @@ try {
   await subject.ui.getByRole('button', { name: 'Record subject review of this version' }).click();
   await subject.ui.getByText('Action recorded with its history.', { exact: true }).waitFor();
   const coordinator = await login('smeaCoordinator');
+  await coordinator.ui.getByLabel('Assigned submission').selectOption({ index: 1 });
+  await coordinator.ui.getByText('Record a pending roster source', { exact: true }).click();
+  const roster = coordinator.ui.getByRole('form', { name: 'Pending roster-source declaration' });
+  await coordinator.ui.getByText('Pending source history loaded. Declarations are not approved rosters or active mappings.', { exact: true }).waitFor();
+  assert.equal(await teacher.ui.getByRole('form', { name: 'Pending roster-source declaration' }).count(), 0, 'Teacher has no coordinator declaration control');
+  const historyRequests = [];
+  coordinator.page.on('request', (request) => { if (request.url().includes('/rest/v1/tanaw_roster_declarations?')) historyRequests.push(new URL(request.url()).searchParams.get('select')); });
+  async function fillRoster(revision) {
+    await roster.getByLabel('Roster source title', { exact: true }).fill('Synthetic pending roster');
+    await roster.getByLabel('Roster source location or reference').fill('fixture:pending-roster');
+    await roster.getByLabel('Roster source revision', { exact: true }).fill(revision);
+    await roster.getByLabel('Explicit class reference').fill('Synthetic class A');
+    assert.equal(await roster.getByLabel('Assigned reporting year').inputValue(), 'Fixture');
+    await roster.getByLabel('Roster source term').selectOption('TERM 1');
+    await roster.getByLabel('Roster source file (local reference only)').setInputFiles({ name: 'synthetic-roster.csv', mimeType: 'text/csv', buffer: Buffer.from('PRIVATE_SOURCE_FILE_BYTES') });
+    await coordinator.ui.getByText('Source-file reference calculated locally. Its provenance and learner keys still require verification.', { exact: true }).waitFor();
+    await roster.getByLabel('Explicit learner keys').fill('synthetic-roster-key-a\nsynthetic-roster-key-b');
+  }
+  await fillRoster('r1');
+  for (const width of [320, 390, 1440]) {
+    await coordinator.page.setViewportSize({ width, height: 1000 });
+    for (const colorScheme of ['light', 'dark']) {
+      await coordinator.page.emulateMedia({ colorScheme });
+      assert.ok(await coordinator.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'Roster form fits narrow and wide viewports');
+    }
+  }
+  const pendingRequests = [];
+  await coordinator.page.route('**/rest/v1/rpc/tanaw_declare_roster_source', async (route) => {
+    const body = route.request().postDataJSON(); pendingRequests.push(body);
+    assert.doesNotMatch(JSON.stringify(body), /PRIVATE_SOURCE_FILE_BYTES|synthetic-roster.csv/);
+    const response = await route.fetch(); assert.equal(response.ok(), true);
+    await route.fulfill({ status: 502, contentType: 'application/json', body: JSON.stringify({ code: 'SYNTHETIC_LOST_RECEIPT', message: 'Synthetic unavailable receipt' }) });
+  });
+  await roster.getByRole('button', { name: 'Record pending source declaration', exact: true }).click();
+  await coordinator.ui.getByText('The outcome is unconfirmed. Keep this page open and retry the same pending declaration. No new request will be created.', { exact: true }).waitFor();
+  assert.equal(await roster.getByLabel('Explicit learner keys').isDisabled(), true, 'Unconfirmed request snapshot cannot be changed');
+  await coordinator.page.unroute('**/rest/v1/rpc/tanaw_declare_roster_source');
+  await coordinator.page.route('**/rest/v1/rpc/tanaw_declare_roster_source', async (route) => {
+    assert.deepEqual(route.request().postDataJSON(), pendingRequests[0], 'Retry retains request ID, source and expected revision');
+    await route.continue();
+  });
+  await roster.getByRole('button', { name: 'Retry the same pending declaration', exact: true }).click();
+  await coordinator.ui.getByText('Pending source declaration recorded. It is not an approved roster. Learner-key fields were cleared from this form.', { exact: true }).waitFor();
+  await coordinator.page.unroute('**/rest/v1/rpc/tanaw_declare_roster_source');
+  const recorded = await admin.from('tanaw_roster_declarations').select('revision,state').eq('slot_id', uploadSlot.data.id);
+  assert.equal(recorded.error, null); assert.deepEqual(recorded.data, [{ revision: 1, state: 'pending' }], 'Lost receipt plus retry records exactly one pending revision');
+  assert.equal(await roster.getByLabel('Explicit learner keys').inputValue(), '');
+  assert.ok(await coordinator.page.evaluate(() => document.activeElement?.getAttribute('role') === 'status'), 'Receipt receives keyboard focus');
+  await fillRoster('r2');
+  const otherCoordinator = createClient(url, publicKey, { auth: { persistSession: false } });
+  assert.equal((await otherCoordinator.auth.signInWithPassword(users.smeaCoordinator)).error, null);
+  const concurrent = await otherCoordinator.rpc('tanaw_declare_roster_source', { target_submission: uploadSubmission.data.id, expected_revision: 1, request_id: randomUUID(), source: { ...pendingRequests[0].source, sourceRevision: 'concurrent-r2' } });
+  assert.equal(concurrent.error, null);
+  await roster.getByRole('button', { name: 'Record pending source declaration', exact: true }).click();
+  await coordinator.ui.getByText('The roster source revision changed. Refresh history and review it before recording a new declaration.', { exact: true }).waitFor();
+  assert.equal(await roster.getByLabel('Roster source revision', { exact: true }).inputValue(), 'r2', 'Conflict retains private draft');
+  await coordinator.ui.getByRole('button', { name: 'Refresh roster-source history', exact: true }).click();
+  await coordinator.ui.getByText('Latest loaded revision: 2. 2 revision(s) loaded. All are pending.', { exact: true }).waitFor();
+  let failRosterHistory = false;
+  await coordinator.page.route('**/rest/v1/tanaw_roster_declarations?*', (route) => failRosterHistory ? route.fulfill({ status: 500, contentType: 'application/json', body: '{"code":"SYNTHETIC_READ_FAILURE","message":"Synthetic unavailable history"}' }) : route.continue());
+  await coordinator.page.route('**/rest/v1/rpc/tanaw_declare_roster_source', async (route) => {
+    const response = await route.fetch(); assert.equal(response.ok(), true); failRosterHistory = true; await route.fulfill({ response });
+  });
+  await roster.getByRole('button', { name: 'Record pending source declaration', exact: true }).click();
+  await coordinator.ui.getByText('Pending source declaration recorded, but history refresh failed. Refresh history before recording another declaration. Learner-key fields were cleared from this form.', { exact: true }).waitFor();
+  assert.equal(await roster.getByLabel('Explicit learner keys').inputValue(), '', 'Confirmed write clears private fields even when history fails');
+  assert.equal(await roster.getByRole('button', { name: 'Record pending source declaration', exact: true }).isDisabled(), true);
+  await coordinator.page.unroute('**/rest/v1/tanaw_roster_declarations?*');
+  await coordinator.page.unroute('**/rest/v1/rpc/tanaw_declare_roster_source');
+  await coordinator.ui.getByRole('button', { name: 'Refresh roster-source history', exact: true }).click();
+  await coordinator.ui.getByText('Latest loaded revision: 3. 3 revision(s) loaded. All are pending.', { exact: true }).waitFor();
+  assert.ok(historyRequests.length >= 3); assert.ok(historyRequests.every((selection) => selection === 'id,revision,state,created_at,created_by'), 'History never fetches learner-key payloads');
+  assert.doesNotMatch(await coordinator.ui.innerText(), /synthetic-roster-key-a/);
+  const unchangedEvidence = await admin.from('tanaw_submissions').select('current_version').eq('id', uploadSubmission.data.id).single();
+  assert.equal(unchangedEvidence.data.current_version, 1, 'Roster declarations do not create evidence versions');
+
   await coordinator.ui.getByRole('button', { name: 'Prepare a new school packet version' }).click();
   await coordinator.ui.getByText('Latest school packet · Version 1', { exact: true }).waitFor();
   await coordinator.ui.getByRole('button', { name: 'Record school review', exact: true }).click();

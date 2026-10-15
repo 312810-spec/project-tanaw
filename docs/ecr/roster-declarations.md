@@ -45,7 +45,28 @@ This is PostgreSQL SQL/role regression evidence, not Supabase Auth, PostgREST or
 hosted evidence. PGlite is an ephemeral verifier, not an application dependency.
 Exact-head isolated Supabase CI results belong in the PR before integration.
 
-No coordinator UI or mapping approval is included. Acquire the authorized roster,
+## Coordinator entry and recovery
+
+The SMEA assignment panel records the exact source contract with its assigned
+year. File hashing stays in browser memory (nonempty, at most 32 MiB); no file
+bytes are uploaded by this form. Explicit keys are validated without trimming,
+inferring or generating identities. Source fields have no device persistence.
+History fetches only revision/provenance metadata, never learner-key payloads,
+in descending pages of twenty. All entries remain pending.
+
+A confirmation names the scope, source, term and key count. Unknown write outcomes
+freeze the source snapshot and retain the same request ID for an explicit retry.
+Known revision/access/validation rejection retains fields and requires refresh.
+Only a confirmed RPC receipt clears source fields; a subsequent history failure
+is reported separately and blocks another new declaration until refresh. Global
+unsaved-work handling still protects navigation away from an open draft.
+
+Domain tests cover metadata/key/UTF-8 bounds; the authenticated browser suite adds
+synthetic real-RPC retry, conflict, write/read-failure, metadata-only history,
+keyboard receipt focus and light/dark narrow-layout checks. Exact-head CI results
+must pass before integration. Browser CI is not physical Android/TalkBack evidence.
+
+No mapping approval is included. Acquire the authorized roster,
 verify its bytes/provenance and key meaning, decide retention and review policy,
 and bind approved scope/period before activating mappings or imports. The pending
 registry must not be treated as an approved roster by the preview validator.
