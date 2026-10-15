@@ -7,6 +7,7 @@ import { PacketHistory } from "@/app/components/packet-history";
 import { IndicatorRequirements } from "@/app/components/indicator-requirements";
 import { ManualEvidenceForm } from "@/app/components/manual-evidence-form";
 import { EcrFileCheck } from "@/app/components/ecr-file-check";
+import { RosterSourceDeclaration } from "@/app/components/roster-source-declaration";
 import { confirmLeavingWork, clearFormDirty } from "@/app/components/unsaved-work";
 import { readPages } from "@/app/lib/read-pages";
 import { indicatorCoverage, workflowError } from "@/app/lib/workflow-ux";
@@ -63,6 +64,7 @@ export function SchoolWorkflow({ schoolId, role, actorId, schoolName, accessVeri
   const [rounds, setRounds] = useState<Round[]>([]);
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [cycleLabels, setCycleLabels] = useState<Record<string, string>>({});
+  const [reportingYear, setReportingYear] = useState("");
   const [packets, setPackets] = useState<Packet[]>([]);
   const [district, setDistrict] = useState<DistrictPacket[]>([]);
   const [submissionId, setSubmissionId] = useState("");
@@ -128,7 +130,7 @@ export function SchoolWorkflow({ schoolId, role, actorId, schoolName, accessVeri
       if (request !== generation.current) return;
       if (definitionResult.error || packetResult.error) throw new Error("Workflow access could not be verified");
       const visibleSlots: Slot[] = slotResult.filter((slot) => role !== "teacher" || slot.author_id === actorId);
-      setSlots(visibleSlots); setDefinitions(definitionResult.data ?? []); setPackets(packetResult.data ?? []);
+      setSlots(visibleSlots); setDefinitions(definitionResult.data ?? []); setPackets(packetResult.data ?? []); setReportingYear(calendar.data.school_year);
       const submissionRows = visibleSlots.length ? await readPages<Submission>((from, to) => client.from("tanaw_submissions").select("id,slot_id,current_version,extension_until,extension_reason", { count: "exact" }).in("slot_id", visibleSlots.map((slot) => slot.id)).order("id").range(from, to)) : [];
       if (request !== generation.current) return;
       const reviewRows = submissionRows.length ? await readPages<{ submission_id: string; version: number }>((from, to) => client.from("tanaw_submission_reviews").select("submission_id,version", { count: "exact" }).in("submission_id", submissionRows.map((submission) => submission.id)).order("submission_id").order("version").range(from, to)) : [];
@@ -299,6 +301,7 @@ export function SchoolWorkflow({ schoolId, role, actorId, schoolName, accessVeri
         {versions.length > 0 && <details><summary className="cursor-pointer text-sm font-medium">Inspect recent evidence versions</summary><ol className="mt-3 space-y-4">{versions.map((entry) => <li key={entry.version} className="rounded-lg border border-foreground/20 p-3 text-sm"><h4 className="font-medium">Version {entry.version} · {new Date(entry.created_at).toLocaleString("en-PH", { timeZone: "Asia/Manila" })}</h4><p className="break-words">Reason: {entry.reason}</p>{entry.evidence.entries.map((evidence) => <p key={evidence.definitionId} className="break-words">{definitions.find((definition) => definition.id === evidence.definitionId)?.label ?? evidence.definitionId}: {evidence.value} · {evidence.sourceTitle} · {evidence.sourceLocator}</p>)}</li>)}</ol>{historyMore && <button type="button" disabled={historyBusy} className="mt-3 underline" onClick={() => void olderHistory()}>{historyBusy ? "Loading older versions…" : "Load older versions"}</button>}</details>}
         {(role === "teacher" || (role === "smeaCoordinator" && selectedSlot?.author_id === actorId)) && <ManualEvidenceForm key={actorId + schoolId + submissionId} scope={draftScope} version={selected.current_version} definitions={definitions} recordedEntries={currentVersion?.evidence.entries ?? []} canSubmit={accessVerified && !refreshing && !stale && (!cycle?.locked_at || activeAmendment)} eligibility={cycle?.locked_at && !activeAmendment ? "Local preparation is available. Submission is paused until the coordinator opens an active amendment." : cycle ? "Submission cutoff: " + new Date(Math.max(new Date(cycle.deadline_at).getTime(), new Date(selected.extension_until ?? cycle.deadline_at).getTime())).toLocaleString("en-PH", { timeZone: "Asia/Manila" }) + " Philippine time. The server checks the deadline and permissions when you submit." : undefined} busy={busy} onSubmit={submitManual} />}
         {selectedSlot?.author_id === actorId && (role === "teacher" || role === "smeaCoordinator") && <EcrFileCheck key={"file-check:" + actorId + schoolId + submissionId} submissionId={selected.id} paused={serverPaused} />}
+        {role === "smeaCoordinator" && selectedSlot && <RosterSourceDeclaration key={"roster-source:" + actorId + schoolId + submissionId} submissionId={selected.id} slotId={selectedSlot.id} schoolYear={reportingYear} scopeLabel={selectedSlot.scope_label + " · " + selectedSlot.subject_id} paused={serverPaused} />}
         {role === "subjectCoordinator" && <button type="button" className={buttonStyle} disabled={serverPaused || !versionReady || !currentVersion || selectedSlot?.author_id === actorId || reviews.some((review) => review.submission_id === selected.id && review.version === selected.current_version)} onClick={() => void action("tanaw_review_submission", { target_submission: submissionId, expected_version: selected.current_version })}>Record subject review of this version</button>}
         {role === "smeaCoordinator" && selected.current_version === 0 && !cycle?.locked_at && <details><summary className="cursor-pointer text-sm font-medium">Hand over an unsubmitted assignment</summary><form aria-describedby="workflow-feedback" className="mt-3 space-y-3" onSubmit={(event) => { event.preventDefault(); const element = event.currentTarget; const form = new FormData(element); void action("tanaw_handover_unsubmitted", { target_submission: selected.id, target_author: String(form.get("author")), expected_author: selectedSlot?.author_id, change_reason: String(form.get("reason")) }).then((saved) => { if (saved) clearFormDirty(element); }); }}>
           <p className="text-xs leading-5 text-foreground/65">The original account and handover reason remain in history. Device drafts stay with the original account; deadlines and extensions stay unchanged.</p>
