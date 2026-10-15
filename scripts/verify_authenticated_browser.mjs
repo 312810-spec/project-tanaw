@@ -108,6 +108,7 @@ try {
   await fileForm.getByRole('button', { name: 'Check file format', exact: true }).click();
   await fileForm.getByText('Choose a workbook to check.', { exact: true }).waitFor();
   assert.equal(await fileForm.getByLabel('Class-record workbook').getAttribute('aria-invalid'), 'true');
+  assert.equal(await fileForm.getByLabel('Class-record workbook').evaluate(element => element === document.activeElement), true);
   const workbookFixture = { name: 'synthetic-unregistered.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: Buffer.from('PRIVATE_SYNTHETIC_WORKBOOK_PAYLOAD') };
   await fileForm.getByLabel('Class-record workbook').setInputFiles(workbookFixture);
   await fileForm.getByRole('button', { name: 'Check file format', exact: true }).click();
@@ -153,6 +154,7 @@ try {
   await fileForm.getByRole('button', { name: 'Cancel file check', exact: true }).click();
   releaseHeld();
   await fileForm.getByText('File check canceled. Your file remains selected; no records were submitted.', { exact: true }).waitFor();
+  await teacher.page.waitForFunction(() => document.activeElement?.textContent === 'Check file format');
   assert.equal(await fileForm.getByRole('region', { name: 'File-check result' }).count(), 0, 'Canceled stale response stays hidden');
   responseMode = 'malformed';
   await fileForm.getByRole('button', { name: 'Check file format', exact: true }).click();
@@ -163,6 +165,7 @@ try {
   await teacher.page.keyboard.press('Enter');
   assert.equal(await fileForm.getByLabel('Class-record workbook').evaluate(element => element.files.length), 0);
   assert.equal(await fileForm.getByLabel('Workbook term').inputValue(), '');
+  await teacher.page.waitForFunction(() => document.activeElement?.getAttribute('type') === 'file');
   await teacher.page.route('**/api/ecr/preview', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ available: false }) }));
   await teacher.ui.getByLabel('Assigned submission').selectOption(''); await teacher.ui.getByLabel('Assigned submission').selectOption({ index: 1 });
   await teacher.ui.getByText('Check a class-record file', { exact: true }).click();
@@ -178,6 +181,9 @@ try {
   fileForm = teacher.ui.getByRole('form', { name: 'Class-record file check' });
   assert.equal(await fileForm.getByLabel('Class-record workbook').evaluate(element => element.files.length), 0, 'File selection never restores into another mounted assignment');
   assert.equal(await fileForm.getByRole('region', { name: 'File-check result' }).count(), 0);
+  const unchangedAfterFileUi = await admin.from('tanaw_submissions').select('current_version').eq('id', uploadSubmission.data.id).single();
+  assert.equal(unchangedAfterFileUi.error, null);
+  assert.equal(unchangedAfterFileUi.data.current_version, uploadSubmission.data.current_version, 'File-check UI never submits evidence');
   await teacher.ui.getByLabel('Verified indicator').selectOption(definition);
   await teacher.ui.getByLabel('Recorded value').fill('0');
   await teacher.ui.getByLabel('Evidence title').fill('Synthetic recorded zero');

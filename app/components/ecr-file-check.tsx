@@ -7,6 +7,7 @@ const inputStyle = "w-full min-w-0 rounded-lg border border-foreground/20 bg-bac
 const buttonStyle = "rounded-lg border border-brand px-4 py-2 text-sm text-brand disabled:opacity-50";
 export function EcrFileCheck({ submissionId, paused }: { submissionId: string; paused: boolean }) {
   const id = useId(), form = useRef<HTMLFormElement>(null), fileInput = useRef<HTMLInputElement>(null), termInput = useRef<HTMLSelectElement>(null);
+  const checkButton = useRef<HTMLButtonElement>(null), returnFocus = useRef<"file" | "check" | null>(null);
   const upload = useRef<AbortController | null>(null), capability = useRef<AbortController | null>(null), generation = useRef(0);
   const [availability, setAvailability] = useState<"checking" | "available" | "unavailable" | "error">("checking");
   const [online, setOnline] = useState<boolean | null>(null), [file, setFile] = useState<File | null>(null), [term, setTerm] = useState("");
@@ -34,6 +35,12 @@ export function EcrFileCheck({ submissionId, paused }: { submissionId: string; p
     return () => { mounted = false; invalidateUpload(); capability.current?.abort(); window.removeEventListener("online", connected); window.removeEventListener("offline", disconnected); };
   }, [loadAvailability, stop, invalidateUpload]);
   useEffect(() => { if (paused) queueMicrotask(() => stop("")); }, [paused, stop]);
+  useEffect(() => {
+    if (checking || !returnFocus.current) return;
+    const target = returnFocus.current === "file" ? fileInput.current : checkButton.current;
+    returnFocus.current = null;
+    if (target && !target.matches(":disabled")) target.focus();
+  }, [checking, file]);
   function changed() { stop(""); setErrors({}); if (form.current) clearFormDirty(form.current); }
   async function check(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -77,16 +84,16 @@ export function EcrFileCheck({ submissionId, paused }: { submissionId: string; p
         <label className="block text-sm">Class-record workbook<input ref={fileInput} type="file" accept=".xlsx" required aria-invalid={!!errors.file} aria-describedby={id + "-help" + (errors.file ? " " + id + "-file-error" : "")} className={inputStyle} onChange={(event) => { changed(); setFile(event.target.files?.[0] ?? null); setTerm(""); }} />{errors.file && <span id={id + "-file-error"} className="block font-medium">{errors.file}</span>}</label>
         {file && <p className="break-all text-sm">Selected file: {file.name}</p>}
         <label className="block text-sm">Workbook term<select ref={termInput} required value={term} className={inputStyle} aria-invalid={!!errors.term} aria-describedby={errors.term ? id + "-term-error" : id + "-help"} onChange={(event) => { changed(); setTerm(event.target.value); }}><option value="">Choose the workbook term</option>{["TERM 1", "TERM 2", "TERM 3"].map((value) => <option key={value} value={value}>{value}</option>)}</select>{errors.term && <span id={id + "-term-error"} className="block font-medium">{errors.term}</span>}</label>
-        <button className={buttonStyle}>Check file format</button>
+        <button ref={checkButton} className={buttonStyle}>Check file format</button>
       </fieldset>
-      {checking && <button type="button" className={buttonStyle} onClick={() => stop("File check canceled. Your file remains selected; no records were submitted.")}>Cancel file check</button>}
-      {file && !checking && <button type="button" className={buttonStyle} onClick={() => { changed(); setFile(null); setTerm(""); if (fileInput.current) fileInput.current.value = ""; }}>Clear selected file</button>}
+      {checking && <button type="button" className={buttonStyle} onClick={() => { returnFocus.current = "check"; stop("File check canceled. Your file remains selected; no records were submitted."); }}>Cancel file check</button>}
+      {file && !checking && <button type="button" className={buttonStyle} onClick={() => { returnFocus.current = "file"; changed(); setFile(null); setTerm(""); if (fileInput.current) fileInput.current.value = ""; }}>Clear selected file</button>}
       {result && !paused && <section aria-label="File-check result" className="context-panel space-y-2">
         <h4 className="font-semibold">Format recognized · {result.term}</h4>
         <p className="text-sm">{result.occupiedRows} occupied learner slot(s). {result.excludedBlankRows} blank slot(s) excluded.</p>
         {result.occupiedRows === 0 && <p className="text-sm">No occupied learner slots were found.</p>}
         <p className="text-sm">Learner mapping, reporting-period matching and approved computations are still pending. Nothing has been submitted.</p>
-        <details><summary className="cursor-pointer text-sm">File reference</summary><p className="break-all text-xs">{result.sourceHash}</p></details>
+        <details><summary className="cursor-pointer py-1 text-sm">File reference</summary><p className="break-all text-xs">{result.sourceHash}</p></details>
       </section>}
     </form>
   </details>;
