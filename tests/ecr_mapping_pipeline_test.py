@@ -3,7 +3,6 @@
 These small archives are not registered templates or independent engine receipts.
 No workbook formulas are executed and no actual learner data is used.
 """
-import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -14,7 +13,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
-from lib.ecr_co_normalize import normalize_archive  # noqa: E402
+from lib.ecr_co_extract import extract_co_diagnostic  # noqa: E402
 from lib.ecr_fingerprint import fingerprint  # noqa: E402
 
 NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
@@ -66,10 +65,8 @@ class MappingPipelineTests(unittest.TestCase):
         path = self.directory / "synthetic.xlsx"
         synthetic_archive(path, inline=inline)
         audit = fingerprint(path, {})
-        with zipfile.ZipFile(path) as archive:
-            rows = normalize_archive(archive, term)
-        return {"schema": "tanaw-co-diagnostic-v1", "family": "co-core", "term": term, "runtimeImportEnabled": False,
-                "sourceHash": hashlib.sha256(path.read_bytes()).hexdigest(), "templateFingerprint": audit["fingerprint"], "rows": rows}
+        source = {"family": "co-core", "structural_fingerprint": audit["fingerprint"], "protected_numeric_cells": {}}
+        return extract_co_diagnostic(path.read_bytes(), term, source)
 
     def run_review(self, data, mapping):
         preview_path, map_path = self.directory / "preview.json", self.directory / "mapping.json"

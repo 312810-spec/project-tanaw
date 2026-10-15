@@ -4,6 +4,7 @@ This is development tooling, not a runtime XLSX parser or an import approval.
 Shared formula serialization is retained: resaved equivalents can fail closed.
 """
 import hashlib
+import io
 import json
 import posixpath
 import zipfile
@@ -24,7 +25,18 @@ def fingerprint(path, lookup_ranges):
     """Hash formula definitions, sheet topology, merges and explicit numeric lookups."""
     if path.stat().st_size > MAX_BYTES:
         raise EcrAuditError("file-too-large")
-    with zipfile.ZipFile(path) as archive:
+    with path.open("rb") as handle:
+        data = handle.read(MAX_BYTES + 1)
+    return fingerprint_bytes(data, lookup_ranges)
+
+
+def fingerprint_bytes(data, lookup_ranges):
+    """Audit one immutable bounded snapshot using the unchanged v1 algorithm."""
+    if not isinstance(data, bytes):
+        raise EcrAuditError("invalid-workbook-bytes")
+    if len(data) > MAX_BYTES:
+        raise EcrAuditError("file-too-large")
+    with zipfile.ZipFile(io.BytesIO(data)) as archive:
         entries = archive.infolist()
         names = [entry.filename for entry in entries]
         if len(entries) > MAX_MEMBERS or len(set(names)) != len(names):
