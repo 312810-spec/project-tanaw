@@ -2,6 +2,11 @@
 
 Development extraction/comparison is implemented; runtime import stays disabled.
 
+15 October continuation: private preparation uses the bounded immutable-byte
+boundary in `lib/ecr_co_extract.py`, without temporary raw-workbook staging.
+The same snapshot supplies source hash, structural audit and normalization.
+See `docs/ecr/byte-extraction.md`; policy and runtime activation gates remain.
+
 Continuation: 405 independent synthetic source-expression fixtures now pass; the original conflicts with DO 015 at forty exact minimums per term. The private diagnostic reports `source-policy-conflict`. See `docs/ecr/independent-engine-verification.md` for the separate tested candidate and scope. The historical single-source-example limit below is superseded for the newly tested synthetic cases; runtime serialization, mapping, precision and version approval still remain open.
 
 ```bash
@@ -11,7 +16,7 @@ node --experimental-strip-types scripts/inspect_ecr_co_preview.mjs /private/new-
 
 Use an existing private directory outside this repository. Output must not exist; it is created with mode 0600. The JSON contains private names/scores: never attach, publish or commit it. The second command prints counts, row numbers and static codes only, never identities/scores or accepted rows. Successful inspection does not authorize import.
 
-Preparation audits a temporary snapshot of exactly the bytes parsed against the registered CO fingerprint. The existing safe archive gate rejects external/active content, unsafe XML and unknown formula/topology/lookup serialization. Extraction additionally rejects duplicate cells, formulas in raw inputs or identities, bad shared-string indices, nonnumeric/error/boolean cells and negative/nonfinite values. Known shared/array formulas are fingerprinted, never executed or silently converted to an approved alternate family. Equivalent resaved files can fail closed.
+Preparation audits exactly the immutable bytes parsed against the registered CO fingerprint. The existing safe archive gate rejects external/active content, unsafe XML and unknown formula/topology/lookup serialization. Extraction additionally rejects duplicate cells, formulas in raw inputs or identities, bad shared-string indices, nonnumeric/error/boolean cells and negative/nonfinite values. Known shared/array formulas are fingerprinted, never executed or silently converted to an approved alternate family. Equivalent resaved files can fail closed.
 
 Verified source layout: TERM 1–3 rows 18–67 reference INPUT DATA K11:K60; rows 69–118 reference N11:N60. These are 100 **name slots**, without a verified learner-key field. No learner key is invented from a name or row number. Explicit term selection extracts scores, row-15 maxima and cached AC final grades. Zero remains data, missing remains missing. Existing CO computation validates maxima/score/weight bounds. Exact final-grade comparison is diagnostic only; formula/fixture flags remain false.
 

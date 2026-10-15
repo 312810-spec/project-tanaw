@@ -1,13 +1,13 @@
 # TANAW — canonical remaining-task ledger
 
-15 October 2026. Baseline main `6f9331d83a06cffcf633e5d72b15daee3ade5b74`.
+15 October 2026. Baseline main `55c88c6edf97da98af72fb9f96071b99c4f7a9bc` (PR #28).
 READY = bounded synthetic/local development; GATED = activation awaits evidence;
 BLOCKED = external input required; PARTIAL never means operationally done.
 
 | ID | Task / state | Next acceptance gate |
 |---|---|---|
 | T01 | CO policy/version — BLOCKED activation | Reviewed applicable formula/precision/completeness/rounding version; preserve historical formulas. |
-| T02 | Runtime parser/preview — PARTIAL | Existing private extraction plus synthetic mapping pipeline; app runtime/serialization boundary still needed. |
+| T02 | Runtime parser/preview — PARTIAL | Bounded immutable-byte extractor plus synthetic mapping pipeline; Next.js bridge, full serialization/registry coverage and upload route still needed. |
 | T03 | Learner/scope mapping — PARTIAL | Explicit consistency validator; authorized roster acquisition and coordinator-reviewed mappings still needed. |
 | T04 | Private staging/atomic import — READY design/tests | Approved retention/storage, source/mapping, transactional idempotency, cutoff/Lock/scope checks. |
 | T05 | Template registry/families — GATED | Coordinator version controls and per-family verification; resolve Division/SHS external dependencies. |
