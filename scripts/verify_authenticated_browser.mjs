@@ -5,6 +5,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { mkdir } from 'node:fs/promises';
 import { createClient } from '@supabase/supabase-js';
+import { projectFrozenResult } from '../app/lib/frozen-results.ts';
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.TANAW_PLAYWRIGHT_MODULE || 'playwright');
 const statusProcess = spawnSync('npx', ['--no-install', 'supabase', 'status', '--output', 'json'], { encoding: 'utf8' });
@@ -333,6 +334,19 @@ try {
   await coordinator.ui.getByRole('button', { name: 'Lock this school packet' }).click();
   await coordinator.ui.getByText('Locked · complete', { exact: true }).waitFor();
   await coordinator.page.screenshot({ path: output + '/coordinator-locked.png', fullPage: true });
+  // Synthetic real database shapes: exact locked manifest + RLS-authorized historical RPC.
+  const frozenPacket = await otherCoordinator.from('tanaw_school_packets').select('id,school_id,cycle_id,version,locked_at,completeness,manifest,missing').eq('cycle_id', cycle).single();
+  assert.equal(frozenPacket.error, null);
+  const frozenEvidence = await otherCoordinator.rpc('tanaw_packet_evidence', { target_packet: frozenPacket.data.id });
+  assert.equal(frozenEvidence.error, null); assert.equal(frozenEvidence.data.length, 1);
+  const snapshotDefinition = frozenPacket.data.manifest[0].definitions.find((item) => item.id === definition);
+  const resultContract = { schema: 'tanaw-frozen-result-contract-v1', purpose: 'synthetic', id: randomUUID(), revision: 1, schoolId: school, cycleId: cycle, schoolYear: 'Fixture', period: 'Synthetic block', method: 'countSum', decimals: 0, rounding: 'halfUp', numeratorDefinition: snapshotDefinition, denominatorDefinition: null, partition: { id: randomUUID(), revision: 1, contributions: [{ slot: uploadSlot.data.id, populationKeys: [] }] } };
+  const frozenResult = projectFrozenResult(resultContract, frozenPacket.data, frozenEvidence.data);
+  assert.deepEqual(frozenResult.issues, []);
+  assert.equal(frozenResult.status, 'readyDiagnosticOnly'); assert.equal(frozenResult.result.value, 0);
+  assert.equal(frozenResult.canPublish, false); assert.equal(frozenResult.canAcceptDistrict, false);
+  assert.doesNotMatch(JSON.stringify(frozenResult), /sourceLocator|entries|submission_id|populationKeys/);
+
   const district = await login('districtCoordinator');
   assert.equal((await district.page.context().request.post(uploadUrl, uploadOptions)).status(), 403, 'District cannot use school raw-file checks');
   await district.ui.getByLabel('Decision', { exact: true }).selectOption('return');
@@ -344,6 +358,9 @@ try {
   assert.equal((await districtClient.auth.signInWithPassword(users.districtCoordinator)).error, null);
   const raw = await districtClient.from('tanaw_submission_versions').select('submission_id');
   assert.equal(raw.error, null); assert.deepEqual(raw.data, [], 'District must have no learner/source version access');
+  const districtFrozenEvidence = await districtClient.rpc('tanaw_packet_evidence', { target_packet: frozenPacket.data.id });
+  assert.equal(districtFrozenEvidence.error, null); assert.deepEqual(districtFrozenEvidence.data, [], 'District cannot retrieve private frozen result inputs');
+
   await coordinator.page.getByRole('navigation', { name: 'Workspace tasks' }).getByRole('button', { name: 'School access', exact: true }).click();
   const access = coordinator.page.getByRole('region', { name: 'Manage school access' });
   await access.getByLabel('Assigned account').selectOption(users.teacher.id);

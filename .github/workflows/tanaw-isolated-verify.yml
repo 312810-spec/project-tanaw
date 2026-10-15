@@ -91,7 +91,7 @@ jobs:
       - name: Verify authenticated synthetic school workflow
         env:
           TANAW_PLAYWRIGHT_MODULE: /tmp/tanaw-browser/node_modules/playwright
-        run: node scripts/verify_authenticated_browser.mjs
+        run: node --experimental-strip-types scripts/verify_authenticated_browser.mjs
       - name: Preserve authenticated synthetic UI screenshots
         if: always()
         uses: actions/upload-artifact@v4

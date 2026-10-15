@@ -1,6 +1,6 @@
 # TANAW — canonical remaining-task ledger
 
-16 October 2026. Baseline main `9199cb84f665af724398fab0507f895f958bf3eb` (PR #33).
+16 October 2026. Baseline main `f3fa465f7a586a3f8bdcb3879c7e185c4e9b3126` (PR #34).
 READY = bounded synthetic/local development; GATED = activation awaits evidence;
 BLOCKED = external input required; PARTIAL never means operationally done.
 
@@ -13,7 +13,7 @@ BLOCKED = external input required; PARTIAL never means operationally done.
 | T05 | Template registry/families — GATED | Coordinator version controls and per-family verification; resolve Division/SHS external dependencies. |
 | T06 | Current indicators/templates — BLOCKED activation | Applicable memo/approved dictionary, DMET/West 1 mappings, coverage and 77/69 source reconciliation. |
 | T07 | Calendar provisioning — GATED | Applicable amendments/local reconciliation, Term 3 inconsistency; preserve assigned deadlines. |
-| T08 | Governed results/charts — READY synthetic | Frozen-version inputs, verified definitions, coverage/math/privacy tests. |
+| T08 | Governed results/charts — PARTIAL synthetic | Frozen headcount/pooled-percentage diagnostic tested; reviewed contracts/populations, server projection persistence and aggregate-only chart/district access remain. |
 | T09 | District acceptance — GATED | T08 and required reviews; existing acceptance gate stays closed. |
 | T10 | Editable Excel/PPT/PDF — READY synthetic | Approved template bindings, governed totals, editability and render review. |
 | T11 | Account bootstrap/provisioning — READY isolated | Server-only privileges, scoped audited retry; designated initial coordinator for operations. |
