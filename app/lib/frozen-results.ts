@@ -20,6 +20,20 @@ const text = (value: unknown): value is string => typeof value === "string" && v
 const list = (value: unknown, max: number): value is unknown[] => Array.isArray(value) && value.length <= max;
 const records = (value: unknown, max: number): value is JsonObject[] => list(value, max) && Array.from(value).every(object);
 const sameSet = (a: string[], b: string[]) => a.length === b.length && new Set(a).size === a.length && new Set(b).size === b.length && a.every((key) => b.includes(key));
+const lockInstant = (value: unknown): boolean => {
+  if (!text(value)) return false;
+  const parts = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-](\d{2}):(\d{2}))$/.exec(value);
+  if (!parts) return false;
+  const [, year, month, day, hour, minute, second, offsetHour, offsetMinute] = parts;
+  const y = Number(year), m = Number(month), d = Number(day);
+  const leap = y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0);
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  // Date.parse alone normalizes impossible dates and 24:00 into a different day.
+  return m >= 1 && m <= 12 && d >= 1 && d <= days[m - 1]
+    && Number(hour) < 24 && Number(minute) < 60 && Number(second) < 60
+    && (offsetHour === undefined || (Number(offsetHour) < 24 && Number(offsetMinute) < 60))
+    && Number.isFinite(Date.parse(value));
+};
 
 /**
  * Contract fields: schema, purpose="synthetic", id/revision, schoolId/cycleId,
@@ -71,8 +85,7 @@ export function projectFrozenResult(contract: unknown, packet: unknown, evidence
     add("invalidPacket"); return out;
   }
   if (packet.school_id !== contract.schoolId || packet.cycle_id !== contract.cycleId) add("scopeMismatch");
-  if (typeof packet.locked_at !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(packet.locked_at)
-      || !Number.isFinite(Date.parse(packet.locked_at)) || packet.completeness !== "complete" || packet.missing.length) add("packetNotLockedComplete");
+  if (!lockInstant(packet.locked_at) || packet.completeness !== "complete" || packet.missing.length) add("packetNotLockedComplete");
   const manifest = packet.manifest;
   if (!sameSet([...slots], manifest.map((item) => String(item.slot)))) add("coverageMismatch");
   const submissionIds = new Set<string>();
