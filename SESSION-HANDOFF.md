@@ -1,20 +1,21 @@
 # TANAW — active checkpoint
 
 17 October 2026 (Manila). Repo `312810-spec/project-tanaw`; baseline main
-`21541ae3c2d700e29f9f49b8b06a5c827db087c6` (PR #45 merged).
-Branch `forge/auth-uncertainty-recovery-20261017`; inspect live Git/PR state
+`dc739da0b91b235dcb64c055fdf540f5bb897487` (PR #46 merged).
+Branch `forge/provisioning-worker-claims-20261017`; inspect live Git/PR state
 and automation work before resuming. Publishing/syncing/verified integration are
 authorized. Hosted changes, deployment and actual learner operations remain gated.
 
 ## Current slice
 
-T11 uncertain Auth reconciliation seam plus worker integration. Unknown initial
-lookup never creates; definitive missing permits at most one create attempt.
-Ignore create response and independently read the reserved UUID; require exact
-email/trusted request/school metadata. Missing/unavailable stays pending,
-conflict/ownership loss withholds identity. No email adoption, password reset,
-role grant, retry loop, endpoint, credential or production activation. Worker
-injects loss after actual Auth write before its existing kill/restart test.
+T11 server-only worker claim database foundation. Private token/expiry plus
+monotonic request epoch; active claim busy, successor after expiry. Service-only
+claim/ownership/finish RPCs; no authenticated token reads or direct claim writes.
+Claimed pending requests cannot use ordinary client completion. Finish checks
+current actor, epoch/token/expiry and exact trusted Auth bindings, then commits
+membership/audit/receipt with stored actor attribution. Legacy unclaimed requests
+and historical receipts retain behavior. Fresh migration/SQL and real service HTTP
+checks required; no worker/endpoint/credential/hosted activation.
 See `docs/local-account-provisioning.md`; task ledger is canonical.
 
 ## Rules
@@ -37,11 +38,15 @@ production build and authenticated browser. Older receipts stay in merged PRs.
 PR #45 killed-process/restart and worker-exclusion fixture passed all CI at
 `27abd72ef21d1c6068dcfc5636b0ef65fe2ae990` (isolated `38930026726`, domain
 `38930026706`, public `38930026839`). It proves local restart, not production
-fencing/network partitions. Current 8 focused recovery tests pass; require full
-local checks and unchanged-head CI for revised real Auth/worker integration.
-Local Docker unavailable; never count its skip as a pass. Publish/pass CI/merge/
-sync. No device/pilot or measured token-saving claim. Test production ownership,
-provider uncertainty and network partitions before enabling a server endpoint.
+fencing/network partitions. PR #46 uncertainty recovery passed all CI at
+`34d7ca2877d06d37dc9a3055acaa392c50a7058a` (isolated `38976412265`, domain
+`38976412202`, public `38976412169`): 160 domain / 40 Python plus real Auth,
+SQL/concurrency, production build and authenticated browser. Controlled response
+loss is not an actual partition. Current claim migration requires fresh CI;
+local Docker/PostgreSQL unavailable. Publish/pass CI/merge/sync. Claim-specific
+concurrent takeover/partition and production endpoint caller validation remain;
+DB claims fence membership completion, not external Auth writes. No device/pilot
+or measured token saving claimed.
 
 ## Remaining gates
 

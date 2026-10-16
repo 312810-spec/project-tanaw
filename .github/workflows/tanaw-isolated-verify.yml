@@ -84,6 +84,8 @@ jobs:
         run: docker exec -i supabase_db_project-tanaw psql -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/roster-declarations-local.sql
       - name: Verify durable provisioning reservations and scoped completion
         run: docker exec -i supabase_db_project-tanaw psql -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/account-provisioning-local.sql
+      - name: Verify server-only provisioning worker claims and stale-owner denial
+        run: docker exec -i supabase_db_project-tanaw psql -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/provisioning-worker-claims-local.sql
       - name: Verify rollback-only synthetic import transaction mechanisms
         run: docker exec -i supabase_db_project-tanaw psql -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/ecr-import-transaction-local.sql
       - name: Verify parallel synthetic import sessions and disconnect rollback

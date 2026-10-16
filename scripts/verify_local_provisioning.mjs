@@ -213,6 +213,21 @@ try {
   assert.equal(sql(`select revision,(select count(*) from public.tanaw_membership_events where target_user_id=${quote(restartedUser)}) from public.tanaw_memberships where school_id=${quote(school)} and user_id=${quote(restartedUser)};`), '1|1');
   assert.ok((await row(restartRequest)).completed_at);
   console.log('PASS uncertain Auth write reconciled by UUID, second worker busy, killed-process lock release, fresh-process recovery and exact receipt');
+  // Real service-role HTTP claim/finish, using the actual reserved Auth identity.
+  const claimedRequest = makeRequest(), claimedUser = await prepareAuth(claimedRequest);
+  const claim = await admin.rpc('tanaw_claim_account_work', { request_id: claimedRequest.id, lease_seconds: 60 });
+  assert.equal(claim.error, null); assert.equal(claim.data.status, 'claimed');
+  const proof = { request_id: claimedRequest.id, epoch: claim.data.epoch, token: claim.data.token };
+  assert.equal((await admin.rpc('tanaw_account_work_owned', proof)).data, true);
+  assert.equal((await complete(claimedRequest)).error?.code, '42501', 'Client cannot bypass claimed completion');
+  assert.equal((await caller.rpc('tanaw_claim_account_work', { request_id: claimedRequest.id, lease_seconds: 60 })).error?.code, '42501');
+  assert.equal((await admin.rpc('tanaw_finish_account_work', { ...proof, epoch: proof.epoch + 1 })).error?.code, '42501');
+  const finishClaim = await admin.rpc('tanaw_finish_account_work', proof);
+  assert.equal(finishClaim.error, null); assert.equal(finishClaim.data, claimedUser);
+  assert.equal((await admin.rpc('tanaw_account_work_owned', proof)).data, false, 'Completed work no longer owned');
+  assert.equal((await complete(claimedRequest)).error, null, 'Historical coordinator receipt remains readable');
+  assert.equal(sql(`select revision,(select count(*) from public.tanaw_membership_events where target_user_id=${quote(claimedUser)}) from public.tanaw_memberships where school_id=${quote(school)} and user_id=${quote(claimedUser)};`), '1|1');
+  console.log('PASS real service HTTP claim/finish, invalid-epoch denial, blocked client bypass and one attributed membership');
   // Revoke coordinator after a real Auth account exists but before completion.
   const interrupted = makeRequest(), interruptedId = await prepareAuth(interrupted);
   sql(`update public.tanaw_memberships set active=false where school_id=${quote(school)} and user_id=${quote(coordinator)};`);
@@ -233,7 +248,8 @@ try {
   const reservedUsers = sql(`select reserved_user_id from public.tanaw_provisioning_requests where school_id in (${quote(school)},${quote(otherSchool)});`);
   for (const id of reservedUsers.split('\n').filter(Boolean)) users.add(id);
   // Operator cleanup, restricted to generated schools/users. Not a runtime purge.
-  sql(`delete from public.tanaw_provisioning_requests where school_id in (${quote(school)},${quote(otherSchool)});
+  sql(`delete from public.tanaw_provisioning_worker_claims where request_id in (select id from public.tanaw_provisioning_requests where school_id in (${quote(school)},${quote(otherSchool)}));
+    delete from public.tanaw_provisioning_requests where school_id in (${quote(school)},${quote(otherSchool)});
     delete from public.tanaw_membership_events where school_id in (${quote(school)},${quote(otherSchool)});
     delete from public.tanaw_memberships where school_id in (${quote(school)},${quote(otherSchool)});
     delete from public.tanaw_schools where id in (${quote(school)},${quote(otherSchool)});`);
