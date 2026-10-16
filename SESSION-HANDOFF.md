@@ -1,19 +1,19 @@
 # TANAW — active checkpoint
 
 16 October 2026 (Manila). Repo `312810-spec/project-tanaw`; base main
-`da827c48d3857031fbf53b8db115977239257f2b` (PRs #35–#38 merged).
-Branch `forge/import-transaction-fixture-20261016`. Inspect live Git/PR state on resume; avoid overlap with hourly continuation.
+`a54faf1d8625f9a29dcf80385d8d0e5e2e2a3e02` (PRs #35–#39 merged).
+Branch `forge/import-parallel-tests-20261016`. Inspect live Git/PR state on resume; avoid overlap with hourly continuation.
 Commits, publishing, syncing and verified integration authorized; hosted actions,
 deployment and actual learner operations remain separately gated.
 
 ## Current slice
 
-T04 rollback-only PostgreSQL transaction mechanism fixture. Session-local tables
-and function exercise history/receipt/version atomic rollback, whole-batch denial,
-request replay, stale expected versions, consumed stages and access/Lock gates.
-No production schema, grant, route, storage or runtime import is added.
-See `tests/ecr-import-transaction-local.sql` and `docs/ecr/atomic-import-model.md`.
-Actual parallel sessions, production RLS and private retention remain untested.
+T04 multi-session PostgreSQL mechanism harness. Reuse the rollback-only SQL
+fixture function in a unique test schema shared by separate backend sessions.
+Observe a contender waiting on a database lock before releasing the holder.
+Check stale writes, exact retry, client disconnect rollback and access revocation
+while waiting. Cleanup removes the synthetic schema. No production schema,
+grant, route, private file or runtime import is added. Fresh CI is required.
 
 ## Rules
 
@@ -34,14 +34,16 @@ production build locally. Docker unavailable locally; never count its skip as a 
 
 PR #38 sparse-batch/history repair merged at `da827c4`; unchanged-head CI passed
 (domain `38842374728`, public `38842374729`, isolated `38842374710`).
-Current SQL fixture requires fresh isolated CI execution; no local PostgreSQL or
+PR #39 SQL mechanism fixture merged; all CI passed at
+`b8d60323dac41ef21beabde75182a92feb6626b6` (isolated `38843263546`).
+Current parallel harness requires fresh isolated CI execution; no local PostgreSQL or
 Docker is available. Existing local 152 domain / 40 Python tests pass. The
 rollback-only fixture is a test mechanism, not production import acceptance or
-proof of parallel transaction safety. No device/pilot test or token saving claimed.
+proof of production transaction safety. No device/pilot test or token saving claimed.
 
 ## Next / gates
 
-Publish transaction fixture, require fresh SQL and full CI, integrate and sync.
+Publish parallel harness, require fresh multi-session and full CI, integrate and sync.
 T04 still needs approved private retention, server-owned immutable stages and
 isolated transactional persistence/rollback/parallelism evidence. Source and
 mapping approval gate activation, not independent synthetic implementation.

@@ -123,3 +123,27 @@ never be promoted to runtime import authority. No private file is stored.
 Local PostgreSQL/Docker are unavailable; fresh CI SQL execution is required
 before claiming this fixture passes. Existing domain/Python suites remain useful
 regression evidence, not execution evidence for this SQL.
+
+
+## Parallel-session mechanism harness — 16 October 2026
+
+`scripts/verify_import_parallel.py` targets only the fixed local Supabase Docker
+container. It adapts the same SQL fixture function and tables into a unique
+synthetic schema because temporary tables cannot be shared between backends.
+Each session uses bounded statement/lock timeouts. A holder keeps its transaction
+open; the control session observes the contender in `pg_stat_activity` waiting
+on a lock before releasing the holder. This avoids claiming contention from
+sequential calls or guessed sleep timing.
+
+Four scenarios require: one committed version when a competing stale writer
+rejects; one receipt for two simultaneous exact requests; rollback of an open
+transaction when its psql client disconnects, allowing the waiting writer to
+commit; and access revocation committed while a writer waits, which must deny
+that write. Final history, receipt and current-version counts are checked. The
+unique schema is removed in cleanup. These checks require fresh isolated CI;
+local syntax validation alone does not execute PostgreSQL.
+
+This is concurrency evidence for the fixture only. Production RLS, real source
+and mapping authority, original-file retention, server-created stages,
+correction/extension integration, database process crashes and network partitions
+remain unverified. Runtime imports and district acceptance remain disabled.
