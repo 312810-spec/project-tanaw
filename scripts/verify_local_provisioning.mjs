@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
+import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
 
 const status = spawnSync('npx', ['--no-install', 'supabase', 'status', '--output', 'json'], { encoding: 'utf8', timeout: 30000 });
@@ -18,6 +19,7 @@ const admin = client(privateKey);
 const school = randomUUID(), otherSchool = randomUUID(), coordinator = randomUUID();
 const coordinatorPassword = randomUUID() + randomUUID();
 const users = new Set(), sessions = [];
+const workers = [], workerRequests = new Set();
 const quote = value => "'" + String(value).replaceAll("'", "''") + "'";
 const dbCommand = ['exec', '-i', 'supabase_db_project-tanaw', 'psql', '-X', '-qAt', '-U', 'postgres', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1'];
 function sql(statement) {
@@ -117,6 +119,34 @@ async function contended(functionName, operations) {
     await exited;
   }
 }
+async function startWorker(request, pauseAfterAuth = false) {
+  const session = await caller.auth.getSession();
+  assert.equal(session.error, null);
+  assert.ok(session.data.session?.access_token);
+  workerRequests.add(request.id);
+  const process = spawn(globalThis.process.execPath, [fileURLToPath(new URL('./local_provisioning_worker_fixture.mjs', import.meta.url)), '--synthetic-local-only'], { stdio: ['pipe', 'pipe', 'ignore'] });
+  const exited = new Promise(resolve => process.once('exit', (code, signal) => resolve({ code, signal })));
+  const status = new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Fixture worker response timeout')), 20000);
+    const lines = createInterface({ input: process.stdout });
+    lines.once('line', line => {
+      clearTimeout(timer);
+      try {
+        const result = JSON.parse(line);
+        assert.ok(['auth-ready', 'busy', 'complete', 'failed'].includes(result.status));
+        resolve(result.status);
+      } catch { reject(new Error('Invalid fixture worker response')); }
+    });
+    process.once('error', () => { clearTimeout(timer); reject(new Error('Fixture worker failed to start')); });
+  });
+  // Cleanup can kill a worker after another assertion failed; keep rejection handled.
+  void status.catch(() => {});
+  const worker = { process, exited, status }; workers.push(worker);
+  // Bearer token stays in an ephemeral pipe; never argv, environment or a file.
+  process.stdin.end(JSON.stringify({ id: request.id, email: request.email, school,
+    token: session.data.session.access_token, pauseAfterAuth }) + '\n');
+  return worker;
+}
 try {
   await create({ id: coordinator, email: `${coordinator}@fixture.invalid`, password: coordinatorPassword, email_confirm: true });
   sql(`insert into public.tanaw_schools(id,name) values(${quote(school)},'Synthetic provisioning school'),(${quote(otherSchool)},'Synthetic other school');
@@ -156,6 +186,33 @@ try {
   assert.equal(disabled.error, null);
   assert.equal((await complete(request)).error, null);
   assert.equal(sql(`select active,revision from public.tanaw_memberships where school_id=${quote(school)} and user_id=${quote(userId)};`), 'f|2');
+  // A real process dies after durable Auth creation but before completion.
+  const restartRequest = makeRequest();
+  const firstWorker = await startWorker(restartRequest, true);
+  assert.equal(await firstWorker.status, 'auth-ready');
+  const restartedUser = (await row(restartRequest)).reserved_user_id;
+  users.add(restartedUser);
+  assert.equal(sql(`select count(*) from public.tanaw_memberships where user_id=${quote(restartedUser)};`), '0');
+  const competingWorker = await startWorker(restartRequest);
+  assert.equal(await competingWorker.status, 'busy');
+  assert.equal((await competingWorker.exited).code, 0);
+  firstWorker.process.kill('SIGKILL');
+  assert.equal((await firstWorker.exited).signal, 'SIGKILL');
+  let released = false;
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (sql(`select count(*) from pg_stat_activity where application_name=${quote('tanaw-provision-fixture-' + restartRequest.id)};`) === '0') { released = true; break; }
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  assert.ok(released, 'Killed worker must release its local DB session before restart');
+  const recoveryWorker = await startWorker(restartRequest);
+  assert.equal(await recoveryWorker.status, 'complete');
+  assert.equal((await recoveryWorker.exited).code, 0);
+  const receiptWorker = await startWorker(restartRequest);
+  assert.equal(await receiptWorker.status, 'complete');
+  assert.equal((await receiptWorker.exited).code, 0);
+  assert.equal(sql(`select revision,(select count(*) from public.tanaw_membership_events where target_user_id=${quote(restartedUser)}) from public.tanaw_memberships where school_id=${quote(school)} and user_id=${quote(restartedUser)};`), '1|1');
+  assert.ok((await row(restartRequest)).completed_at);
+  console.log('PASS second worker busy, killed-process lock release, fresh-process Auth recovery and exact completion replay');
   // Revoke coordinator after a real Auth account exists but before completion.
   const interrupted = makeRequest(), interruptedId = await prepareAuth(interrupted);
   sql(`update public.tanaw_memberships set active=false where school_id=${quote(school)} and user_id=${quote(coordinator)};`);
@@ -166,7 +223,15 @@ try {
   assert.equal(hidden.error, null); assert.deepEqual(hidden.data, []);
   console.log('PASS real Auth + durable HTTP RPC recovery, observed reservation/completion contention, exact receipts, collision denial, later disable preservation and revocation');
 } finally {
+  for (const worker of workers) {
+    if (worker.process.exitCode === null && worker.process.signalCode === null) worker.process.kill('SIGKILL');
+    await worker.exited;
+  }
+  for (const id of workerRequests) sql(`select pg_terminate_backend(pid) from pg_stat_activity where application_name=${quote('tanaw-provision-fixture-' + id)};`);
   for (const session of sessions) await session.auth.signOut();
+  // Include an identity created just before a worker failed to emit its marker.
+  const reservedUsers = sql(`select reserved_user_id from public.tanaw_provisioning_requests where school_id in (${quote(school)},${quote(otherSchool)});`);
+  for (const id of reservedUsers.split('\n').filter(Boolean)) users.add(id);
   // Operator cleanup, restricted to generated schools/users. Not a runtime purge.
   sql(`delete from public.tanaw_provisioning_requests where school_id in (${quote(school)},${quote(otherSchool)});
     delete from public.tanaw_membership_events where school_id in (${quote(school)},${quote(otherSchool)});

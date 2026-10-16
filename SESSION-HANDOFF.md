@@ -1,66 +1,54 @@
 # TANAW — active checkpoint
 
-16 October 2026 (Manila). Repo `312810-spec/project-tanaw`; base main
-`063c246eecd894e6ad59c3788ac3ca842c7c6797` (PRs #35–#43 merged).
-Branch `forge/provisioning-auth-integration-20261016`. Inspect live Git/PR state on resume; avoid overlap with hourly continuation.
-Commits, publishing, syncing and verified integration authorized; hosted actions,
-deployment and actual learner operations remain separately gated.
+17 October 2026 (Manila). Repo `312810-spec/project-tanaw`; baseline main
+`a980aa3187b1bfd2e3cc46dd49bda3a66221c8bf` (PR #44 merged).
+Branch `forge/provisioning-worker-restart-20261017`; inspect live Git/PR state
+and automation work before resuming. Publishing/syncing/verified integration are
+authorized. Hosted changes, deployment and actual learner operations remain gated.
 
 ## Current slice
 
-T11 real local Auth plus durable authenticated HTTP RPC integration. Replace
-throwaway request journal with reservation/completion RPCs and creator-RLS reads.
-Two concurrent HTTP requests must be observed waiting behind a held actor lock
-before release, for both reserve and complete. Assert one UUID/membership/audit;
-fresh-client lost-response recovery, no password reset, no-access orphan,
-collision denial and later disable/revocation preservation. No app endpoint,
-worker, onboarding, credential or hosted change. Fresh CI must execute this
-revised fixture. See `docs/local-account-provisioning.md`.
+T11 local subprocess coordination/restart fixture. A generated request and actor
+bearer token pass through stdin only. A local DB session lock prevents a second
+worker from creating/completing the same identity. Kill the first Node process
+after Auth creation; observe DB-session release; start a new process to recover
+the durable reservation/Auth identity and complete once; replay in another
+process. Assert one membership revision/audit. Cleanup generated identities,
+including those created before a failed status marker. No production worker,
+lease/fencing, endpoint, credential file, onboarding or hosted configuration.
+See `docs/local-account-provisioning.md` and canonical `docs/remaining-tasks.md`.
 
 ## Rules
 
-Read CLAUDE/AGENTS/operating rules and all 29 confirmed decisions. Submit → Subject
-→ SMEA → independent Head → explicit SMEA Lock → district review. Preserve SMEA
-self-review exception, scoped access and aggregate-only district visibility.
-Pending declarations never approve identities/mappings. CO source fidelity does
-not resolve policy conflict. Drive development-only; live AI deferred.
+Read AGENTS/CLAUDE, operating rules and all 29 confirmed decisions. Missing is not
+zero; submitted is not approved; history is immutable. Submit → Subject → SMEA →
+independent Head → explicit SMEA Lock → district review. Preserve coordinator
+self-review exception, school scope and aggregate-only district visibility.
+Pending roster declarations never approve identity/mapping. CO source fidelity
+does not resolve policy conflict. Drive development-only; live AI deferred.
 
-## Evidence
+## Evidence / next
 
-PR #36 merged after all CI passed at
-`4a1f5d421357855eca2ff48601728706921894ac` (isolated run `38823783372`).
-PR #37 merged after all CI passed at
-`c50f171b63c51c7987211a277db6b5b9398b75e4` (isolated run `38823754628`).
-Combined main passed 150 domain / 40 Python tests, lint, typecheck, baseline and
-production build locally. Docker unavailable locally; never count its skip as a pass.
-
-PR #38 sparse-batch/history repair merged at `da827c4`; unchanged-head CI passed
-(domain `38842374728`, public `38842374729`, isolated `38842374710`).
-PR #39 SQL fixture merged with all CI green (`38843263546`). PR #40 parallel
-fixture passed four multi-session scenarios and all CI at
-`ddb6de721870a7d3c116be587219714e72cf3981` (isolated `38843995090`, domain
-`38843995285`, public `38843995238`). This includes 152 domain / 40 Python tests.
-Those receipts verify fixture mechanisms, not production RLS/retention/imports.
-PR #41 staging design merged after all CI passed (isolated `38844617590`).
-PR #42 real local Auth recovery fixture merged; all CI passed at
-`8d98d447019fb817e7bac34f85b922f58c4efde3` (isolated `38845760426`).
-PR #43 durable journal merged after all CI passed at
+PR #43 durable reservation SQL passed CI at
 `b5470485f746b843bae152f05fdc86bc421acec1` (isolated `38847271130`).
-Current HTTP/concurrency harness requires fresh isolated CI; local syntax/lint/baseline only. Require real
-local Auth/SQL plus full CI at the published head. No production RLS, onboarding,
-email delivery, physical device/pilot or measured token saving is claimed.
+PR #44 durable real-Auth/HTTP contention/recovery passed at
+`89652d7f9d54c7763d5839fedd49bbf8bb1c3e48` (isolated `38849264812`, domain
+`38849264777`, public `38849264902`): 152 domain / 40 Python plus SQL/concurrency,
+production build and authenticated browser. Older receipts stay in merged PRs.
+Current subprocess fixture needs fresh isolated CI; local Docker is unavailable.
+Publish/pass unchanged-head CI/integrate/sync. No device/pilot or token-saving
+claim. Test network partitions, production worker ownership/fencing and uncertain
+Auth outcomes before enabling a server endpoint; current session lock is local
+fixture coordination only.
 
-## Next / gates
+## Remaining gates
 
-Publish HTTP integration, require real-Auth/journal contention and full CI,
-integrate/sync. Then test trusted worker lease/concurrent Auth creation and full process-restart
-recovery before enabling a server endpoint. No operational bootstrap or hosted actions.
-T04 still needs approved private retention, server-owned immutable stages and
-isolated transactional persistence/rollback/parallelism evidence. Source and
-mapping approval gate activation, not independent synthetic implementation.
-T02 remains partial (registered-original positive HTTP evidence, full approved
-serialization, computation/period binding). T03 needs roster provenance and
-approved review/mapping workflow. PR #35 added T08 frozen headcount/pooled-percentage diagnostic and authenticated
-projection/privacy checks. Preserve its new calculator, CI flag and ledger state.
-T08 persistence/charts and T10 synthetic exports remain implementable work. Indicators/calendar/device/pilot and
-production recovery dependencies remain; do not claim the roadmap complete.
+T11 still needs reviewed production worker/endpoint, onboarding, reservation and
+orphan disposition, initial coordinator and authorized environment. T04 staging
+design is proposed; retention/access policy, private adapter and real atomic import
+integration remain. T02 approved serialization/computation/period and registered
+original HTTP evidence; T03 authorized roster/class and mappings. T08 approved
+result dictionary/populations and persistence/chart/district projection; T10
+synthetic exports remain independent work. Calendar/indicator/source/device/pilot
+and production recovery dependencies persist. Runtime imports/district acceptance
+stay disabled. No roadmap-complete claim.
