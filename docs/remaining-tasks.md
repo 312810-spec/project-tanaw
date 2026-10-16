@@ -1,6 +1,6 @@
 # TANAW — canonical remaining-task ledger
 
-16 October 2026. Baseline main `a54faf1d8625f9a29dcf80385d8d0e5e2e2a3e02` (PRs #35–#39 merged).
+16 October 2026. Baseline main `882c5613450ba8bbe187ff52785bc1dc21490b28` (PRs #35–#40 merged).
 READY = bounded synthetic/local development; GATED = activation awaits evidence;
 BLOCKED = external input required; PARTIAL never means operationally done.
 
@@ -9,7 +9,7 @@ BLOCKED = external input required; PARTIAL never means operationally done.
 | T01 | CO policy/version — BLOCKED activation | Reviewed applicable formula/precision/completeness/rounding version; preserve historical formulas. |
 | T02 | Runtime parser/preview — PARTIAL | Owned file-check API/panel and ambiguous-OOXML rejection added; complete approved serialization, registered-original positive HTTP evidence, approved computation and period mapping remain. |
 | T03 | Learner/scope mapping — PARTIAL | Explicit consistency validator, pending-only registry and coordinator entry/history; authorized roster acquisition, approval and coordinator-reviewed mappings still needed. |
-| T04 | Private staging/atomic import — PARTIAL synthetic model | [Executable transaction contract](ecr/atomic-import-model.md) covers retry/CAS/cutoff/Lock/confirmed corrections; private storage, isolated SQL atomicity and approved source/mapping remain. |
+| T04 | Private staging/atomic import — PARTIAL mechanisms/design | [Model and SQL/concurrency fixtures](ecr/atomic-import-model.md) verified; [private-staging design](ecr/private-staging-contract.md) proposed. Approved retention/access, production storage/RLS/transactions and source/mapping remain. |
 | T05 | Template registry/families — GATED | Coordinator version controls and per-family verification; resolve Division/SHS external dependencies. |
 | T06 | Current indicators/templates — BLOCKED activation | Applicable memo/approved dictionary, DMET/West 1 mappings, coverage and 77/69 source reconciliation. |
 | T07 | Calendar provisioning — GATED | Applicable amendments/local reconciliation, Term 3 inconsistency; preserve assigned deadlines. |
