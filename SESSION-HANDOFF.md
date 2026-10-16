@@ -1,8 +1,8 @@
 # TANAW — active checkpoint
 
 16 October 2026 (Manila). Repo `312810-spec/project-tanaw`; base main
-`8e7460387c60abb0a3f2bd80c90ef272b7ad68fd` (PR #35).
-PR #36 / branch `forge/atomic-import-model-20261016`. Inspect live Git/PR state on resume.
+`58b94963fd2268266257b511247b44aee970b534` (PRs #35–#37 merged).
+Branch `forge/import-batch-integrity-20261016`. Inspect live Git/PR state on resume; avoid overlap with hourly continuation.
 Commits, publishing, syncing and verified integration authorized; hosted actions,
 deployment and actual learner operations remain separately gated.
 
@@ -28,21 +28,23 @@ not resolve policy conflict. Drive development-only; live AI deferred.
 
 ## Evidence
 
-PR #34 merged; inspect its exact-head CI metadata rather than assuming old
-receipts verify this slice. Thirteen new domain cases test synthetic authority,
-null/zero, immutable snapshots, invalid whole batches, version/source changes,
-retry conflicts, deadline equality, extensions, corrections and locked history.
-With PR #35 integrated: 148 domain cases executed directly, 40 Python tests,
-lint/typecheck and
-baseline pass (Docker unavailable). Local production build is blocked by
-Turbopack process/port binding permission; require isolated CI build evidence.
-The model specifies SQL transactions; it does not prove them. No physical
-Android/TalkBack test or pilot occurs. No token saving measured.
+PR #36 merged after all CI passed at
+`4a1f5d421357855eca2ff48601728706921894ac` (isolated run `38823783372`).
+PR #37 merged after all CI passed at
+`c50f171b63c51c7987211a277db6b5b9398b75e4` (isolated run `38823754628`).
+Combined main passed 150 domain / 40 Python tests, lint, typecheck, baseline and
+production build locally. Docker unavailable locally; never count its skip as a pass.
+
+Current repair reproduced sparse rows bypassing validation and sparse history
+throwing. Every array position is now checked; sparse/null/undefined entries
+reject without changing prior state. 152 domain / 40 Python tests pass locally.
+Require remaining lint/typecheck/baseline/build and unchanged-head CI before merge.
+The pure model proves no SQL atomicity; no runtime caller or import is enabled.
+No physical Android/TalkBack test or pilot occurs. No token saving measured.
 
 ## Next / gates
 
-Finish local checks, publish draft PR, require all applicable CI on unchanged
-head before expected-head merge, then sync main. Update this checkpoint/ledger.
+Publish current repair, pass CI, integrate and sync. Record final receipts in PR.
 T04 still needs approved private retention, server-owned immutable stages and
 isolated transactional persistence/rollback/parallelism evidence. Source and
 mapping approval gate activation, not independent synthetic implementation.
