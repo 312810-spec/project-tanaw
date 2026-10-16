@@ -97,3 +97,29 @@ sparse/null/undefined row and history entries while preserving the prior state.
 Two new domain cases cover these failures; runtime imports remain disabled.
 This is a bounded model correction, not general validation of unknown JSON or
 evidence of database transaction safety.
+
+
+## PostgreSQL mechanism fixture — 16 October 2026
+
+`tests/ecr-import-transaction-local.sql` runs in isolated CI using only temporary
+tables and a session-local function, inside an explicitly rolled-back transaction.
+It adds no migration or production RPC. Synthetic integer identities, a target
+owner and readiness flag are fixture inputs, not authorization or approval data.
+
+The fixture exercises whole-batch rejection; history/receipt/current-version
+rollback after an injected interruption; exact replay without a new write;
+changed-payload denial; stale expected-version rejection; unique stage reuse;
+wrong owner/target and disabled-access denial; and receipt recovery after Lock
+or deadline without reopening writes. Zero and JSON null remain distinct.
+
+This tests PostgreSQL subtransaction rollback, uniqueness, foreign keys and
+compare-and-swap sequencing. The function locks its target row, but this suite
+uses one session: actual concurrent writers, crashes/disconnects, production RLS,
+immutable server-created stages, retention/encryption/disposal, approved roster
+and formula semantics, extensions and confirmed corrections still require their
+own integration evidence. Temporary objects and a fixture readiness flag must
+never be promoted to runtime import authority. No private file is stored.
+
+Local PostgreSQL/Docker are unavailable; fresh CI SQL execution is required
+before claiming this fixture passes. Existing domain/Python suites remain useful
+regression evidence, not execution evidence for this SQL.
