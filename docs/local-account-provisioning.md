@@ -148,3 +148,32 @@ endpoint, invitation or hosted mutation is introduced. Fresh isolated CI must
 execute this revised harness before results can be asserted. Production worker
 leases, concurrent Auth-create reconciliation, recipient/onboarding review,
 full process restart, reservation cancellation and orphan disposition remain.
+
+
+## Local subprocess coordination/restart fixture — 17 October 2026
+
+`scripts/local_provisioning_worker_fixture.mjs --synthetic-local-only` is a CI
+subprocess, not a shipped app worker. It accepts one generated fixture request
+and the coordinator bearer token through stdin only. It requires the fixed local
+Supabase URL/container and a fixture.invalid address. Local admin keys remain in
+memory; no password, token, key or Auth response is printed or written to a file.
+Its output is limited to static status labels. A watchdog bounds its lifetime.
+
+The fixture coordinates a request using a session-level PostgreSQL advisory lock
+in a fixed local operator connection. A second worker reports busy without Auth
+creation or completion. The verifier waits for the first process to report that
+Auth exists, kills that process, observes the local DB session disappear, and
+starts a separate process to recover the same durable reservation/identity and
+complete once. A fourth process checks exact receipt replay. Final membership
+revision and audit count must remain one. Cleanup includes reserved identities
+even if a child fails before reporting its status.
+
+Fresh isolated CI is required; local syntax/lint/baseline do not execute these
+scenarios. This extends the fresh-client tests with an actual killed Node process
+and a new Node process. It does not establish production lease/fencing safety,
+network partition handling, database crashes, or lock loss during an in-flight
+Auth operation. No generic privileged worker, production endpoint, automatic
+orphan purge, invitation, initial coordinator or hosted configuration is enabled.
+A production worker must use reviewed ownership/fencing and reconciliation for
+uncertain Auth outcomes before runtime activation. The previous rollback/RLS/HTTP
+contention suites remain required regression evidence.
