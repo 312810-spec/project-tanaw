@@ -1,22 +1,21 @@
 # TANAW — active checkpoint
 
 17 October 2026 (Manila). Repo `312810-spec/project-tanaw`; baseline main
-`a980aa3187b1bfd2e3cc46dd49bda3a66221c8bf` (PR #44 merged).
-Branch `forge/provisioning-worker-restart-20261017`; inspect live Git/PR state
+`21541ae3c2d700e29f9f49b8b06a5c827db087c6` (PR #45 merged).
+Branch `forge/auth-uncertainty-recovery-20261017`; inspect live Git/PR state
 and automation work before resuming. Publishing/syncing/verified integration are
 authorized. Hosted changes, deployment and actual learner operations remain gated.
 
 ## Current slice
 
-T11 local subprocess coordination/restart fixture. A generated request and actor
-bearer token pass through stdin only. A local DB session lock prevents a second
-worker from creating/completing the same identity. Kill the first Node process
-after Auth creation; observe DB-session release; start a new process to recover
-the durable reservation/Auth identity and complete once; replay in another
-process. Assert one membership revision/audit. Cleanup generated identities,
-including those created before a failed status marker. No production worker,
-lease/fencing, endpoint, credential file, onboarding or hosted configuration.
-See `docs/local-account-provisioning.md` and canonical `docs/remaining-tasks.md`.
+T11 uncertain Auth reconciliation seam plus worker integration. Unknown initial
+lookup never creates; definitive missing permits at most one create attempt.
+Ignore create response and independently read the reserved UUID; require exact
+email/trusted request/school metadata. Missing/unavailable stays pending,
+conflict/ownership loss withholds identity. No email adoption, password reset,
+role grant, retry loop, endpoint, credential or production activation. Worker
+injects loss after actual Auth write before its existing kill/restart test.
+See `docs/local-account-provisioning.md`; task ledger is canonical.
 
 ## Rules
 
@@ -35,11 +34,14 @@ PR #44 durable real-Auth/HTTP contention/recovery passed at
 `89652d7f9d54c7763d5839fedd49bbf8bb1c3e48` (isolated `38849264812`, domain
 `38849264777`, public `38849264902`): 152 domain / 40 Python plus SQL/concurrency,
 production build and authenticated browser. Older receipts stay in merged PRs.
-Current subprocess fixture needs fresh isolated CI; local Docker is unavailable.
-Publish/pass unchanged-head CI/integrate/sync. No device/pilot or token-saving
-claim. Test network partitions, production worker ownership/fencing and uncertain
-Auth outcomes before enabling a server endpoint; current session lock is local
-fixture coordination only.
+PR #45 killed-process/restart and worker-exclusion fixture passed all CI at
+`27abd72ef21d1c6068dcfc5636b0ef65fe2ae990` (isolated `38930026726`, domain
+`38930026706`, public `38930026839`). It proves local restart, not production
+fencing/network partitions. Current 8 focused recovery tests pass; require full
+local checks and unchanged-head CI for revised real Auth/worker integration.
+Local Docker unavailable; never count its skip as a pass. Publish/pass CI/merge/
+sync. No device/pilot or measured token-saving claim. Test production ownership,
+provider uncertainty and network partitions before enabling a server endpoint.
 
 ## Remaining gates
 

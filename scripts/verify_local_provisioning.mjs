@@ -119,12 +119,12 @@ async function contended(functionName, operations) {
     await exited;
   }
 }
-async function startWorker(request, pauseAfterAuth = false) {
+async function startWorker(request, pauseAfterAuth = false, loseCreateResponse = false) {
   const session = await caller.auth.getSession();
   assert.equal(session.error, null);
   assert.ok(session.data.session?.access_token);
   workerRequests.add(request.id);
-  const process = spawn(globalThis.process.execPath, [fileURLToPath(new URL('./local_provisioning_worker_fixture.mjs', import.meta.url)), '--synthetic-local-only'], { stdio: ['pipe', 'pipe', 'ignore'] });
+  const process = spawn(globalThis.process.execPath, ['--experimental-strip-types', fileURLToPath(new URL('./local_provisioning_worker_fixture.mjs', import.meta.url)), '--synthetic-local-only'], { stdio: ['pipe', 'pipe', 'ignore'] });
   const exited = new Promise(resolve => process.once('exit', (code, signal) => resolve({ code, signal })));
   const status = new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('Fixture worker response timeout')), 20000);
@@ -144,7 +144,7 @@ async function startWorker(request, pauseAfterAuth = false) {
   const worker = { process, exited, status }; workers.push(worker);
   // Bearer token stays in an ephemeral pipe; never argv, environment or a file.
   process.stdin.end(JSON.stringify({ id: request.id, email: request.email, school,
-    token: session.data.session.access_token, pauseAfterAuth }) + '\n');
+    token: session.data.session.access_token, pauseAfterAuth, loseCreateResponse }) + '\n');
   return worker;
 }
 try {
@@ -188,7 +188,7 @@ try {
   assert.equal(sql(`select active,revision from public.tanaw_memberships where school_id=${quote(school)} and user_id=${quote(userId)};`), 'f|2');
   // A real process dies after durable Auth creation but before completion.
   const restartRequest = makeRequest();
-  const firstWorker = await startWorker(restartRequest, true);
+  const firstWorker = await startWorker(restartRequest, true, true);
   assert.equal(await firstWorker.status, 'auth-ready');
   const restartedUser = (await row(restartRequest)).reserved_user_id;
   users.add(restartedUser);
@@ -212,7 +212,7 @@ try {
   assert.equal((await receiptWorker.exited).code, 0);
   assert.equal(sql(`select revision,(select count(*) from public.tanaw_membership_events where target_user_id=${quote(restartedUser)}) from public.tanaw_memberships where school_id=${quote(school)} and user_id=${quote(restartedUser)};`), '1|1');
   assert.ok((await row(restartRequest)).completed_at);
-  console.log('PASS second worker busy, killed-process lock release, fresh-process Auth recovery and exact completion replay');
+  console.log('PASS uncertain Auth write reconciled by UUID, second worker busy, killed-process lock release, fresh-process recovery and exact receipt');
   // Revoke coordinator after a real Auth account exists but before completion.
   const interrupted = makeRequest(), interruptedId = await prepareAuth(interrupted);
   sql(`update public.tanaw_memberships set active=false where school_id=${quote(school)} and user_id=${quote(coordinator)};`);
