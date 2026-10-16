@@ -1,7 +1,8 @@
 // CI integration fixture only. No production provisioning endpoint or bootstrap.
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { createInterface } from 'node:readline';
 import { createClient } from '@supabase/supabase-js';
 
 const status = spawnSync('npx', ['--no-install', 'supabase', 'status', '--output', 'json'], { encoding: 'utf8', timeout: 30000 });
@@ -14,110 +15,160 @@ const privateKey = config.SECRET_KEY ?? config.SERVICE_ROLE_KEY ?? config.servic
 assert.ok(publicKey && privateKey, 'Local keys required; never print them');
 const client = key => createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 const admin = client(privateKey);
-const schema = 'tanaw_provision_test_' + randomUUID().replaceAll('-', '');
 const school = randomUUID(), otherSchool = randomUUID(), coordinator = randomUUID();
-const users = new Set();
+const coordinatorPassword = randomUUID() + randomUUID();
+const users = new Set(), sessions = [];
 const quote = value => "'" + String(value).replaceAll("'", "''") + "'";
+const dbCommand = ['exec', '-i', 'supabase_db_project-tanaw', 'psql', '-X', '-qAt', '-U', 'postgres', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1'];
 function sql(statement) {
-  const result = spawnSync('docker', ['exec', '-i', 'supabase_db_project-tanaw', 'psql', '-X', '-qAt', '-U', 'postgres', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1'], {
-    input: "set statement_timeout='15s';\n" + statement, encoding: 'utf8', timeout: 20000,
-  });
-  // Do not echo Auth responses, SQL payloads, keys or passwords on failure.
+  const result = spawnSync('docker', dbCommand, { input: "set statement_timeout='15s';\n" + statement, encoding: 'utf8', timeout: 20000 });
   assert.equal(result.status, 0, 'Synthetic provisioning SQL must succeed');
   return result.stdout.trim();
 }
-const makeRequest = () => ({ id: randomUUID(), userId: randomUUID(), email: `${randomUUID()}@fixture.invalid`, password: randomUUID() + randomUUID() });
+const makeRequest = () => ({ id: randomUUID(), email: `${randomUUID()}@fixture.invalid`, password: randomUUID() + randomUUID() });
 async function create(attributes) {
   users.add(attributes.id);
   const result = await admin.auth.admin.createUser(attributes);
   assert.equal(result.error, null, 'Synthetic account creation must succeed');
   return result.data.user;
 }
-function authorize(targetSchool) {
-  return sql(`select count(*) from public.tanaw_memberships where school_id=${quote(targetSchool)} and user_id=${quote(coordinator)} and active and 'smeaCoordinator'=any(roles);`) === '1';
+let caller;
+async function loginCoordinator() {
+  const next = client(publicKey); sessions.push(next);
+  assert.equal((await next.auth.signInWithPassword({ email: `${coordinator}@fixture.invalid`, password: coordinatorPassword })).error, null);
+  caller = next;
 }
-async function provision(request, { targetSchool = school, loseAuthResponse = false, failMembership = false } = {}) {
-  // This harness's actor/scope/roles are fixed server-side fixture constants.
-  assert.ok(authorize(targetSchool), 'Current coordinator access required before Auth or receipt recovery');
-  assert.match(request.email, /^[a-f0-9-]+@fixture\.invalid$/);
-  const payload = JSON.stringify({ email: request.email, userId: request.userId, roles: ['teacher'], subjects: ['math'] });
-  const prior = sql(`select payload::text from ${schema}.requests where id=${quote(request.id)};`);
-  if (prior) assert.deepEqual(JSON.parse(prior), JSON.parse(payload), 'Changed request must not reuse a reservation');
-  else sql(`insert into ${schema}.requests(id,actor_id,school_id,user_id,payload) values(${quote(request.id)},${quote(coordinator)},${quote(targetSchool)},${quote(request.userId)},${quote(payload)}::jsonb);`);
-  const complete = sql(`select complete from ${schema}.requests where id=${quote(request.id)};`);
-  if (complete === 't') return request.userId;
-
-  // A reserved ID is authoritative for this fixture; never adopt by email lookup.
-  const found = await admin.auth.admin.getUserById(request.userId);
-  assert.ok(!found.error || found.error.status === 404, 'Unknown Auth lookup failure must not trigger creation');
+function reserve(request, targetSchool = school) {
+  return caller.rpc('tanaw_reserve_account', { target_school: targetSchool, request_id: request.id,
+    account_email: request.email, assigned_roles: ['teacher'], assigned_subjects: ['math'],
+    change_reason: 'Synthetic provisioning request' }).abortSignal(AbortSignal.timeout(20000));
+}
+function complete(request) {
+  return caller.rpc('tanaw_complete_account', { request_id: request.id }).abortSignal(AbortSignal.timeout(20000));
+}
+async function row(request) {
+  const result = await caller.from('tanaw_provisioning_requests').select('reserved_user_id,email,completed_at').eq('id', request.id).single();
+  assert.equal(result.error, null, 'Creator must be able to read its durable reservation');
+  return result.data;
+}
+async function prepareAuth(request, { loseAuthResponse = false } = {}) {
+  const reservation = await reserve(request);
+  assert.equal(reservation.error, null, 'Durable reservation must authorize before any Auth operation');
+  const userId = reservation.data;
+  const stored = await row(request);
+  assert.equal(stored.reserved_user_id, userId);
+  if (stored.completed_at) return userId;
+  const found = await admin.auth.admin.getUserById(userId);
+  assert.ok(!found.error || found.error.status === 404, 'Unknown Auth lookup failure must stop');
   let user = found.data.user;
   if (!user) {
-    users.add(request.userId);
-    const created = await admin.auth.admin.createUser({ id: request.userId, email: request.email, password: request.password,
-      email_confirm: true, app_metadata: { fixture_request: request.id, fixture_school: targetSchool } });
-    assert.equal(created.error, null, 'Creation collision or unknown Auth failure must stop provisioning');
+    users.add(userId);
+    const created = await admin.auth.admin.createUser({ id: userId, email: stored.email, password: request.password,
+      email_confirm: true, app_metadata: { tanaw_provision_request_id: request.id, tanaw_provision_school_id: school } });
+    assert.equal(created.error, null, 'Creation collision must stop without adopting by email');
     user = created.data.user;
     if (loseAuthResponse) throw new Error('synthetic-lost-auth-response');
   }
-  assert.equal(user.id, request.userId);
-  assert.equal(user.email, request.email);
-  assert.equal(user.app_metadata.fixture_request, request.id, 'Reserved account must belong to this request');
-  assert.equal(user.app_metadata.fixture_school, targetSchool);
-  assert.ok(authorize(targetSchool), 'Access rechecked after Auth operation');
-
-  // Test-only operator transaction: execute the real authenticated membership RPC
-  // and journal completion together. This is not a shipped worker or request RPC.
-  sql(`begin;
-    select set_config('request.jwt.claim.sub',${quote(coordinator)},true);
-    do $fixture$ begin
-      if not tanaw_private.has_school_role(${quote(targetSchool)},array['smeaCoordinator']) then raise exception 'Access revoked'; end if;
-      perform public.tanaw_manage_member(${quote(targetSchool)},${quote(request.userId)},array['teacher'],array['math'],true,'Synthetic provisioning request',0);
-      ${failMembership ? "raise exception 'synthetic interruption';" : ''}
-      update ${schema}.requests set complete=true where id=${quote(request.id)};
-    end $fixture$;
-    commit;`);
-  return request.userId;
+  assert.equal(user.id, userId); assert.equal(user.email, stored.email);
+  assert.equal(user.app_metadata.tanaw_provision_request_id, request.id);
+  assert.equal(user.app_metadata.tanaw_provision_school_id, school);
+  return userId;
 }
-
+async function provision(request, options) {
+  const id = await prepareAuth(request, options);
+  const result = await complete(request);
+  assert.equal(result.error, null, 'Authenticated completion must succeed');
+  assert.equal(result.data, id);
+  return id;
+}
+async function contended(functionName, operations) {
+  assert.ok(['tanaw_reserve_account', 'tanaw_complete_account'].includes(functionName));
+  const holder = spawn('docker', dbCommand, { stdio: ['pipe', 'pipe', 'ignore'] });
+  const ready = new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Lock holder did not become ready')), 15000);
+    const lines = createInterface({ input: holder.stdout });
+    lines.on('line', line => { if (line === 'LOCK_READY') { clearTimeout(timer); resolve(); } });
+    holder.once('error', () => { clearTimeout(timer); reject(new Error('Lock holder failed')); });
+    holder.once('exit', () => { clearTimeout(timer); reject(new Error('Lock holder exited before release')); });
+  });
+  const exited = new Promise(resolve => holder.once('exit', code => resolve(code)));
+  holder.stdin.write(`begin; set local idle_in_transaction_session_timeout='20s';
+    select pg_advisory_xact_lock(hashtextextended(${quote(school + ':' + coordinator)},0));
+\\echo LOCK_READY
+`);
+  try {
+    await ready;
+    // Promise.all starts both HTTP requests while the actor lock is held.
+    const work = Promise.all(operations.map(operation => operation()));
+    const deadline = Date.now() + 10000;
+    let waiting = false;
+    while (Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const count = sql(`select count(*) from pg_stat_activity where wait_event_type='Lock' and query like '%${functionName}%';`);
+      if (Number(count) >= operations.length) { waiting = true; break; }
+    }
+    holder.stdin.end('commit;\n');
+    assert.equal(await exited, 0, 'Lock holder must commit');
+    const results = await work;
+    assert.ok(waiting, 'Both HTTP RPCs must demonstrably wait on a database lock');
+    return results;
+  } finally {
+    if (!holder.stdin.destroyed && !holder.stdin.writableEnded) holder.stdin.end('rollback;\n');
+    await exited;
+  }
+}
 try {
-  await create({ id: coordinator, email: `${coordinator}@fixture.invalid`, password: randomUUID() + randomUUID(), email_confirm: true });
-  sql(`create schema ${schema};
-    create table ${schema}.requests(id uuid primary key,actor_id uuid not null,school_id uuid not null,user_id uuid not null unique,payload jsonb not null,complete boolean not null default false);
-    revoke all on schema ${schema} from public,anon,authenticated;
-    revoke all on ${schema}.requests from public,anon,authenticated;
-    insert into public.tanaw_schools(id,name) values(${quote(school)},'Synthetic provisioning school'),(${quote(otherSchool)},'Synthetic other school');
+  await create({ id: coordinator, email: `${coordinator}@fixture.invalid`, password: coordinatorPassword, email_confirm: true });
+  sql(`insert into public.tanaw_schools(id,name) values(${quote(school)},'Synthetic provisioning school'),(${quote(otherSchool)},'Synthetic other school');
     insert into public.tanaw_memberships(school_id,user_id,roles,subject_ids) values(${quote(school)},${quote(coordinator)},array['smeaCoordinator'],'{}');`);
+  await loginCoordinator();
   const request = makeRequest();
-  await assert.rejects(provision(request, { loseAuthResponse: true }), /synthetic-lost-auth-response/);
-  assert.equal(sql(`select count(*) from public.tanaw_memberships where user_id=${quote(request.userId)};`), '0');
-  const unassigned = client(publicKey);
+  const reservations = await contended('tanaw_reserve_account', [() => reserve(request), () => reserve(request)]);
+  for (const result of reservations) assert.equal(result.error, null);
+  assert.equal(reservations[0].data, reservations[1].data, 'Concurrent exact reserve returns one UUID');
+  const userId = reservations[0].data;
+  assert.equal(sql(`select count(*) from public.tanaw_provisioning_requests where id=${quote(request.id)};`), '1');
+  const duplicate = await reserve({ ...request, id: randomUUID() });
+  assert.equal(duplicate.error?.code, '40001', 'Same email under another request cannot create another reservation');
+  await assert.rejects(prepareAuth(request, { loseAuthResponse: true }), /synthetic-lost-auth-response/);
+  assert.equal(sql(`select count(*) from public.tanaw_memberships where user_id=${quote(userId)};`), '0');
+  const unassigned = client(publicKey); sessions.push(unassigned);
   assert.equal((await unassigned.auth.signInWithPassword({ email: request.email, password: request.password })).error, null);
   const inaccessible = await unassigned.from('tanaw_schools').select('id');
-  assert.equal(inaccessible.error, null); assert.deepEqual(inaccessible.data, [], 'Auth identity alone grants no school access');
-  await unassigned.auth.signOut();
-  // Auth succeeds but failed membership transaction leaves no access/audit/receipt.
-  await assert.rejects(provision(request, { failMembership: true }));
-  assert.equal(sql(`select (select count(*) from public.tanaw_memberships where user_id=${quote(request.userId)}),(select count(*) from public.tanaw_membership_events where target_user_id=${quote(request.userId)}),(select complete from ${schema}.requests where id=${quote(request.id)});`), '0|0|f');
-  assert.equal(await provision({ ...request, password: randomUUID() + randomUUID() }), request.userId);
-  const resumed = client(publicKey);
-  assert.equal((await resumed.auth.signInWithPassword({ email: request.email, password: request.password })).error, null, 'Recovery must not reset the original password');
-  await resumed.auth.signOut();
-  assert.equal(await provision(request), request.userId, 'Lost completion response recovers without another grant');
-  assert.equal(sql(`select revision,(select count(*) from public.tanaw_membership_events where target_user_id=${quote(request.userId)}) from public.tanaw_memberships where school_id=${quote(school)} and user_id=${quote(request.userId)};`), '1|1');
-  await assert.rejects(provision({ ...request, email: `${randomUUID()}@fixture.invalid` }), /Changed request/);
-  const other = makeRequest();
-  await assert.rejects(provision(other, { targetSchool: otherSchool }), /Current coordinator access/);
-  assert.equal((await admin.auth.admin.getUserById(other.userId)).data.user, null);
+  assert.equal(inaccessible.error, null); assert.deepEqual(inaccessible.data, [], 'Auth alone grants no school access');
+  // Resume from durable rows through a fresh authenticated coordinator client.
+  await loginCoordinator();
+  assert.equal(await prepareAuth({ ...request, password: randomUUID() + randomUUID() }), userId);
+  assert.equal((await unassigned.auth.signInWithPassword({ email: request.email, password: request.password })).error, null, 'Recovery never resets original password');
+  const completions = await contended('tanaw_complete_account', [() => complete(request), () => complete(request)]);
+  for (const result of completions) { assert.equal(result.error, null); assert.equal(result.data, userId); }
+  assert.equal(sql(`select revision,(select count(*) from public.tanaw_membership_events where target_user_id=${quote(userId)}) from public.tanaw_memberships where school_id=${quote(school)} and user_id=${quote(userId)};`), '1|1');
+  assert.equal(await provision(request), userId, 'Lost completion response recovers one durable receipt');
+  const changed = await reserve({ ...request, email: `${randomUUID()}@fixture.invalid` });
+  assert.equal(changed.error?.code, '22023');
+  assert.equal((await reserve(makeRequest(), otherSchool)).error?.code, '42501');
   const collision = makeRequest(), existingId = randomUUID();
   await create({ id: existingId, email: collision.email, password: randomUUID() + randomUUID(), email_confirm: true });
-  await assert.rejects(provision(collision), /Creation collision/);
-  assert.equal(sql(`select count(*) from public.tanaw_memberships where user_id=${quote(existingId)};`), '0', 'Existing email identity must not be adopted');
+  await assert.rejects(prepareAuth(collision), /Creation collision/);
+  assert.equal(sql(`select count(*) from public.tanaw_memberships where user_id=${quote(existingId)};`), '0');
+  const disabled = await caller.rpc('tanaw_manage_member', { target_school: school, target_user: userId,
+    new_roles: ['teacher'], new_subject_ids: ['math'], is_active: false, change_reason: 'Synthetic later disable', expected_revision: 1 });
+  assert.equal(disabled.error, null);
+  assert.equal((await complete(request)).error, null);
+  assert.equal(sql(`select active,revision from public.tanaw_memberships where school_id=${quote(school)} and user_id=${quote(userId)};`), 'f|2');
+  // Revoke coordinator after a real Auth account exists but before completion.
+  const interrupted = makeRequest(), interruptedId = await prepareAuth(interrupted);
   sql(`update public.tanaw_memberships set active=false where school_id=${quote(school)} and user_id=${quote(coordinator)};`);
-  await assert.rejects(provision(request), /Current coordinator access/);
-  console.log('PASS local Auth reservation recovery, no-access orphan, membership rollback, exact retry, request conflict, cross-school denial, email collision and revoked-coordinator denial');
+  assert.equal((await complete(interrupted)).error?.code, '42501');
+  assert.equal(sql(`select count(*) from public.tanaw_memberships where user_id=${quote(interruptedId)};`), '0');
+  assert.equal((await complete(request)).error?.code, '42501');
+  const hidden = await caller.from('tanaw_provisioning_requests').select('id');
+  assert.equal(hidden.error, null); assert.deepEqual(hidden.data, []);
+  console.log('PASS real Auth + durable HTTP RPC recovery, observed reservation/completion contention, exact receipts, collision denial, later disable preservation and revocation');
 } finally {
-  // Only generated fixture identities/schools/schema qualify for cleanup.
-  sql(`drop schema if exists ${schema} cascade;
+  for (const session of sessions) await session.auth.signOut();
+  // Operator cleanup, restricted to generated schools/users. Not a runtime purge.
+  sql(`delete from public.tanaw_provisioning_requests where school_id in (${quote(school)},${quote(otherSchool)});
     delete from public.tanaw_membership_events where school_id in (${quote(school)},${quote(otherSchool)});
     delete from public.tanaw_memberships where school_id in (${quote(school)},${quote(otherSchool)});
     delete from public.tanaw_schools where id in (${quote(school)},${quote(otherSchool)});`);

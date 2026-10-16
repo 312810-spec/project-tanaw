@@ -121,3 +121,30 @@ unresolved; no purge duration or automatic account deletion is introduced.
 Production credentials, initial coordinator designation, invitation/password setup
 and real email delivery remain gated. This journal does not approve a human
 identity, class roster, imported workbook or deployment.
+
+
+## Real Auth and durable RPC integration — 16 October 2026
+
+The local verifier now replaces its operator-only throwaway request journal with
+actual authenticated HTTP calls to `tanaw_reserve_account`, creator-RLS request
+reads and `tanaw_complete_account`. Auth admin creation uses the server-reserved
+UUID and the journal's trusted app-metadata bindings. A fresh coordinator client
+resumes the request after a simulated lost Auth response; this is fresh-client
+recovery, not a claim of full server-process restart testing.
+
+For both reservation and completion, a separate database session first holds the
+coordinator membership advisory lock. Two HTTP requests start together, and the
+control session must observe both waiting on a PostgreSQL lock before releasing
+the holder. Results must identify one reserved UUID, one membership revision and
+one attributable access event. The fixture also checks conflicting email/request,
+original-password preservation, no school access before completion, preserved
+later disable, existing-email rejection and coordinator revocation after real
+Auth creation but before completion. The rollback-only SQL suite continues to
+verify transaction failure atomicity; it is not replaced by this HTTP harness.
+
+Generated fixture rows and Auth identities are cleaned up through test-operator
+SQL/admin calls only. No new runtime deletion policy, production credential,
+endpoint, invitation or hosted mutation is introduced. Fresh isolated CI must
+execute this revised harness before results can be asserted. Production worker
+leases, concurrent Auth-create reconciliation, recipient/onboarding review,
+full process restart, reservation cancellation and orphan disposition remain.
