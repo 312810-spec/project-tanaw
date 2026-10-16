@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { createClient } from '@supabase/supabase-js';
+import { reconcileReservedAuth } from '../app/lib/provisioning-auth-recovery.ts';
 
 const uuid = value => typeof value === 'string' && /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(value);
 let holder;
@@ -56,18 +57,33 @@ try {
     assert.equal(stored.data.reserved_user_id, reserved.data);
     assert.equal(stored.data.school_id, request.school);
     if (!stored.data.completed_at) {
-      const existing = await admin.auth.admin.getUserById(reserved.data);
-      assert.ok(!existing.error || existing.error.status === 404);
-      let user = existing.data.user;
-      if (!user) {
-        const created = await admin.auth.admin.createUser({ id: reserved.data, email: stored.data.email,
-          password: randomUUID() + randomUUID(), email_confirm: true,
-          app_metadata: { tanaw_provision_request_id: request.id, tanaw_provision_school_id: request.school } });
-        assert.equal(created.error, null); user = created.data.user;
-      }
-      assert.equal(user.id, reserved.data); assert.equal(user.email, stored.data.email);
-      assert.equal(user.app_metadata.tanaw_provision_request_id, request.id);
-      assert.equal(user.app_metadata.tanaw_provision_school_id, request.school);
+      let responseLossInjected = false;
+      const recovered = await reconcileReservedAuth({ userId: reserved.data, email: stored.data.email,
+        requestId: request.id, schoolId: request.school }, {
+        async ownsRequest() {
+          if (holder.exitCode !== null) return false;
+          const current = await caller.from('tanaw_provisioning_requests').select('actor_id,reserved_user_id').eq('id', request.id).maybeSingle();
+          return !current.error && current.data?.actor_id === identity.data.user.id
+            && current.data?.reserved_user_id === reserved.data && holder.exitCode === null;
+        },
+        async lookup(id) {
+          const found = await admin.auth.admin.getUserById(id);
+          if (found.error) return { status: found.error.status === 404 ? 'missing' : 'unavailable' };
+          return found.data.user ? { status: 'found', user: found.data.user } : { status: 'unavailable' };
+        },
+        async create() {
+          const created = await admin.auth.admin.createUser({ id: reserved.data, email: stored.data.email,
+            password: randomUUID() + randomUUID(), email_confirm: true,
+            app_metadata: { tanaw_provision_request_id: request.id, tanaw_provision_school_id: request.school } });
+          if (created.error) throw new Error('fixture-create-uncertain');
+          if (request.loseCreateResponse === true) {
+            responseLossInjected = true;
+            throw new Error('fixture-create-response-lost');
+          }
+        },
+      });
+      assert.equal(recovered.status, 'verified'); assert.equal(recovered.userId, reserved.data);
+      if (request.loseCreateResponse === true) assert.equal(responseLossInjected, true);
       if (request.pauseAfterAuth === true) {
         emit('auth-ready');
         await new Promise((_, reject) => setTimeout(() => reject(new Error('fixture-pause-expired')), 20000));

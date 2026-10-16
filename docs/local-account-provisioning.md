@@ -177,3 +177,35 @@ orphan purge, invitation, initial coordinator or hosted configuration is enabled
 A production worker must use reviewed ownership/fencing and reconciliation for
 uncertain Auth outcomes before runtime activation. The previous rollback/RLS/HTTP
 contention suites remain required regression evidence.
+
+
+## Uncertain Auth outcome reconciliation — 17 October 2026
+
+`app/lib/provisioning-auth-recovery.ts` is a privilege-free orchestration seam
+used by the local worker fixture. Its caller supplies a trusted immutable journal
+reservation, current request-ownership check and bounded provider adapters. It
+adds no credential, endpoint, lease, school grant or production activation.
+
+A definitive missing UUID permits at most one create attempt per invocation.
+Unknown/failed initial lookup permits no create. Regardless of create success or
+error, independently re-read only the reserved UUID and require exact email plus
+trusted request/school app-metadata bindings. Missing/unavailable final reads stay
+pending; mismatched identity stays conflicted. Never search/adopt by email, trust
+a create response as completion evidence, reset a password or retry in a loop.
+A later invocation can recover a delayed account through that same reserved UUID.
+
+The ownership callback is checked before/after reads and after a create attempt;
+loss withholds identity and never grants membership. This callback is not an
+atomic external-provider fence. A late provider write can still leave an unassigned
+identity; final school access always requires the separately authorized durable
+completion RPC. Durable retry scheduling, provider uniqueness/uncertainty handling
+and ownership/fencing under real network partition remain production requirements.
+
+Eight domain cases cover post-write response loss, unknown initial lookups,
+missing/unavailable post-write reads, later recovery without create, conflicting
+bindings, untrusted create output, ownership loss and static/private error output.
+The local worker injects an exception after real Auth creation; reconciliation
+must read the actual identity before the existing kill/restart scenario proceeds.
+This is a controlled lost-response injection, not a real network-partition test.
+Child Node explicitly enables TypeScript stripping for this shared helper.
+Fresh isolated CI must execute the revised fixture before a pass claim.
