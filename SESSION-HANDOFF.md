@@ -1,20 +1,20 @@
 # TANAW — active checkpoint
 
 16 October 2026 (Manila). Repo `312810-spec/project-tanaw`; base main
-`882c5613450ba8bbe187ff52785bc1dc21490b28` (PRs #35–#40 merged).
-Branch `forge/private-staging-contract-20261016`. Inspect live Git/PR state on resume; avoid overlap with hourly continuation.
+`4955210bb8cdd840e96a201a4283724779a5e182` (PRs #35–#41 merged).
+Branch `forge/local-provisioning-tests-20261016`. Inspect live Git/PR state on resume; avoid overlap with hourly continuation.
 Commits, publishing, syncing and verified integration authorized; hosted actions,
 deployment and actual learner operations remain separately gated.
 
 ## Current slice
 
-T04 proposed private-staging contract, grounded in current preview authorization,
-submission history and tested synthetic transaction mechanisms. It separates
-upload/stage expiry from retention of accepted originals, defines exact byte and
-review bindings, recovery for object/DB partial failure, and cleanup/commit races.
-No duration, disposal authority or storage approval is invented. No code, schema,
-policy, credential, hosted setting or runtime gate changes. See
-`docs/ecr/private-staging-contract.md`; it is a design, not implemented behavior.
+T11 isolated real Auth/membership recovery fixture. Reserve a synthetic user UUID
+and operator-only journal; simulate lost Auth response, unassigned identity,
+membership transaction rollback, exact retry, changed request, cross-school denial,
+email collision and disabled-coordinator denial. Recovery never adopts by email
+or resets password. No production endpoint, migration, journal RLS, UI or initial
+coordinator provisioning. See `docs/local-account-provisioning.md`. Fresh CI
+must execute this harness before any pass claim; local Docker is unavailable.
 
 ## Rules
 
@@ -40,14 +40,16 @@ fixture passed four multi-session scenarios and all CI at
 `ddb6de721870a7d3c116be587219714e72cf3981` (isolated `38843995090`, domain
 `38843995285`, public `38843995238`). This includes 152 domain / 40 Python tests.
 Those receipts verify fixture mechanisms, not production RLS/retention/imports.
-Current slice is documentation only; verify source references/consistency and
-require applicable CI before merge. No device/pilot or token-saving claim.
+PR #41 staging design merged after all CI passed (isolated `38844617590`).
+Current fixture syntax/lint/baseline checks are local evidence only; require real
+local Auth/SQL plus full CI at the published head. No production RLS, onboarding,
+email delivery, physical device/pilot or measured token saving is claimed.
 
 ## Next / gates
 
-Publish/review staging contract, pass CI, integrate/sync. Retention policy/source
-inputs are pending; continue independent synthetic adapter/RLS, T11 provisioning
-or T10 exports without activating runtime storage.
+Publish provisioning fixture, require fresh Auth/SQL recovery and full CI,
+integrate/sync. Then implement reviewed server-side reservation/authorization
+and concurrency, without operational bootstrap or hosted actions.
 T04 still needs approved private retention, server-owned immutable stages and
 isolated transactional persistence/rollback/parallelism evidence. Source and
 mapping approval gate activation, not independent synthetic implementation.

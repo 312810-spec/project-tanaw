@@ -1,6 +1,6 @@
 # TANAW — canonical remaining-task ledger
 
-16 October 2026. Baseline main `882c5613450ba8bbe187ff52785bc1dc21490b28` (PRs #35–#40 merged).
+16 October 2026. Baseline main `4955210bb8cdd840e96a201a4283724779a5e182` (PRs #35–#41 merged).
 READY = bounded synthetic/local development; GATED = activation awaits evidence;
 BLOCKED = external input required; PARTIAL never means operationally done.
 
@@ -16,7 +16,7 @@ BLOCKED = external input required; PARTIAL never means operationally done.
 | T08 | Governed results/charts — PARTIAL synthetic | Frozen headcount/pooled-percentage diagnostic tested; reviewed contracts/populations, server projection persistence and aggregate-only chart/district access remain. |
 | T09 | District acceptance — GATED | T08 and required reviews; existing acceptance gate stays closed. |
 | T10 | Editable Excel/PPT/PDF — READY synthetic | Approved template bindings, governed totals, editability and render review. |
-| T11 | Account bootstrap/provisioning — READY isolated | Server-only privileges, scoped audited retry; designated initial coordinator for operations. |
+| T11 | Account bootstrap/provisioning — PARTIAL isolated fixture | [Auth/membership recovery harness](local-account-provisioning.md); production endpoint/journal RLS/concurrency/onboarding and designated initial coordinator remain. |
 | T12 | Production recovery email — BLOCKED live setup | Authorized sender/domain/credentials, trusted callback and observed recipient flow. |
 | T13 | Android/TalkBack — PENDING observations | Physical touch/focus/assistive/interruption checks; CI viewports do not replace them. |
 | T14 | TNHS pilot/rollout — BLOCKED actual use | Designated participants, confirmed records, authorized environment and observed workflow/recovery. |
