@@ -88,3 +88,16 @@ test("a consumed private stage cannot be recorded again under a different reques
   const f = fixture(); f.state = run(f).state; f.stage.requestId = "different-request"; f.stage.expectedVersion = 1;
   blocked(f, "stage-already-consumed");
 });
+
+test("sparse or empty row entries reject the entire batch without throwing", () => {
+  for (const rows of [Array(1), [fixture().stage.rows[0], ,], [null], [undefined]]) {
+    const f = fixture(); f.stage.rows = rows; blocked(f, "invalid-row-batch");
+  }
+});
+
+test("sparse or empty history entries cannot establish a valid prior version", () => {
+  for (const history of [Array(1), [null], [undefined]]) {
+    const f = fixture(); f.state = { currentVersion: 1, history };
+    f.stage.expectedVersion = 1; blocked(f, "invalid-history");
+  }
+});

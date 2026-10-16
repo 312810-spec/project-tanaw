@@ -86,3 +86,14 @@ build first failed Google font retrieval; after network access it failed
 Turbopack process/port binding with `Operation not permitted`. No code or build
 configuration was changed to evade that restriction. Require the unchanged-head
 isolated CI production build before integration; local build success is not claimed.
+
+
+## Batch integrity follow-up — 16 October 2026
+
+Regression tests reproduced a sparse row array reaching simulated commit and a
+sparse history throwing at receipt lookup. Array methods that skip holes cannot
+establish whole-batch validation. The model now visits every position and rejects
+sparse/null/undefined row and history entries while preserving the prior state.
+Two new domain cases cover these failures; runtime imports remain disabled.
+This is a bounded model correction, not general validation of unknown JSON or
+evidence of database transaction safety.

@@ -57,11 +57,12 @@ export function simulateAtomicImport(state: ImportModelState, stage: ImportStage
       ![stage.requestId, stage.stageId, stage.ownerId, stage.templateVersion, stage.formulaVersion, stage.rosterRevision, stage.mappingRevision].every(id) ||
       !/^[a-f0-9]{64}$/.test(stage.sourceHash) || !Number.isSafeInteger(stage.expectedVersion) || stage.expectedVersion < 0 ||
       !Number.isFinite(stage.expiresAt) || !Number.isFinite(authority.now)) return reject("invalid-stage");
-  if (!Array.isArray(stage.rows) || stage.rows.length < 1 || stage.rows.length > 100 || stage.rows.some((row) => !id(row.learnerKey) ||
+  // Array.from makes holes explicit: Array.some/map alone skip unvalidated slots.
+  if (!Array.isArray(stage.rows) || stage.rows.length < 1 || stage.rows.length > 100 || Array.from(stage.rows).some((row) => !row || !id(row.learnerKey) ||
       (row.value !== null && (typeof row.value !== "number" || !Number.isFinite(row.value) || row.value < 0))) ||
       new Set(stage.rows.map((row) => row.learnerKey)).size !== stage.rows.length) return reject("invalid-row-batch");
   // State is per submission. Detect accidental mixed histories before receipt lookup.
-  if (state.currentVersion !== state.history.length || state.history.some((entry, index) => entry.version !== index + 1 ||
+  if (!Array.isArray(state.history) || state.currentVersion !== state.history.length || Array.from(state.history).some((entry, index) => !entry || !entry.stage || !entry.stage.scope || entry.version !== index + 1 ||
       entry.supersedes !== (index === 0 ? null : index) || !sameScope(entry.stage.scope, authority.scope)) ||
       new Set(state.history.map((entry) => entry.stage.requestId)).size !== state.history.length) return reject("invalid-history");
   const previous = state.history.find((entry) => entry.stage.requestId === stage.requestId);
