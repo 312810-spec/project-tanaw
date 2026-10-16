@@ -1,20 +1,20 @@
 # TANAW — active checkpoint
 
 16 October 2026 (Manila). Repo `312810-spec/project-tanaw`; base main
-`4955210bb8cdd840e96a201a4283724779a5e182` (PRs #35–#41 merged).
-Branch `forge/local-provisioning-tests-20261016`. Inspect live Git/PR state on resume; avoid overlap with hourly continuation.
+`88f4df724b99b0b6be814db6b1c969de40241106` (PRs #35–#42 merged).
+Branch `forge/provisioning-journal-20261016`. Inspect live Git/PR state on resume; avoid overlap with hourly continuation.
 Commits, publishing, syncing and verified integration authorized; hosted actions,
 deployment and actual learner operations remain separately gated.
 
 ## Current slice
 
-T11 isolated real Auth/membership recovery fixture. Reserve a synthetic user UUID
-and operator-only journal; simulate lost Auth response, unassigned identity,
-membership transaction rollback, exact retry, changed request, cross-school denial,
-email collision and disabled-coordinator denial. Recovery never adopts by email
-or resets password. No production endpoint, migration, journal RLS, UI or initial
-coordinator provisioning. See `docs/local-account-provisioning.md`. Fresh CI
-must execute this harness before any pass claim; local Docker is unavailable.
+T11 durable reservation/completion database foundation: initiating-coordinator RLS,
+server-generated Auth UUID, exact canonical request binding and trusted Auth
+app-metadata verification. Completion calls existing revision-checked membership
+RPC and commits membership/audit/receipt together. Replay preserves later access
+changes. Actor membership locks align with access-management keys. No Auth admin
+endpoint, worker, UI, credential, bootstrap or hosted migration. Fresh migration
+and rollback-only SQL tests require isolated CI. See `docs/local-account-provisioning.md`.
 
 ## Rules
 
@@ -41,15 +41,17 @@ fixture passed four multi-session scenarios and all CI at
 `38843995285`, public `38843995238`). This includes 152 domain / 40 Python tests.
 Those receipts verify fixture mechanisms, not production RLS/retention/imports.
 PR #41 staging design merged after all CI passed (isolated `38844617590`).
-Current fixture syntax/lint/baseline checks are local evidence only; require real
+PR #42 real local Auth recovery fixture merged; all CI passed at
+`8d98d447019fb817e7bac34f85b922f58c4efde3` (isolated `38845760426`).
+Current migration/SQL require fresh isolated CI; local lint/typecheck/baseline only. Require real
 local Auth/SQL plus full CI at the published head. No production RLS, onboarding,
 email delivery, physical device/pilot or measured token saving is claimed.
 
 ## Next / gates
 
-Publish provisioning fixture, require fresh Auth/SQL recovery and full CI,
-integrate/sync. Then implement reviewed server-side reservation/authorization
-and concurrency, without operational bootstrap or hosted actions.
+Publish journal foundation, require fresh migration/SQL authorization and full CI,
+integrate/sync. Then connect the real-Auth harness to durable RPCs and test their multi-session
+races/process restart before implementing a server endpoint. No operational bootstrap or hosted actions.
 T04 still needs approved private retention, server-owned immutable stages and
 isolated transactional persistence/rollback/parallelism evidence. Source and
 mapping approval gate activation, not independent synthetic implementation.

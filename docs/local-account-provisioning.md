@@ -81,3 +81,43 @@ need a reviewed flow; do not reuse fixture passwords or unconditional confirmati
 Existing-account linking needs explicit review rather than implicit email-based
 adoption. Initial coordinator identity, deployment credentials/environment and
 hosted authorization remain external inputs. No production readiness is claimed.
+
+
+## Durable reservation foundation — 16 October 2026
+
+Migration `20261016000100_provisioning_requests.sql` adds a private durable
+journal and authenticated `tanaw_reserve_account` / `tanaw_complete_account`
+RPCs. This is database foundation only: there is still no Auth-admin app endpoint,
+production worker, bootstrap or onboarding UI. No hosted migration is applied.
+
+Reservations bind creator, school, server-generated Auth UUID, normalized email,
+canonical role/subject sets and reason. Exact creator-scoped retries return the
+same UUID; changed payloads and school/email conflicts reject. RLS exposes rows
+only to the initiating current active school coordinator. Anonymous access and
+client table mutations are denied. The service role has read access only to this
+journal; it has no execute grant on these authenticated RPCs. Privileged Auth
+creation remains a future trusted server operation.
+
+Completion checks current coordinator access and the exact reserved Auth UUID,
+email and trusted `raw_app_meta_data` request/school identifiers. User-editable
+metadata and email alone cannot satisfy this check. It calls the existing
+revision-zero membership RPC and commits membership, its audit event and journal
+completion together. A historical receipt never reactivates or overwrites a
+later independently changed membership. Actor membership advisory/row locks
+coordinate with the existing access-management lock key; request and target
+membership locks serialize the database transitions.
+
+`tests/account-provisioning-local.sql` exercises RLS/ACL, exact reservation retry,
+payload/source-scope conflicts, invalid input, metadata spoofing, incomplete Auth,
+rollback, one-time membership/audit completion, later disable preservation and
+revoked-actor privacy. It uses rollback-only synthetic identities and operator
+Auth setup. Fresh isolated CI must execute the migration and SQL before a pass
+claim. The previous real-Auth fixture remains separate; connecting real Auth to
+this durable journal, multi-session races for these specific RPCs, API recipient
+checks, cleanup policy and process-restart recovery still require evidence.
+
+Reservation lifetime/cancellation and any orphan-account disposal policy are
+unresolved; no purge duration or automatic account deletion is introduced.
+Production credentials, initial coordinator designation, invitation/password setup
+and real email delivery remain gated. This journal does not approve a human
+identity, class roster, imported workbook or deployment.
