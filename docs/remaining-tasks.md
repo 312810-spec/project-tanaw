@@ -1,6 +1,6 @@
 # TANAW — canonical remaining-task ledger
 
-16 October 2026. Baseline main `58b94963fd2268266257b511247b44aee970b534` (PRs #35–#37 merged).
+16 October 2026. Baseline main `da827c48d3857031fbf53b8db115977239257f2b` (PRs #35–#38 merged).
 READY = bounded synthetic/local development; GATED = activation awaits evidence;
 BLOCKED = external input required; PARTIAL never means operationally done.
 
