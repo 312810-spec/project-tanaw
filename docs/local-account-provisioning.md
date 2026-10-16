@@ -209,3 +209,49 @@ must read the actual identity before the existing kill/restart scenario proceeds
 This is a controlled lost-response injection, not a real network-partition test.
 Child Node explicitly enables TypeScript stripping for this shared helper.
 Fresh isolated CI must execute the revised fixture before a pass claim.
+
+
+## Server-only worker claim foundation — 17 October 2026
+
+Migration `20261017000100_provisioning_worker_claims.sql` adds private worker
+claims and a monotonically increasing request epoch. Only the service role may
+call claim/ownership/finish RPCs; authenticated/anonymous users cannot read claim
+tokens or write claim rows. The service role can read but cannot directly mutate
+the claim table. No worker, credential, endpoint or hosted migration is enabled.
+
+Claim duration is a required technical input bounded to 1–300 seconds. It is not
+a school records retention period or a reservation/orphan disposal policy. A
+current claim returns busy without revealing its token. Expired work can be
+claimed with a new random token and higher epoch. Claim/finish recheck the stored
+initiator's active school coordinator membership under the existing actor lock.
+
+Completion for claimed pending requests requires current epoch/token/expiry.
+Ordinary authenticated completion is blocked after a request has entered this
+worker flow. Legacy unclaimed requests retain their existing authorized behavior;
+completed historical receipts remain readable by their current authorized actor
+and never re-enable a later disabled membership. Wrong/expired/superseded proofs
+cannot finish; the epoch and token are revalidated before the membership write,
+including after waiting for its target lock.
+
+The completion helper now implements the same revision-zero insertion/audit
+semantics using the stored actor, rather than spoofing auth.uid for a service
+request. It rejects existing target membership, preserves exact Auth UUID/email/
+trusted metadata checks, and commits membership/audit/receipt together. All
+private helpers deny external execute. No role-assignment rules are broadened.
+
+A fresh rollback-only SQL suite checks token privacy/ACL, busy work, bounded
+duration, missing Auth, client bypass, expiry/successor epoch, stale token/epoch,
+one-time attributed completion and actor revocation. Expiry is advanced only on
+the synthetic claim by test-operator SQL; no wall-clock expiry precision is
+claimed. The real local Auth verifier also exercises service HTTP claim/ownership/
+finish, rejected client calls and invalid epoch, plus one resulting membership.
+Existing legacy/restart/rollback suites remain required. Fresh isolated CI must
+execute the migration and revised tests before a pass claim.
+
+These database checks fence membership completion, not the external Auth API.
+A late Auth write from an expired worker may leave an unassigned identity; a
+successor must reconcile only the same immutable reserved UUID and metadata.
+Production endpoint caller validation, claim-specific concurrent takeover/race
+and partition tests, bounded provider execution/renewal policy, onboarding and
+orphan disposition remain pending. Claim expiry does not delete Auth accounts,
+reservations, accepted records or original files.
