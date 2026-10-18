@@ -1,61 +1,60 @@
 # TANAW — active checkpoint
 
-17 October 2026 (Manila). Repo `312810-spec/project-tanaw`; baseline main
-`dc739da0b91b235dcb64c055fdf540f5bb897487` (PR #46 merged).
-Branch `forge/provisioning-worker-claims-20261017`; inspect live Git/PR state
-and automation work before resuming. Publishing/syncing/verified integration are
-authorized. Hosted changes, deployment and actual learner operations remain gated.
+18 October 2026 (Manila). Repo `312810-spec/project-tanaw`; main baseline
+`6bcea137a492c27715f7ad9d3065f05debdb7966` (PR #47 merged), verified tree
+`608a33f0dd0830d72b28eb2a4ed114c7211697bd`. Branch
+`forge/coordinator-own-review-20261018`. Source recovered via GitHub connector;
+local tree and signed commit object hashes matched upstream exactly. Inspect
+current refs/CI before resuming. Scoped implementation, publishing and verified
+integration authorized; hosted mutation/deployment/actual-use gates remain.
 
-## Current slice
+## Outcome / current slice
 
-T11 server-only worker claim database foundation. Private token/expiry plus
-monotonic request epoch; active claim busy, successor after expiry. Service-only
-claim/ownership/finish RPCs; no authenticated token reads or direct claim writes.
-Claimed pending requests cannot use ordinary client completion. Finish checks
-current actor, epoch/token/expiry and exact trusted Auth bindings, then commits
-membership/audit/receipt with stored actor attribution. Legacy unclaimed requests
-and historical receipts retain behavior. Fresh migration/SQL and real service HTTP
-checks required; no worker/endpoint/credential/hosted activation.
-See `docs/local-account-provisioning.md`; task ledger is canonical.
+Whole-app update, one evidenced journey at a time. First: SMEA own manual
+submission → exact-version self-review → packet preparation → school review →
+independent Head review → Lock. Decision 22 was implemented only for packet
+self-review. Pre-edit executable submission policy probe returned `wrongRole`;
+UI/RPC/table constraint also disallowed the exception. Acceptance contract and
+whole-app coverage: `docs/web-app-assurance-2026-10-18.md`.
 
-## Rules
+Repair: same-school active SMEA may review own submission without a separate
+subject-coordinator assignment. Store self-review/version/actor transparently;
+UI explains exception and displays attribution. Other authors require assigned
+independent Subject Coordinator. Preserve immutable history, stale-version checks,
+cycle lock, independent Head prerequisite and closed district acceptance.
+New migration is local/CI only; no hosted schema application authorized here.
 
-Read AGENTS/CLAUDE, operating rules and all 29 confirmed decisions. Missing is not
-zero; submitted is not approved; history is immutable. Submit → Subject → SMEA →
-independent Head → explicit SMEA Lock → district review. Preserve coordinator
-self-review exception, school scope and aggregate-only district visibility.
-Pending roster declarations never approve identity/mapping. CO source fidelity
-does not resolve policy conflict. Drive development-only; live AI deferred.
+## Completed evidence / remaining criteria
 
-## Evidence / next
+Baseline: 160 domain + 40 Python tests, lint/typecheck/build passed. After repair:
+162 domain + 40 Python tests, syntax/diff/baseline/lint and production build
+passed. Baseline stack check SKIP (Docker unavailable),
+not PASS. Chromium absent; normal installer returned truncated archives. No
+restriction bypass. Fresh isolated CI must apply migration and run extended SQL
+and authenticated browser before readiness/integration. Inspect relevant actual
+renders internally; do not deliver screenshots. Physical Android/TalkBack and
+pilot remain untested. No full-app completion or measured token savings claimed.
 
-PR #43 durable reservation SQL passed CI at
-`b5470485f746b843bae152f05fdc86bc421acec1` (isolated `38847271130`).
-PR #44 durable real-Auth/HTTP contention/recovery passed at
-`89652d7f9d54c7763d5839fedd49bbf8bb1c3e48` (isolated `38849264812`, domain
-`38849264777`, public `38849264902`): 152 domain / 40 Python plus SQL/concurrency,
-production build and authenticated browser. Older receipts stay in merged PRs.
-PR #45 killed-process/restart and worker-exclusion fixture passed all CI at
-`27abd72ef21d1c6068dcfc5636b0ef65fe2ae990` (isolated `38930026726`, domain
-`38930026706`, public `38930026839`). It proves local restart, not production
-fencing/network partitions. PR #46 uncertainty recovery passed all CI at
-`34d7ca2877d06d37dc9a3055acaa392c50a7058a` (isolated `38976412265`, domain
-`38976412202`, public `38976412169`): 160 domain / 40 Python plus real Auth,
-SQL/concurrency, production build and authenticated browser. Controlled response
-loss is not an actual partition. Current claim migration requires fresh CI;
-local Docker/PostgreSQL unavailable. Publish/pass CI/merge/sync. Claim-specific
-concurrent takeover/partition and production endpoint caller validation remain;
-DB claims fence membership completion, not external Auth writes. No device/pilot
-or measured token saving claimed.
+## Rules and dependencies
 
-## Remaining gates
+Read AGENTS/CLAUDE, operating rules and all 29 confirmed decisions. Missing is
+not zero; submitted is not approved. The explicit SMEA own-submission exception
+never replaces independent Head review. Schools/projects stay isolated. Latest
+v3.1 evidence statuses apply; criteria are frozen before edits. Canonical ledger:
+`docs/remaining-tasks.md`; do not create a second competing backlog.
 
-T11 still needs reviewed production worker/endpoint, onboarding, reservation and
-orphan disposition, initial coordinator and authorized environment. T04 staging
-design is proposed; retention/access policy, private adapter and real atomic import
-integration remain. T02 approved serialization/computation/period and registered
-original HTTP evidence; T03 authorized roster/class and mappings. T08 approved
-result dictionary/populations and persistence/chart/district projection; T10
-synthetic exports remain independent work. Calendar/indicator/source/device/pilot
-and production recovery dependencies persist. Runtime imports/district acceptance
-stay disabled. No roadmap-complete claim.
+T01–T07 source/computation/roster/template/calendar authority gates remain. T08
+result dictionary/populations/persistence and T09 district acceptance remain gated.
+T10 synthetic editable exports remain independent pending work; approved bindings
+and editability/renders required. T11 server claim foundation merged in #47; real
+production endpoint/onboarding, claim races/partitions and initial coordinator
+remain. T12 live recovery delivery, T13 device checks, T14 pilot still pending.
+Drive is development reference only; live AI deferred. Prior T11 receipts reside
+in PR #47 and `docs/local-account-provisioning.md`; no activation inferred.
+
+## Exact next action
+
+Finish local production build and review diff; publish this bounded fix and open
+PR for unchanged-head CI. Inspect SQL/browser outcomes and renders; repair any
+failure before integration. Then proceed to the next evidence-ranked journey or
+independent synthetic output work while preserving all activation gates.

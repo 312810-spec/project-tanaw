@@ -51,6 +51,45 @@ select pg_temp.must_deny($s$select public.tanaw_prepare_packet('44000000-0000-00
 select public.tanaw_set_slot_requirements((select id from fixture_targets where label='teacherSubmission'),0,array['45000000-0000-0000-0000-000000000001'::uuid],'Synthetic requirements');
 select public.tanaw_set_slot_requirements((select id from fixture_targets where label='coSubmission'),0,array['45000000-0000-0000-0000-000000000001'::uuid],'Synthetic requirements');
 select pg_temp.must_deny(format('select public.tanaw_set_slot_requirements(%L,0,array[%L::uuid],%L,0)',(select id from fixture_targets where label='teacherSubmission'),'45000000-0000-0000-0000-000000000001','Stale requirements'),'40001');
+-- Decision 22 is a submission exception, not merely packet self-review.
+-- Roll back this branch so original normal-review/amendment tests remain intact.
+savepoint own_submission_review;
+select pg_temp.must_deny(format('select public.tanaw_review_submission(%L,0)',(select id from fixture_targets where label='teacherSubmission')),'42501');
+select pg_temp.must_deny(format('select public.tanaw_review_submission(%L,0)',(select id from fixture_targets where label='coSubmission')),'40001');
+select public.tanaw_submit_evidence((select id from fixture_targets where label='coSubmission'),0,pg_temp.evidence(0),'Synthetic coordinator own submission');
+select public.tanaw_review_submission((select id from fixture_targets where label='coSubmission'),1);
+select public.tanaw_review_submission((select id from fixture_targets where label='coSubmission'),1);
+do $$ begin
+ if not exists(select 1 from public.tanaw_submission_reviews where submission_id=(select id from fixture_targets where label='coSubmission') and version=1 and self_review and reviewer_id='41000000-0000-0000-0000-000000000003') then raise exception 'Own submission exception/attribution missing'; end if;
+ if (select count(*) from public.tanaw_workflow_events where action='subjectReview')<>1 then raise exception 'Self-review retry duplicated event'; end if;
+ if (select evidence#>>'{entries,0,value}' from public.tanaw_submission_versions where submission_id=(select id from fixture_targets where label='coSubmission') and version=1)<>'0' then raise exception 'Review changed recorded zero'; end if;
+end $$;
+select pg_temp.must_deny(format('insert into public.tanaw_submission_reviews(submission_id,version,stage,reviewer_id,self_review) values(%L,1,%L,%L,true)',(select id from fixture_targets where label='coSubmission'),'subject','41000000-0000-0000-0000-000000000003'),'42501');
+select public.tanaw_submit_evidence((select id from fixture_targets where label='coSubmission'),1,pg_temp.evidence(1),'Synthetic own correction');
+select pg_temp.must_deny(format('select public.tanaw_review_submission(%L,1)',(select id from fixture_targets where label='coSubmission')),'40001');
+do $$ begin if exists(select 1 from public.tanaw_submission_reviews where submission_id=(select id from fixture_targets where label='coSubmission') and version=2) then raise exception 'Old self-review approved correction'; end if; end $$;
+select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000007',true);
+select pg_temp.must_deny(format('select public.tanaw_review_submission(%L,2)',(select id from fixture_targets where label='coSubmission')),'42501');
+select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000003',true);
+savepoint disabled_own_reviewer;
+reset role;
+update public.tanaw_memberships set active=false where school_id='42000000-0000-0000-000000000001' and user_id='41000000-0000-0000-0000-000000000003';
+set local role authenticated;
+select pg_temp.must_deny(format('select public.tanaw_review_submission(%L,2)',(select id from fixture_targets where label='coSubmission')),'42501');
+rollback to savepoint disabled_own_reviewer;
+select public.tanaw_review_submission((select id from fixture_targets where label='coSubmission'),2);
+insert into fixture_targets values('ownPacket',public.tanaw_prepare_packet('44000000-0000-0000-0000-000000000001',jsonb_build_array(jsonb_build_object('slotId',(select id from fixture_targets where label='teacherSlot'),'reason','Synthetic awaiting teacher'))));
+select pg_temp.must_deny(format('select public.tanaw_lock_packet(%L)',(select id from fixture_targets where label='ownPacket')),'42501');
+select public.tanaw_review_packet((select id from fixture_targets where label='ownPacket'),'school',false);
+select pg_temp.must_deny(format('select public.tanaw_review_packet(%L,%L,true)',(select id from fixture_targets where label='ownPacket'),'head'),'42501');
+select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000004',true);
+select pg_temp.must_deny(format('select public.tanaw_review_packet(%L,%L,false)',(select id from fixture_targets where label='ownPacket'),'head'),'22023');
+select public.tanaw_review_packet((select id from fixture_targets where label='ownPacket'),'head',true);
+select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000003',true);
+select public.tanaw_lock_packet((select id from fixture_targets where label='ownPacket'));
+select pg_temp.must_deny(format('select public.tanaw_review_submission(%L,2)',(select id from fixture_targets where label='coSubmission')),'42501');
+rollback to savepoint own_submission_review;
+
 -- Handover subset is rolled back so the original end-to-end fixture remains unchanged.
 savepoint handover_fixture;
 select public.tanaw_handover_unsubmitted((select id from fixture_targets where label='teacherSubmission'),'41000000-0000-0000-0000-000000000006','41000000-0000-0000-0000-000000000001','Synthetic work handover');

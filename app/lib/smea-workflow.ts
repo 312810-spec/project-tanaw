@@ -114,11 +114,13 @@ export function checkReview(
   if (!validTarget(target)) return deny("invalidVersion");
   const requiredRole = { subject: "subjectCoordinator", school: "smeaCoordinator", head: "schoolHead" } as const;
   if (!(stage in requiredRole)) return deny("invalidAction");
-  if (!hasRole(actor, requiredRole[stage])) return deny("wrongRole");
-  if (stage === "subject" && !actor.subjectIds.includes(target.subjectId)) return deny("wrongSubject");
-  // Latest user override: only the SMEA review stage may self-review.
-  // A coordinator who also holds School Head role still cannot self-approve.
-  if (actor.id === target.authorId && stage !== "school") return deny("selfReview");
+  // Decision 22 also covers the coordinator's own submission, before packet
+  // preparation. It does not grant subject-review authority over other authors.
+  const ownSubmissionException = stage === "subject" && actor.id === target.authorId && hasRole(actor, "smeaCoordinator");
+  if (!ownSubmissionException && !hasRole(actor, requiredRole[stage])) return deny("wrongRole");
+  if (stage === "subject" && !ownSubmissionException && !actor.subjectIds.includes(target.subjectId)) return deny("wrongSubject");
+  // The explicit exception never supplies independent School Head approval.
+  if (actor.id === target.authorId && stage !== "school" && !ownSubmissionException) return deny("selfReview");
   return allow;
 }
 

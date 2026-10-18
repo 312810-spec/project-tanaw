@@ -62,12 +62,30 @@ test("subject review is assignment scoped and cannot self-review", () => {
   denial(checkReview({ ...reviewer, subjectIds: [] }, submission, "subject", true), "wrongSubject");
   denial(checkReview(actor(["subjectCoordinator"]), submission, "subject", true), "selfReview");
 });
-test("coordinator self-review is explicitly recorded", () => {
+test("coordinator packet self-review is explicitly recorded", () => {
   const own = { ...submission, authorId: coordinator.id };
   const result = createVersionReview(coordinator, own, "school", true);
   assert.equal(result.decision.allowed, true);
   assert.equal(result.review.selfReview, true);
   assert.equal(result.review.reviewerId, coordinator.id);
+});
+test("SMEA own-submission review needs no alternate subject reviewer and records exact attribution", () => {
+  const reviewer = { ...coordinator, subjectIds: [] };
+  const own = { ...submission, authorId: reviewer.id };
+  const result = createVersionReview(reviewer, own, "subject", true);
+  assert.deepEqual(result.decision, { allowed: true });
+  assert.deepEqual(result.review, { targetId: own.id, version: 1, stage: "subject", reviewerId: reviewer.id, selfReview: true });
+});
+test("own-submission exception does not grant other-author, other-school, inactive or offline review", () => {
+  const own = { ...submission, authorId: coordinator.id };
+  denial(checkReview(coordinator, submission, "subject", true), "wrongRole");
+  denial(checkReview({ ...coordinator, schoolId: "other" }, own, "subject", true), "wrongSchool");
+  denial(checkReview({ ...coordinator, active: false }, own, "subject", true), "inactiveActor");
+  denial(checkReview(coordinator, own, "subject", false), "offline");
+  denial(checkReview(coordinator, { ...own, version: 0 }, "subject", true), "invalidVersion");
+  const both = { ...coordinator, roles: ["smeaCoordinator", "subjectCoordinator"] };
+  denial(checkReview({ ...both, subjectIds: [] }, submission, "subject", true), "wrongSubject");
+  assert.equal(createVersionReview(both, submission, "subject", true).review.selfReview, false);
 });
 test("multi-role coordinator cannot self-approve as School Head", () => {
   const both = { ...coordinator, roles: ["smeaCoordinator", "schoolHead"] };

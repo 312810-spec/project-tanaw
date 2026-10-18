@@ -41,6 +41,7 @@ EVIDENCE = (
 # this document, the audit verifies it stays present, so it cannot be silently
 # dropped by a later edit.
 PHRASES = [
+    "Own-submission self-review is distinct from packet self-review",
     "Missing is not zero",
     "Submitted is not approved",
     "Next.js 16",

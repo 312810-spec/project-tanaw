@@ -1,6 +1,6 @@
 # TANAW — canonical remaining-task ledger
 
-17 October 2026. Baseline main `dc739da0b91b235dcb64c055fdf540f5bb897487` (PRs #35–#46 merged).
+18 October 2026. Baseline main `6bcea137a492c27715f7ad9d3065f05debdb7966` (PRs #35–#47 merged).
 READY = bounded synthetic/local development; GATED = activation awaits evidence;
 BLOCKED = external input required; PARTIAL never means operationally done.
 
@@ -20,7 +20,7 @@ BLOCKED = external input required; PARTIAL never means operationally done.
 | T12 | Production recovery email — BLOCKED live setup | Authorized sender/domain/credentials, trusted callback and observed recipient flow. |
 | T13 | Android/TalkBack — PENDING observations | Physical touch/focus/assistive/interruption checks; CI viewports do not replace them. |
 | T14 | TNHS pilot/rollout — BLOCKED actual use | Designated participants, confirmed records, authorized environment and observed workflow/recovery. |
-| T15 | Carryover reconciliation — PARTIAL | Draft/reviewed online-send paths traced; interruption, memo/logo provenance and family scope remain. |
+| T15 | Carryover reconciliation — PARTIAL | Own-submission SMEA exception repaired in policy/RPC/UI; fresh SQL/browser/render evidence required. Draft/reviewed online-send paths traced; interruption, memo/logo provenance and family scope remain. |
 | T16 | Live AI — DEFERRED | Verified reporting first; separate bounded activation. |
 
 ## Carryover evidence
