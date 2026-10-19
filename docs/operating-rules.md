@@ -207,6 +207,17 @@ tests remain unverified until supported browser access is available. See
 
 ---
 
+**2026-10-18 — Own-submission self-review is distinct from packet self-review.**
+Decision 22 permits the active school SMEA Coordinator to review their own exact
+submission version without an alternate subject reviewer. The former helper,
+RPC, table constraint and UI implemented only packet-level self-review. Trace the
+whole submission-to-Lock journey when checking this exception; a passing packet
+self-review fixture does not verify it. Submission self-review must record actor,
+version and the self-review flag. Independent Head review remains mandatory.
+See `docs/web-app-assurance-2026-10-18.md` for reproduction, criteria and receipts.
+
+---
+
 ## 12. Data integrity and status semantics
 
 **Missing is not zero.**

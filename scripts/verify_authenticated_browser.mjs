@@ -361,6 +361,104 @@ try {
   const districtFrozenEvidence = await districtClient.rpc('tanaw_packet_evidence', { target_packet: frozenPacket.data.id });
   assert.equal(districtFrozenEvidence.error, null); assert.deepEqual(districtFrozenEvidence.data, [], 'District cannot retrieve private frozen result inputs');
 
+  // Separate synthetic cycle: coordinator's own submission must not require an
+  // alternate Subject Coordinator. Existing teacher-cycle checks above stay intact.
+  const ownBlock = randomUUID(), ownCycle = randomUUID(), ownDefinition = randomUUID();
+  const ownSeed = spawnSync('docker', ['exec', '-i', 'supabase_db_project-tanaw', 'psql', '-U', 'postgres', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1'], { encoding: 'utf8', input: `
+    insert into public.tanaw_instructional_blocks(id,school_year,label,end_date,source_order,source_url,verified_at)
+      values(${q(ownBlock)},'Fixture','Synthetic self-review block',current_date-1,'SYNTHETIC','https://fixture.invalid/calendar',now());
+    insert into public.tanaw_reporting_cycles(id,school_id,instructional_block_id,deadline_at,created_by)
+      values(${q(ownCycle)},${q(school)},${q(ownBlock)},now()+interval '2 days',${q(users.smeaCoordinator.id)});
+    insert into public.smea_indicator_definitions(id,school_id,indicator_code,label,unit,school_year,reporting_period,definition_status,source_id,source_title,source_locator,formula_expression,numerator_definition,denominator_definition,rounding_rule)
+      select ${q(ownDefinition)},school_id,'OWN-FIXTURE','Synthetic own indicator',unit,school_year,'Synthetic self-review block',definition_status,source_id,source_title,source_locator,formula_expression,numerator_definition,denominator_definition,rounding_rule
+      from public.smea_indicator_definitions where id=${q(definition)};
+    begin; set local role authenticated; select set_config('request.jwt.claim.sub',${q(users.smeaCoordinator.id)},true);
+    select public.tanaw_assign_submission(${q(ownCycle)},${q(users.smeaCoordinator.id)},'math','Synthetic coordinator class','Synthetic own assignment');
+    select public.tanaw_set_slot_requirements((select id from public.tanaw_submissions where slot_id in (select id from public.tanaw_submission_slots where cycle_id=${q(ownCycle)})),0,array[${q(ownDefinition)}::uuid],'Synthetic own requirements'); commit;
+  ` });
+  assert.equal(ownSeed.status, 0, 'Separate own-review cycle must seed');
+  const ownSlot = await admin.from('tanaw_submission_slots').select('id').eq('cycle_id', ownCycle).single();
+  assert.equal(ownSlot.error, null);
+  const ownSubmission = await admin.from('tanaw_submissions').select('id').eq('slot_id', ownSlot.data.id).single();
+  assert.equal(ownSubmission.error, null);
+  await coordinator.ui.getByRole('button', { name: 'Refresh workflow', exact: true }).click();
+  await coordinator.ui.getByLabel('Reporting cycle').selectOption(ownCycle);
+  await coordinator.ui.getByText('School workflow loaded.', { exact: true }).waitFor();
+  await coordinator.ui.getByLabel('Assigned submission').selectOption(ownSubmission.data.id);
+  const ownButton = coordinator.ui.getByRole('button', { name: 'Record coordinator self-review of this version', exact: true });
+  await ownButton.waitFor(); assert.equal(await ownButton.isDisabled(), true, 'Unsubmitted own evidence cannot be reviewed');
+  await coordinator.ui.getByLabel('Verified indicator').selectOption(ownDefinition);
+  await coordinator.ui.getByLabel('Recorded value').fill('0');
+  await coordinator.ui.getByLabel('Evidence title').fill('Synthetic coordinator zero');
+  await coordinator.ui.getByLabel('Evidence location or reference').fill('fixture:own-zero');
+  await coordinator.ui.getByLabel('Reason for submission or correction').fill('Synthetic own-review journey');
+  await coordinator.ui.getByRole('button', { name: 'Submit a new evidence version', exact: true }).click();
+  await coordinator.ui.getByText('Action recorded with its history.', { exact: true }).waitFor();
+  // Change the real server version while the browser still displays version 1.
+  const ownEvidence = { kind: 'manualIndicators', entries: [{ definitionId: ownDefinition, value: 0, sourceTitle: 'Synthetic corrected zero', sourceLocator: 'fixture:own-corrected-zero' }] };
+  assert.equal((await otherCoordinator.rpc('tanaw_submit_evidence', { target_submission: ownSubmission.data.id, expected_version: 1, new_evidence: ownEvidence, change_reason: 'Synthetic concurrent correction' })).error, null);
+  await ownButton.click();
+  await coordinator.ui.getByText('The record changed. Refresh, compare the current version and review your unsent edits before retrying.', { exact: true }).waitFor();
+  assert.deepEqual((await admin.from('tanaw_submission_reviews').select('version').eq('submission_id', ownSubmission.data.id)).data, []);
+  await coordinator.ui.getByRole('button', { name: 'Refresh workflow', exact: true }).click();
+  await coordinator.ui.getByText('School workflow loaded.', { exact: true }).waitFor();
+  await coordinator.page.waitForFunction(() => !document.querySelector('#manual-draft-status')?.closest('form')?.textContent.includes('This draft started from version'));
+  assert.equal(await coordinator.ui.getByLabel('Reason for submission or correction').inputValue(), '', 'A cleared form is not a stale draft');
+  // Real unsent work still stays pinned to its source version after refresh.
+  await coordinator.ui.getByLabel('Verified indicator').selectOption(ownDefinition);
+  await coordinator.ui.getByLabel('Reason for submission or correction').fill('Synthetic retained correction draft');
+  assert.equal((await otherCoordinator.rpc('tanaw_submit_evidence', { target_submission: ownSubmission.data.id, expected_version: 2, new_evidence: ownEvidence, change_reason: 'Synthetic second concurrent correction' })).error, null);
+  await coordinator.ui.getByRole('button', { name: 'Refresh workflow', exact: true }).click();
+  await coordinator.ui.getByText('This draft started from version 2; the last verified view shows version 3.', { exact: false }).waitFor();
+  assert.equal(await coordinator.ui.getByLabel('Recorded value').inputValue(), '0');
+  assert.equal(await coordinator.ui.getByLabel('Reason for submission or correction').inputValue(), 'Synthetic retained correction draft');
+  assert.equal(await coordinator.ui.getByRole('button', { name: 'Submit a new evidence version', exact: true }).isDisabled(), true);
+  await coordinator.ui.getByRole('button', { name: 'Discard working device draft', exact: true }).click();
+  await coordinator.page.waitForFunction(() => !document.querySelector('#manual-draft-status')?.closest('form')?.textContent.includes('This draft started from version'));
+  // Lose only the receipt after the real server review has committed.
+  await coordinator.page.route('**/rest/v1/rpc/tanaw_review_submission', async route => {
+    const response = await route.fetch(); assert.equal(response.ok(), true);
+    await route.fulfill({ status: 502, contentType: 'application/json', body: '{"code":"SYNTHETIC_LOST_RECEIPT","message":"Synthetic review receipt lost"}' });
+  });
+  await coordinator.page.waitForFunction(() => [...document.querySelectorAll('button')].some(button => button.textContent === 'Record coordinator self-review of this version' && !button.disabled));
+  await ownButton.focus(); await coordinator.page.keyboard.press('Enter');
+  await coordinator.ui.getByText('The action could not be verified. Refresh to check its history before retrying; keep your unsent work open.', { exact: true }).waitFor();
+  await coordinator.page.unroute('**/rest/v1/rpc/tanaw_review_submission');
+  await coordinator.ui.getByRole('button', { name: 'Refresh workflow', exact: true }).click();
+  await coordinator.ui.getByText('SMEA Coordinator self-review is recorded for this submission version.', { exact: false }).waitFor();
+  assert.equal(await ownButton.isDisabled(), true);
+  const ownReviews = await admin.from('tanaw_submission_reviews').select('version,reviewer_id,self_review').eq('submission_id', ownSubmission.data.id);
+  assert.equal(ownReviews.error, null);
+  assert.deepEqual(ownReviews.data, [{ version: 3, reviewer_id: users.smeaCoordinator.id, self_review: true }]);
+  assert.equal((await otherCoordinator.rpc('tanaw_review_submission', { target_submission: ownSubmission.data.id, expected_version: 3 })).error, null);
+  const ownEvents = await admin.from('tanaw_workflow_events').select('id').eq('target_id', ownSubmission.data.id).eq('action', 'subjectReview');
+  assert.equal(ownEvents.error, null); assert.equal(ownEvents.data.length, 1, 'Receipt-loss retry must not duplicate review event');
+  for (const width of [320, 390, 1440]) {
+    await coordinator.page.setViewportSize({ width, height: 1000 });
+    assert.equal(await coordinator.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
+    if (width === 390) await coordinator.page.screenshot({ path: output + '/coordinator-own-review-mobile.png', fullPage: true });
+  }
+  await coordinator.page.screenshot({ path: output + '/coordinator-own-review.png', fullPage: true });
+  await coordinator.ui.getByRole('button', { name: 'Prepare a new school packet version', exact: true }).click();
+  await coordinator.ui.getByText('Action recorded with its history.', { exact: true }).waitFor();
+  assert.equal(await coordinator.ui.getByRole('button', { name: 'Lock this school packet', exact: true }).isDisabled(), true);
+  await coordinator.ui.getByRole('button', { name: 'Record school review', exact: true }).click();
+  await coordinator.ui.getByText('Action recorded with its history.', { exact: true }).waitFor();
+  assert.equal(await coordinator.ui.getByRole('button', { name: 'Lock this school packet', exact: true }).isDisabled(), true, 'Own and school review do not replace Head review');
+  await head.ui.getByRole('button', { name: 'Refresh workflow', exact: true }).click();
+  await head.ui.getByLabel('Reporting cycle').selectOption(ownCycle);
+  await head.ui.getByText('School workflow loaded.', { exact: true }).waitFor();
+  await head.ui.getByRole('button', { name: 'Record School Head review', exact: true }).click();
+  await head.ui.getByText('Action recorded with its history.', { exact: true }).waitFor();
+  await coordinator.ui.getByRole('button', { name: 'Refresh workflow', exact: true }).click();
+  await coordinator.ui.getByRole('button', { name: 'Lock this school packet', exact: true }).click();
+  await coordinator.ui.getByText('Locked · complete', { exact: true }).waitFor();
+  const ownFrozen = await otherCoordinator.from('tanaw_school_packets').select('id,manifest,locked_at').eq('cycle_id', ownCycle).single();
+  assert.equal(ownFrozen.error, null); assert.ok(ownFrozen.data.locked_at);
+  assert.equal(ownFrozen.data.manifest[0].version, 3);
+  const ownFrozenEvidence = await otherCoordinator.rpc('tanaw_packet_evidence', { target_packet: ownFrozen.data.id });
+  assert.equal(ownFrozenEvidence.error, null); assert.deepEqual(ownFrozenEvidence.data[0].evidence, ownEvidence);
+
   await coordinator.page.getByRole('navigation', { name: 'Workspace tasks' }).getByRole('button', { name: 'School access', exact: true }).click();
   const access = coordinator.page.getByRole('region', { name: 'Manage school access' });
   await access.getByLabel('Assigned account').selectOption(users.teacher.id);

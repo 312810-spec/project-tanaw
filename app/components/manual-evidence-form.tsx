@@ -33,6 +33,14 @@ export function ManualEvidenceForm({ scope, version, definitions, recordedEntrie
     });
     return () => { cancelled = true; };
   }, [key, scope]);
+  // An empty form has no unsent version to reconcile. Keep real drafts pinned
+  // to their source version, but do not present a cleared form as stale work.
+  useEffect(() => {
+    if (!loaded || unreadable !== null || Object.values(fields).some(Boolean) || draftVersion === version) return;
+    let cancelled = false;
+    queueMicrotask(() => { if (!cancelled) setDraftVersion(version); });
+    return () => { cancelled = true; };
+  }, [loaded, unreadable, fields, draftVersion, version]);
   function persist(next: EvidenceDraft, sourceVersion: number) {
     if (unreadable !== null) return;
     try { localStorage.setItem(key, JSON.stringify({ schema: 1, scope, sourceVersion, fields: next })); setMessage(navigator.onLine ? "Device draft saved. Submission requires your review." : "Offline draft saved. Submit after reconnecting and refreshing access."); }
