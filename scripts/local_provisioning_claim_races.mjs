@@ -85,14 +85,16 @@ export async function verifyClaimRaces({ admin, url, privateKey, school, coordin
   console.log('PASS observed initial/successor claim contention, stale late-Auth denial, exact-UUID recovery and lost duplicate-finish response with one attributed membership');
 
   const expiring = makeRequest(), expiringId = await prepareAuth(expiring);
-  const lease = await claim(expiring, 10);assert.equal(lease.error, null);assert.equal(lease.data.status, 'claimed');
+  // Stay below the isolated HTTP query deadline; still require an observed
+  // target-lock wait before real expiry, never accept query cancellation.
+  const lease = await claim(expiring, 3);assert.equal(lease.error, null);assert.equal(lease.data.status, 'claimed');
   const expiredProof = proofFor(expiring, lease.data);
   const blockedFinish = await contended('tanaw_finish_account_work', [() => finish(expiredProof)], {
     lockIdentity: school + ':' + expiringId,
     async beforeRelease() {
       const expired = () => sql(`select expires_at<=clock_timestamp() from public.tanaw_provisioning_worker_claims where request_id=${quote(expiring.id)};`) === 't';
       assert.equal(expired(), false, 'Finish must reach target lock before lease expiry');
-      const deadline = Date.now() + 13000;
+      const deadline = Date.now() + 5000;
       while (!expired() && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 100));
       assert.equal(expired(), true, 'Database clock must report expiry before releasing target lock');
     },

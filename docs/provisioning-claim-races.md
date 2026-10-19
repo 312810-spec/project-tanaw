@@ -22,6 +22,14 @@ clock expiry. Keep finite RPC, statement and holder timeouts. Existing SQL ACL,
 real Auth recovery, revoked coordinator and disabled-history tests stay required.
 No claim is made until fresh unchanged-head isolated CI executes these cases.
 
+Initial run `39271091906` at `edec20e` passed the contended initial/successor,
+late-Auth, exact-UUID and discarded-finish-response cases. The ten-second lease
+probe received query-cancellation code `57014` during its wait, so it did not
+prove the expected ownership rejection. The fixture now uses a three-second
+synthetic lease while retaining observed wait-before-expiry, real clock expiry,
+strict `42501`, zero-write and successor-recovery assertions. No database timeout
+or authority rule was relaxed. Fresh final-head CI remains required.
+
 Production caller validation, bounded provider execution/renewal policy,
 onboarding, initial coordinator and orphan disposition remain separate gates.
 Claim fencing controls membership completion, not the external Auth service.

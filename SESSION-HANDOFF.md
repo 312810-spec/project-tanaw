@@ -30,6 +30,12 @@ is application-level outcome uncertainty, not an actual network partition.
 Operator expiry and real-clock expiry are distinct. All pending RPCs settle
 before fixture cleanup. No credentials, tokens or real records are delivered.
 
+First CI at edec20e (isolated 39271091906) passed contention/late-Auth/lost-response
+cases. Ten-second target-lock probe received query-cancellation 57014 before the
+expected ownership rejection. Fixture lease reduced to three seconds, preserving
+actual wait-before-expiry, real clock expiry, strict 42501 and zero-write checks.
+No SQL timeouts or authorization changed; require fresh final-head CI.
+
 Local syntax/lint/baseline/domain checks are available. Docker is absent here;
 the new cases are NOT locally verified. Require fresh isolated CI on the exact
 PR head, repair any failure, then integrate only after all required checks pass.
