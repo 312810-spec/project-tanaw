@@ -273,3 +273,18 @@ PR head is required for a live pass claim; consult that PR's receipts. Synthetic
 operator expiry is distinguished from the real clock-expiry case. Discarding a
 received server response tests uncertain client outcome, not actual TCP/network
 partition or bounded external-provider execution.
+
+## Bounded invocation foundation — 19 October 2026
+
+PR #50 at f9db28c passed isolated 39271897474, domain 39271897298 and public
+browser 39271897050, then merged as 3d20149. Claim contention, late Auth creation,
+discarded response, one membership/audit and target-lock real expiry were observed.
+
+`reconcileReservedAuthBounded` wraps the original identity logic with one explicit
+total budget and shared AbortSignal. It withholds identity on timeout/cancellation,
+does not restart stages after the boundary and permits later exact-UUID recovery.
+The synthetic subprocess fixture forwards that signal to ownership HTTP and Auth
+fetch calls with a 5000 ms total budget. Domain stalls are simulated; fresh
+unchanged-head isolated CI must verify real Auth composition before claiming pass.
+See [bounded recovery acceptance and limits](bounded-auth-recovery.md). Production
+budget/lease renewal policy and true provider/network cancellation remain open.
