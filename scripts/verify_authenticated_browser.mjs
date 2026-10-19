@@ -402,6 +402,19 @@ try {
   assert.deepEqual((await admin.from('tanaw_submission_reviews').select('version').eq('submission_id', ownSubmission.data.id)).data, []);
   await coordinator.ui.getByRole('button', { name: 'Refresh workflow', exact: true }).click();
   await coordinator.ui.getByText('School workflow loaded.', { exact: true }).waitFor();
+  await coordinator.page.waitForFunction(() => !document.querySelector('#manual-draft-status')?.closest('form')?.textContent.includes('This draft started from version'));
+  assert.equal(await coordinator.ui.getByLabel('Reason for submission or correction').inputValue(), '', 'A cleared form is not a stale draft');
+  // Real unsent work still stays pinned to its source version after refresh.
+  await coordinator.ui.getByLabel('Verified indicator').selectOption(ownDefinition);
+  await coordinator.ui.getByLabel('Reason for submission or correction').fill('Synthetic retained correction draft');
+  assert.equal((await otherCoordinator.rpc('tanaw_submit_evidence', { target_submission: ownSubmission.data.id, expected_version: 2, new_evidence: ownEvidence, change_reason: 'Synthetic second concurrent correction' })).error, null);
+  await coordinator.ui.getByRole('button', { name: 'Refresh workflow', exact: true }).click();
+  await coordinator.ui.getByText('This draft started from version 2; the last verified view shows version 3.', { exact: false }).waitFor();
+  assert.equal(await coordinator.ui.getByLabel('Recorded value').inputValue(), '0');
+  assert.equal(await coordinator.ui.getByLabel('Reason for submission or correction').inputValue(), 'Synthetic retained correction draft');
+  assert.equal(await coordinator.ui.getByRole('button', { name: 'Submit a new evidence version', exact: true }).isDisabled(), true);
+  await coordinator.ui.getByRole('button', { name: 'Discard working device draft', exact: true }).click();
+  await coordinator.page.waitForFunction(() => !document.querySelector('#manual-draft-status')?.closest('form')?.textContent.includes('This draft started from version'));
   // Lose only the receipt after the real server review has committed.
   await coordinator.page.route('**/rest/v1/rpc/tanaw_review_submission', async route => {
     const response = await route.fetch(); assert.equal(response.ok(), true);
@@ -416,13 +429,14 @@ try {
   assert.equal(await ownButton.isDisabled(), true);
   const ownReviews = await admin.from('tanaw_submission_reviews').select('version,reviewer_id,self_review').eq('submission_id', ownSubmission.data.id);
   assert.equal(ownReviews.error, null);
-  assert.deepEqual(ownReviews.data, [{ version: 2, reviewer_id: users.smeaCoordinator.id, self_review: true }]);
-  assert.equal((await otherCoordinator.rpc('tanaw_review_submission', { target_submission: ownSubmission.data.id, expected_version: 2 })).error, null);
+  assert.deepEqual(ownReviews.data, [{ version: 3, reviewer_id: users.smeaCoordinator.id, self_review: true }]);
+  assert.equal((await otherCoordinator.rpc('tanaw_review_submission', { target_submission: ownSubmission.data.id, expected_version: 3 })).error, null);
   const ownEvents = await admin.from('tanaw_workflow_events').select('id').eq('target_id', ownSubmission.data.id).eq('action', 'subjectReview');
   assert.equal(ownEvents.error, null); assert.equal(ownEvents.data.length, 1, 'Receipt-loss retry must not duplicate review event');
   for (const width of [320, 390, 1440]) {
     await coordinator.page.setViewportSize({ width, height: 1000 });
     assert.equal(await coordinator.page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
+    if (width === 390) await coordinator.page.screenshot({ path: output + '/coordinator-own-review-mobile.png', fullPage: true });
   }
   await coordinator.page.screenshot({ path: output + '/coordinator-own-review.png', fullPage: true });
   await coordinator.ui.getByRole('button', { name: 'Prepare a new school packet version', exact: true }).click();
@@ -441,7 +455,7 @@ try {
   await coordinator.ui.getByText('Locked · complete', { exact: true }).waitFor();
   const ownFrozen = await otherCoordinator.from('tanaw_school_packets').select('id,manifest,locked_at').eq('cycle_id', ownCycle).single();
   assert.equal(ownFrozen.error, null); assert.ok(ownFrozen.data.locked_at);
-  assert.equal(ownFrozen.data.manifest[0].version, 2);
+  assert.equal(ownFrozen.data.manifest[0].version, 3);
   const ownFrozenEvidence = await otherCoordinator.rpc('tanaw_packet_evidence', { target_packet: ownFrozen.data.id });
   assert.equal(ownFrozenEvidence.error, null); assert.deepEqual(ownFrozenEvidence.data[0].evidence, ownEvidence);
 

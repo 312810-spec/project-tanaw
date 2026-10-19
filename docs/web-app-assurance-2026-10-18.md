@@ -75,3 +75,42 @@ lint/typecheck/baseline checks and script syntax passed. Local stack verificatio
 SKIP; fresh migration/SQL/authenticated-browser/render checks pending CI.
 Whole-app readiness is INCONCLUSIVE;
 source/operational blockers are recorded in the canonical remaining-task ledger.
+
+
+## 19 October continuation and evidence
+
+At `243e3d422aeaef2895ae7c16be789be5428a1741`, isolated CI applied the migration
+and passed own-review/attribution, retry, correction and cross-school cases, then
+stopped on a malformed UUID in the disabled-account test. Corrected that fixture
+and validated all 121 UUID literals. No application authorization change was
+needed for this failure.
+
+At `90b9f134fbf22637bdc2bd307c90fc39fac2bc13`, all workflows passed:
+- Fast domain: run `39238085404` (162 domain / 40 Python tests).
+- Public browser: run `39238085392`.
+- Isolated build, real Auth, migration/SQL/concurrency/recovery and authenticated
+  school workflow: run `39238085554`.
+
+The real SQL fixture proves own-review attribution/current version, rejected
+ordinary self-review and unauthorized access, immutable earlier evidence/reviews,
+retry deduplication and independent Head prerequisites. The authenticated test
+traces a real synthetic record through submit, concurrent correction, stale-review
+denial, lost receipt, refresh/retry, packet preparation, separate school/Head
+reviews and Lock, with exact frozen value/source/version reconciliation.
+
+Internal desktop render inspection of the authenticated artifact found a second
+observed UX defect: after submission cleared all fields, a concurrent correction
+made the empty form display a stale-draft warning alongside its cleared message.
+Refinement: only an empty readable form follows the current version; actual
+unsent fields and unreadable originals keep their existing source/version and
+recovery protections. Extended browser fixture checks empty versus real stale
+work, preservation of unsent zero/source/reason, explicit discard and a captured
+390px review render. These additional checks require fresh CI before readiness.
+
+Local browser availability was rechecked on 19 October: the standard installer
+for the same Playwright 1.56.1 used in CI succeeded through its built-in download
+fallback. No proxy, tunnel, security flag or browser restriction bypass was used.
+The public desktop/mobile smoke suite passed locally with its required
+`TANAW_APP_ORIGIN=http://127.0.0.1:3000`; screenshots inspected internally. This
+supersedes the earlier missing-browser blocker for these public routes only.
+Local Docker/PostgreSQL and physical-device evidence remain unavailable.

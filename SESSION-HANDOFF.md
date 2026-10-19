@@ -1,6 +1,6 @@
 # TANAW — active checkpoint
 
-18 October 2026 (Manila). Repo `312810-spec/project-tanaw`; main baseline
+19 October 2026 (Manila). Repo `312810-spec/project-tanaw`; main baseline
 `6bcea137a492c27715f7ad9d3065f05debdb7966` (PR #47 merged), verified tree
 `608a33f0dd0830d72b28eb2a4ed114c7211697bd`. Branch
 `forge/coordinator-own-review-20261018`. Source recovered via GitHub connector;
@@ -29,9 +29,13 @@ New migration is local/CI only; no hosted schema application authorized here.
 Baseline: 160 domain + 40 Python tests, lint/typecheck/build passed. After repair:
 162 domain + 40 Python tests, syntax/diff/baseline/lint and production build
 passed. Baseline stack check SKIP (Docker unavailable),
-not PASS. Chromium absent; normal installer returned truncated archives. No
-restriction bypass. Fresh isolated CI must apply migration and run extended SQL
-and authenticated browser before readiness/integration. Inspect relevant actual
+not PASS. Standard Playwright 1.56.1 installation now succeeds through its
+built-in fallback. Local public desktop/mobile browser checks and internal renders
+passed; no restriction bypass. At 90b9f13 all CI passed (domain 39238085404, public 39238085392, isolated
+39238085554), including real SQL/Auth/browser. First CI failed on a test UUID,
+corrected without authorization changes. Desktop render inspection found false
+stale-draft feedback on an empty cleared form; refined it and extended browser
+checks for real unsent stale work and a 390px capture. Fresh head CI still required. Inspect relevant actual
 renders internally; do not deliver screenshots. Physical Android/TalkBack and
 pilot remain untested. No full-app completion or measured token savings claimed.
 
@@ -54,7 +58,7 @@ in PR #47 and `docs/local-account-provisioning.md`; no activation inferred.
 
 ## Exact next action
 
-Finish local production build and review diff; publish this bounded fix and open
-PR for unchanged-head CI. Inspect SQL/browser outcomes and renders; repair any
-failure before integration. Then proceed to the next evidence-ranked journey or
+PR #48 is open, draft and unmerged. Finish checks and publish the empty-form
+feedback refinement. Inspect fresh SQL/browser outcomes and desktop/mobile own-
+review renders; repair failures before integration. Then proceed to the next evidence-ranked journey or
 independent synthetic output work while preserving all activation gates.
