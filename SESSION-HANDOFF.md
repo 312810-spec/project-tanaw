@@ -1,61 +1,65 @@
 # TANAW — active checkpoint
 
 19 October 2026. Repo `312810-spec/project-tanaw`; baseline main
-`c23dad4758f03994eda3366de793d4f8c502ec27` (PR #48 merged). Current branch
-`forge/synthetic-editable-exports-20261019`. Check live refs/PR/CI before
-continuing. Scoped implementation, publishing and verified integration are
-authorized. Hosted mutation/deployment/actual-use gates remain. Keep projects
-isolated; preserve unrelated work.
+`af2a0c35b7835302360148c0a0fc64a9026361dc` (PR #49 merged). Branch
+`forge/provisioning-claim-races-20261019`. Check live refs/PR/current-head CI
+before continuing. Scoped implementation, publishing and verified integration
+are authorized. Hosted mutation/deployment/actual-use gates remain separate.
+Preserve unrelated work and project isolation.
 
-## Current bounded outcome
+## Current bounded work
 
-T10 synthetic export prototype starts from original locked synthetic packet
-manifest, exact evidence versions and revision-bound contracts. The pure seam
-recomputes results, rejects missing/overlapping/mixed snapshots, releases no
-partial rows and exports only aggregate values with packet/contract/partition
-references. Publication and district acceptance remain false. No endpoint,
-database grant, runtime route or official reporting activation was added.
+T11 claim-specific contention/expiry verification. Existing sequential SQL and
+real Auth claim tests did not prove overlapping claimant/takeover behavior or
+expiry during a target-lock wait. The isolated verifier now observes actual
+waiting HTTP claim/finish RPCs under held database locks. Frozen acceptance is
+in `docs/provisioning-claim-races.md`.
 
-Development builders produced editable XLSX and native-table PPTX plus a fixed
-PDF reading copy. Example: 1/2 plus 0/18 pools to 1/20 = 5.00%; an independent
-recorded count remains numeric zero. No actual records or official indicators.
-Excel edit/blank/zero-denominator/restore behavior checked, output OOXML/native
-tables and PDF text checked, all sheet/slide/page renders internally reviewed.
-First font and repeated slide-warning render issues repaired. Hashes are in
-`docs/receipts/synthetic-export-2026-10-19.json`. No native Microsoft application
-edit/save/reopen claim. Builders use the bundled authoring engine only in an OS
-temporary directory; it is not a web-app dependency. See
-`docs/synthetic-export-prototype.md` for acceptance and reproduction.
+Cases: two first claimants yield one epoch-1 owner and token-free busy; two
+successors after operator-expired synthetic claim yield one epoch-2 owner and
+new token; stale/mixed proofs cannot finish after a late external Auth write.
+Successor reconciliation checks the fixed reserved UUID/metadata and does not
+create again. Concurrent finishes include a deliberately discarded successful
+response; retry must retain one membership/audit/receipt. A separate case holds
+the target advisory lock through real database-clock lease expiry, requires zero
+partial writes and recovers with a successor claim.
 
-Local checks: 168 domain tests and 40 Python tests passed, lint/typecheck and
-baseline passed; production build passed after moving stale generated cache
-aside. Docker is absent: baseline stack SKIP and direct stack command unavailable
-are not PASS. Require unchanged-head isolated SQL/Auth/browser CI before merge.
+This adds integration tests and shared lock barriers only, not application
+authority, a production worker, endpoint or migration. Discarded received response
+is application-level outcome uncertainty, not an actual network partition.
+Operator expiry and real-clock expiry are distinct. All pending RPCs settle
+before fixture cleanup. No credentials, tokens or real records are delivered.
 
-## Previous verified journey
+Local syntax/lint/baseline/domain checks are available. Docker is absent here;
+the new cases are NOT locally verified. Require fresh isolated CI on the exact
+PR head, repair any failure, then integrate only after all required checks pass.
+Use the PR's receipts for final status rather than inferring a live test from
+source inspection or domain tests.
 
-PR #48 fixed decision 22 at submission level: trusted active same-school SMEA
-can self-review their exact own submission; actor/version/self flag recorded.
-Independent Head remains required. Empty cleared forms follow readable source
-versions; actual drafts retain zero/source/reason and explicit reconciliation.
-Final head `a78666d29cc6252f5f6ebfb94fec567af0d363d4` passed domain 39239473468,
-public browser 39239473419 and isolated 39239473337, including anonymous RPC and
-direct-write ACL checks. Earlier implementation renders inspected at desktop
-and 390px; 320px overflow and keyboard assertions passed. Source:
-`docs/web-app-assurance-2026-10-18.md`.
+## Prior verified outcomes
 
-## Next gates and exact continuation
+PR #49 head `199fed1e298526467aed7de0e1bd7dcf97a58021` passed domain
+39268149349 (168 Node / 40 Python), public browser 39268149334 and isolated
+39268149194. Synthetic editable XLSX/native-table PPTX/fixed PDF generated;
+edit/restore, package checks and every render inspected, final PPTX reopened
+and rendered. Hash receipts: `docs/receipts/synthetic-export-2026-10-19.json`.
+Artifacts are prototypes; native Microsoft edit/save/reopen untested.
+T10 remains PARTIAL pending approved bindings and authorized committed results.
 
-Inspect the current export PR/head and CI; fix failures and integrate only after
-required checks pass. If merged, sync main. T10 remains PARTIAL: obtain approved
-template/dictionary/population bindings and committed authorized result
-projections before runtime export. Native application verification is pending.
-Use `docs/remaining-tasks.md` as the sole task ledger; do not call the whole app
-complete. Read AGENTS/CLAUDE/operating rules and confirmed decisions as needed.
+PR #48 fixed exact own-submission SMEA self-review and empty-form version
+feedback. Independent Head remains mandatory. Final-head SQL/Auth/browser,
+ACL and domain CI passed. See `docs/web-app-assurance-2026-10-18.md`.
 
-T01–T07 source/policy/mapping/calendar gates persist; T08 persistence and governed
-result access, T09 district acceptance, T11 production provisioning/claim races,
-T12 recovery delivery, T13 physical Android/TalkBack and T14 actual pilot remain.
-Drive is development reference and live AI is deferred. Approved templates do
-not prove formulas or authorize rewriting locked history. Do not request the
-same publication permission again; hosted deployment is separately protected.
+## Continuation and limits
+
+Inspect current claim-race PR/CI and integrate if verified. If merged, sync main.
+Then use `docs/remaining-tasks.md` as the sole task ledger. T11 production caller
+validation, provider execution/renewal, onboarding, initial coordinator, actual
+network partitions and orphan disposition remain. Claim fencing cannot cancel
+an external Auth write; late identities stay unassigned until authorized recovery.
+
+T01–T07 source/policy/mapping/calendar gates, T08 result persistence/access, T09
+district acceptance, T12 recovery delivery, T13 physical Android/TalkBack and
+T14 actual pilot remain. Live AI is deferred. Drive is development reference.
+Approved templates do not approve formulas or permit rewriting locked history.
+Do not call the whole app or production rollout complete.

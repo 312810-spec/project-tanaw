@@ -255,3 +255,21 @@ Production endpoint caller validation, claim-specific concurrent takeover/race
 and partition tests, bounded provider execution/renewal policy, onboarding and
 orphan disposition remain pending. Claim expiry does not delete Auth accounts,
 reservations, accepted records or original files.
+
+## Claim contention verification — 19 October 2026
+
+`scripts/local_provisioning_claim_races.mjs` extends the isolated real-Auth
+verifier. The shared lock barrier now observes actual claim/finish HTTP RPCs
+waiting, not merely concurrent JavaScript promises. Cases cover competing first
+claims and expired-claim successors, late external Auth creation at the reserved
+UUID, stale/mixed proofs, duplicate finish, deliberately discarded successful
+completion response and target-lock waiting through real database-clock expiry.
+Recovery verifies one attributed membership/audit and durable receipt. No app,
+SQL authority or production worker behavior is changed by these tests.
+
+Frozen criteria and limits: [claim contention acceptance](provisioning-claim-races.md).
+Normal domain tests do not execute this fixture. Fresh isolated CI on the same
+PR head is required for a live pass claim; consult that PR's receipts. Synthetic
+operator expiry is distinguished from the real clock-expiry case. Discarding a
+received server response tests uncertain client outcome, not actual TCP/network
+partition or bounded external-provider execution.

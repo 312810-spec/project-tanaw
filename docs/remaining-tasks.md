@@ -1,6 +1,6 @@
 # TANAW — canonical remaining-task ledger
 
-19 October 2026. Baseline main `c23dad4758f03994eda3366de793d4f8c502ec27` (PR #48 merged).
+19 October 2026. Baseline main `af2a0c35b7835302360148c0a0fc64a9026361dc` (PR #49 merged).
 READY = bounded synthetic/local development; GATED = activation awaits evidence;
 BLOCKED = external input required; PARTIAL never means operationally done.
 
@@ -16,7 +16,7 @@ BLOCKED = external input required; PARTIAL never means operationally done.
 | T08 | Governed results/charts — PARTIAL synthetic | Frozen headcount/pooled-percentage diagnostic tested; reviewed contracts/populations, server projection persistence and aggregate-only chart/district access remain. |
 | T09 | District acceptance — GATED | T08 and required reviews; existing acceptance gate stays closed. |
 | T10 | Editable Excel/PPT/PDF — PARTIAL synthetic | [Aggregate-only prototypes](synthetic-export-prototype.md) generated, native cells/tables and all renders checked. Official template bindings, governed totals, runtime authorization and target-application edit/save/reopen remain. |
-| T11 | Account bootstrap/provisioning — PARTIAL database foundation | [Auth recovery and durable journal](local-account-provisioning.md); real-Auth/RPC contention, restart and uncertain-write reconciliation; server-only claim/epoch controls; claim-specific races/partitions, endpoint/onboarding and initial coordinator remain. |
+| T11 | Account bootstrap/provisioning — PARTIAL database foundation | [Auth recovery and durable journal](local-account-provisioning.md); [claim contention/expiry acceptance](provisioning-claim-races.md) added for isolated execution. Check fresh PR CI receipts before claiming pass. Real network partitions, endpoint/onboarding, provider execution/renewal and initial coordinator remain. |
 | T12 | Production recovery email — BLOCKED live setup | Authorized sender/domain/credentials, trusted callback and observed recipient flow. |
 | T13 | Android/TalkBack — PENDING observations | Physical touch/focus/assistive/interruption checks; CI viewports do not replace them. |
 | T14 | TNHS pilot/rollout — BLOCKED actual use | Designated participants, confirmed records, authorized environment and observed workflow/recovery. |

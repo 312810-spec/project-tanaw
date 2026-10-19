@@ -5,6 +5,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
+import { verifyClaimRaces } from './local_provisioning_claim_races.mjs';
 
 const status = spawnSync('npx', ['--no-install', 'supabase', 'status', '--output', 'json'], { encoding: 'utf8', timeout: 30000 });
 assert.equal(status.status, 0, 'Local status required');
@@ -83,8 +84,8 @@ async function provision(request, options) {
   assert.equal(result.data, id);
   return id;
 }
-async function contended(functionName, operations) {
-  assert.ok(['tanaw_reserve_account', 'tanaw_complete_account'].includes(functionName));
+async function contended(functionName, operations, { lockIdentity = school + ':' + coordinator, beforeRelease } = {}) {
+  assert.ok(['tanaw_reserve_account', 'tanaw_complete_account', 'tanaw_claim_account_work', 'tanaw_finish_account_work'].includes(functionName));
   const holder = spawn('docker', dbCommand, { stdio: ['pipe', 'pipe', 'ignore'] });
   const ready = new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('Lock holder did not become ready')), 15000);
@@ -95,13 +96,15 @@ async function contended(functionName, operations) {
   });
   const exited = new Promise(resolve => holder.once('exit', code => resolve(code)));
   holder.stdin.write(`begin; set local idle_in_transaction_session_timeout='20s';
-    select pg_advisory_xact_lock(hashtextextended(${quote(school + ':' + coordinator)},0));
+    select pg_advisory_xact_lock(hashtextextended(${quote(lockIdentity)},0));
 \\echo LOCK_READY
 `);
+  let work;
   try {
     await ready;
     // Promise.all starts both HTTP requests while the actor lock is held.
-    const work = Promise.all(operations.map(operation => operation()));
+    work = Promise.all(operations.map(operation => operation()));
+    work.catch(() => {}); // Preserve cleanup if an operation rejects before release.
     const deadline = Date.now() + 10000;
     let waiting = false;
     while (Date.now() < deadline) {
@@ -109,6 +112,7 @@ async function contended(functionName, operations) {
       const count = sql(`select count(*) from pg_stat_activity where wait_event_type='Lock' and query like '%${functionName}%';`);
       if (Number(count) >= operations.length) { waiting = true; break; }
     }
+    if (waiting && beforeRelease) await beforeRelease();
     holder.stdin.end('commit;\n');
     assert.equal(await exited, 0, 'Lock holder must commit');
     const results = await work;
@@ -117,6 +121,7 @@ async function contended(functionName, operations) {
   } finally {
     if (!holder.stdin.destroyed && !holder.stdin.writableEnded) holder.stdin.end('rollback;\n');
     await exited;
+    if (work) await work; // No in-flight fixture writes may outlive cleanup.
   }
 }
 async function startWorker(request, pauseAfterAuth = false, loseCreateResponse = false) {
@@ -228,6 +233,7 @@ try {
   assert.equal((await complete(claimedRequest)).error, null, 'Historical coordinator receipt remains readable');
   assert.equal(sql(`select revision,(select count(*) from public.tanaw_membership_events where target_user_id=${quote(claimedUser)}) from public.tanaw_memberships where school_id=${quote(school)} and user_id=${quote(claimedUser)};`), '1|1');
   console.log('PASS real service HTTP claim/finish, invalid-epoch denial, blocked client bypass and one attributed membership');
+  await verifyClaimRaces({ admin, url, privateKey, school, coordinator, makeRequest, reserve, prepareAuth, row, sql, quote, contended, users });
   // Revoke coordinator after a real Auth account exists but before completion.
   const interrupted = makeRequest(), interruptedId = await prepareAuth(interrupted);
   sql(`update public.tanaw_memberships set active=false where school_id=${quote(school)} and user_id=${quote(coordinator)};`);
