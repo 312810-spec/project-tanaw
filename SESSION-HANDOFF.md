@@ -58,3 +58,9 @@ authority. Missing differs from zero; Lock differs from district acceptance.
 
 Exact next action: inspect current branch checks; fix only evidenced failures;
 merge only unchanged-head complete verification and update PR with receipts.
+
+First workspace CI39321683526 at2b470ef: new creation UI scenarios passed; later
+handover timed out because School access remained selected. Restore Submissions
+and review before the existing handover test. Render inspection removed empty
+creation fields after recovery, spaced actions/cards and added mobile render plus
+capability-unavailable checks. Fresh final-head complete CI is still required.

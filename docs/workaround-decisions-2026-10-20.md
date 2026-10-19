@@ -115,3 +115,13 @@ Frozen acceptance before edits:
   storage failure, no credential persistence and narrow-screen keyboard use.
   Full unchanged-head CI is required before merge; physical-device acceptance
   remains separate. No hosted settings/schema/identity/credential delivery changes.
+
+
+First workspace run at 2b470ef: new creation/recovery scenarios passed, including
+real Auth, audit and loss after commit. The subsequent pre-existing handover test
+timed out because the added scenario left School access selected. Restore the
+Submissions and review entry state before handover; retain all assertions. Internal
+render inspection also removed empty disabled creation fields after reload (no
+retained payload exists), separated adjacent actions/cards, and added a mobile
+render plus unavailable-capability/existing-management check. Require fresh
+unchanged-head complete CI; a partial passing scenario is not a complete run.

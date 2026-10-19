@@ -127,7 +127,7 @@ export function AccountWorkspace() {
       <div className="min-w-0 space-y-6">
       {membership && actorId && <div hidden={view !== "work"}><SchoolWorkflow key={membership.school_id + role} schoolId={membership.school_id} role={role} actorId={actorId} schoolName={membership.school_name} accessVerified={accessVerified && !busy} /></div>}
       {membership && <div hidden={view !== "calendar"}><fieldset disabled={busy || !accessVerified} className="min-w-0"><ReportingCycles key={membership.school_id} schoolId={membership.school_id} canManage={membership.roles.includes("smeaCoordinator") && role === "smeaCoordinator"} /></fieldset></div>}
-      {membership && actorId && role === "smeaCoordinator" && <div hidden={view !== "access"}><fieldset disabled={busy || !accessVerified} className="min-w-0"><AccountProvisioning key={membership.school_id + actorId} schoolId={membership.school_id} actorId={actorId} /><MemberManagement key={membership.school_id + actorId} schoolId={membership.school_id} actorId={actorId} /></fieldset></div>}
+      {membership && actorId && role === "smeaCoordinator" && <div hidden={view !== "access"}><fieldset disabled={busy || !accessVerified} className="min-w-0 space-y-6"><AccountProvisioning key={membership.school_id + actorId} schoolId={membership.school_id} actorId={actorId} /><MemberManagement key={membership.school_id + actorId} schoolId={membership.school_id} actorId={actorId} /></fieldset></div>}
       </div>
       <div className="flex flex-wrap gap-3">
         <button type="button" onClick={() => { if (confirmLeavingWork()) void load(); }} disabled={busy} className="rounded-lg border border-brand px-4 py-2 text-sm text-brand disabled:opacity-50">Refresh access</button>

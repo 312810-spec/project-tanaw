@@ -121,7 +121,7 @@ export function AccountProvisioning({ schoolId, actorId }: { schoolId: string; a
     <p ref={status} tabIndex={-1} role="status" aria-live="polite" className="text-sm">{message}</p>
     {capability === "unavailable" && <p className="text-sm">Local account creation is unavailable on this installation. Existing assigned accounts can still be managed below.</p>}
     {requestId && <div className="context-panel space-y-2"><p className="text-sm font-medium">Recovery request ID</p><p className="break-all select-all font-mono text-sm">{requestId}</p><p className="text-xs">Only this ID is kept in this browser tab for this coordinator and school. Keep it before closing the tab; account details and passwords are not stored.</p></div>}
-    <form ref={form} onSubmit={create} className="space-y-4">
+    {(!requestId || command) && <form ref={form} onSubmit={create} className="space-y-4">
       <fieldset disabled={capability !== "available" || busy || locked} className="min-w-0 space-y-4">
         <label className="block text-sm">New account email<input name="email" type="email" required maxLength={254} autoComplete="off" className={field} /></label>
         <fieldset className="space-y-2"><legend className="mb-2 text-sm font-medium">New account roles</legend>{Object.entries(labels).map(([value, label]) => <label key={value} className="flex items-center gap-2 text-sm"><input type="checkbox" name="roles" value={value} defaultChecked={value === "teacher"} />{label}</label>)}</fieldset>
@@ -131,14 +131,14 @@ export function AccountProvisioning({ schoolId, actorId }: { schoolId: string; a
         <p id="test-password-help" className="text-xs text-foreground/65">12–128 characters. Use a synthetic password. It is cleared when sent, never saved in recovery storage and never included in downloaded notes.</p>
         <button className={button}>Review and create test account</button>
       </fieldset>
-    </form>
-    {requestId && <div className="space-y-4">
+    </form>}
+    {requestId && <div className="flex flex-wrap items-start gap-3">
       <button type="button" className={button} disabled={busy || capability !== "available"} onClick={() => {
         if (!navigator.onLine) { setMessage("Connect to check the stored account request."); return; }
         void send({ action: "status", schoolId, requestId }, requestId);
       }}>Check account request status</button>
-      {!complete && command && <details><summary className="cursor-pointer text-sm">Retry the same request after checking status</summary><form onSubmit={retry} className="mt-3 space-y-3"><p className="text-xs">Unchanged account details and the same request ID will be sent. Re-enter the initial password only for an account that has not yet been created.</p><label className="block text-sm">Re-enter initial test password<input name="retryPassword" type="password" autoComplete="new-password" minLength={12} maxLength={128} required className={field} /></label><button disabled={busy || capability !== "available"} className={button}>Retry this account request</button></form></details>}
-      {!complete && !command && <p className="text-sm">Recovered request: check status only. Creation details were not retained after leaving. A pending request needs coordinator reconciliation; do not recreate it with a new ID.</p>}
+      {!complete && command && <details className="basis-full"><summary className="cursor-pointer text-sm">Retry the same request after checking status</summary><form onSubmit={retry} className="mt-3 space-y-3"><p className="text-xs">Unchanged account details and the same request ID will be sent. Re-enter the initial password only for an account that has not yet been created.</p><label className="block text-sm">Re-enter initial test password<input name="retryPassword" type="password" autoComplete="new-password" minLength={12} maxLength={128} required className={field} /></label><button disabled={busy || capability !== "available"} className={button}>Retry this account request</button></form></details>}
+      {!complete && !command && <p className="basis-full text-sm">Recovered request: check status only. Creation details were not retained after leaving. A pending request needs coordinator reconciliation; do not recreate it with a new ID.</p>}
       {complete && <button type="button" disabled={busy} onClick={next} className={button}>Prepare another test account</button>}
     </div>}
   </section>;

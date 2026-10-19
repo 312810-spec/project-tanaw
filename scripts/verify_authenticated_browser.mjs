@@ -181,8 +181,8 @@ try {
   await accountPage.getByRole('navigation', { name: 'Workspace tasks' }).getByRole('button', { name: 'School access', exact: true }).click();
   creation = accountPage.getByRole('region', { name: 'Create a local test account' });
   await creation.getByText(uiRequestId, { exact: true }).waitFor();
-  assert.equal(await creation.getByLabel('New account email').inputValue(), '');
-  assert.equal(await creation.getByLabel('Initial test password', { exact: true }).inputValue(), '');
+  assert.equal(await creation.getByLabel('New account email').count(), 0, 'Recovered receipt must not imply retained account details');
+  assert.equal(await creation.getByLabel('Initial test password', { exact: true }).count(), 0, 'Reload does not recreate a credential field');
   assert.equal(await creation.getByText('Retry the same request after checking status', { exact: true }).count(), 0, 'Reload offers status only, not an invented command');
   await creation.getByRole('button', { name: 'Check account request status' }).click();
   await creation.getByRole('status').filter({ hasText: 'Account creation confirmed.' }).waitFor();
@@ -190,6 +190,7 @@ try {
   for (const width of [390, 768, 1440]) {
     await accountPage.setViewportSize({ width, height: 1000 });
     assert.equal(await accountPage.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, 'Creation and long recovery ID fit the viewport');
+    if (width === 390) await accountPage.screenshot({ path: output + '/account-provision-recovery-mobile.png', fullPage: true });
   }
   await accountPage.screenshot({ path: output + '/account-provision-recovery.png', fullPage: true });
   await creation.getByRole('button', { name: 'Prepare another test account' }).click();
@@ -211,6 +212,15 @@ try {
   await creation.getByRole('status').filter({ hasText: 'Account creation confirmed.' }).waitFor();
   assert.equal((await admin.from('tanaw_provisioning_requests').select('completed_at').eq('id', retryId).single()).data.completed_at !== null, true, 'Explicit retry uses the same request ID');
   assert.equal(await creation.getByLabel('Initial test password', { exact: true }).inputValue(), '');
+  await accountPage.route('**/api/accounts/provision', route => route.request().method() === 'GET' ? route.fulfill({ contentType: 'application/json', body: JSON.stringify({ available: false, localOnly: true }) }) : route.continue());
+  await accountPage.reload();
+  await accountPage.getByRole('navigation', { name: 'Workspace tasks' }).getByRole('button', { name: 'School access', exact: true }).click();
+  await creation.getByText('Local account creation is unavailable on this installation. Existing assigned accounts can still be managed below.', { exact: true }).waitFor();
+  await accountPage.getByRole('region', { name: 'Manage school access' }).getByLabel('Assigned account').waitFor();
+  assert.equal(await creation.getByRole('button', { name: 'Check account request status' }).isDisabled(), true);
+  await accountPage.unroute('**/api/accounts/provision');
+  // Restore the existing journey's entry state before its handover assertions.
+  await accountPage.getByRole('navigation', { name: 'Workspace tasks' }).getByRole('button', { name: 'Submissions and review', exact: true }).click();
   console.log('PASS coordinator creation UI: real account/audit, lost response/reload/status, immutable pending request, storage denial/offline zero writes, exact receipt checks, explicit retry, password clearing, scoped ID-only recovery, keyboard and responsive layout');
 
   for (const target of [users.smeaCoordinator.id, users.teacher.id]) {
