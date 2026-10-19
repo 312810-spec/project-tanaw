@@ -1,5 +1,11 @@
 -- Synthetic adversarial end-to-end checks, rolled back. No actual records.
 begin;
+-- Review authority must stay on the trusted RPC, including after the exception.
+do $$ begin
+ if has_function_privilege('anon','public.tanaw_review_submission(uuid,integer)','EXECUTE')
+  or has_table_privilege('authenticated','public.tanaw_submission_reviews','INSERT,UPDATE,DELETE') then
+  raise exception 'Submission review RPC/table privileges broadened'; end if;
+end $$;
 insert into auth.users(id,email) values
  ('41000000-0000-0000-0000-000000000001','workflow-teacher@fixture.invalid'),
  ('41000000-0000-0000-0000-000000000002','workflow-subject@fixture.invalid'),

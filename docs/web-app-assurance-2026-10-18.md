@@ -114,3 +114,45 @@ The public desktop/mobile smoke suite passed locally with its required
 `TANAW_APP_ORIGIN=http://127.0.0.1:3000`; screenshots inspected internally. This
 supersedes the earlier missing-browser blocker for these public routes only.
 Local Docker/PostgreSQL and physical-device evidence remain unavailable.
+
+
+## Refined implementation verification
+
+Implementation `a1d974c209daa94db41cc5923d2d98837392b91a` passed all three
+workflows: domain `39238821288`, public browser `39238821411`, isolated build /
+real Auth / migration and adversarial SQL / authenticated browser `39238821322`.
+The extended browser trace passed both empty-form and real-unsent-draft cases,
+version-3 self-review, lost receipt/reconciliation, one review/event, separate
+Head review and exact version/value/source in the locked packet.
+
+Desktop (1440px) and mobile (390px) own-review renders from authenticated artifact
+`12181145244` were inspected internally. Reviewer/version attribution, recorded
+zero/source, truthful cleared/discarded status and the self-review explanation
+remain readable without horizontal overflow; no persistent empty-form stale
+warning remains. Automated width assertions also passed at 320px. Keyboard Enter
+activated the review control. These are bounded browser observations, not physical
+Android/TalkBack or full WCAG conformance.
+
+| Fixed criterion | Evidence / status |
+|---|---|
+| 1. Own-submission exception and transparent attribution | PASS — policy, real SQL and authenticated browser with exact actor/version/self flag. |
+| 2. Role/school boundaries and direct-write protection | PASS — normal independent review, ordinary self denial, other-author/cross-school/disabled denial and direct-write rejection. Anonymous RPC execute privilege is revoked in the migration; an explicit ACL assertion is added in the final fixture checkpoint for fresh CI. |
+| 3. Versions, retries, corrections, Lock and honest recovery | PASS — stale/zero/locked rejection, retained old evidence, one review/event and interrupted receipt reconciliation. |
+| 4. Separate Head prerequisite and frozen output | PASS — multi-role self-Head denied in SQL; distinct browser Head approval required; exact frozen version/value/source asserted. |
+| 5. Build, repository, SQL, browser and relevant renders | PASS at a1d974c; final fixture/checkpoint requires current-head CI before merge. |
+
+The final checkpoint adds a SQL privilege assertion for anonymous RPC access and
+client INSERT/UPDATE/DELETE, plus documentation only. No application, migration,
+calculation, authentication or output code changes after a1d974c. Inspect PR #48
+for the final-head test/merge receipts. This journey is READY FOR REVIEW within
+the tested synthetic scope; it is not approval for hosted rollout. Whole-app
+readiness remains INCONCLUSIVE because source/operational and unfinished feature
+gates in the canonical ledger remain.
+
+## Next bounded work
+
+Next independent implementation candidate: T10 synthetic editable exports from
+the already-tested frozen diagnostic. Freeze aggregate-only bindings and artifact
+acceptance first; do not represent a prototype as an approved school template,
+connect live district acceptance, or infer missing computation/population rules.
+T01–T09 source gates and T11–T14 operational/device/pilot gates remain separate.
