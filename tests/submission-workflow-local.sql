@@ -73,7 +73,7 @@ select pg_temp.must_deny(format('select public.tanaw_review_submission(%L,2)',(s
 select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000003',true);
 savepoint disabled_own_reviewer;
 reset role;
-update public.tanaw_memberships set active=false where school_id='42000000-0000-0000-000000000001' and user_id='41000000-0000-0000-0000-000000000003';
+update public.tanaw_memberships set active=false where school_id='42000000-0000-0000-0000-000000000001' and user_id='41000000-0000-0000-0000-000000000003';
 set local role authenticated;
 select pg_temp.must_deny(format('select public.tanaw_review_submission(%L,2)',(select id from fixture_targets where label='coSubmission')),'42501');
 rollback to savepoint disabled_own_reviewer;
