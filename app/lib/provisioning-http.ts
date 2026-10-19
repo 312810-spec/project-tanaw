@@ -73,7 +73,9 @@ async function body(request: Request): Promise<unknown> {
 export async function handleProvisioning(request: Request, deps: ProvisionDependencies): Promise<Response> {
   if (!deps.enabled) return reply("provisioning-unavailable", 503);
   if (request.method !== "POST") return reply("method-not-permitted", 405);
-  if (!deps.origin || new URL(request.url).origin !== deps.origin || request.headers.get("origin") !== deps.origin
+  // Next may normalize its internal Request URL. Bind admission to the pinned
+  // browser Origin and HTTP Host, not an internal server URL reconstruction.
+  if (!deps.origin || (request.headers.get("host") ?? new URL(request.url).host) !== new URL(deps.origin).host || request.headers.get("origin") !== deps.origin
       || request.headers.get("sec-fetch-site") === "cross-site") return reply("request-not-permitted", 403);
   if (request.headers.get("content-type")?.split(";")[0].trim() !== "application/json"
       || (request.headers.get("content-encoding") ?? "identity") !== "identity") return reply("unsupported-request-type", 415);

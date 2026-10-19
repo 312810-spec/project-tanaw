@@ -24,6 +24,11 @@ Status POST reads current authorized journal only. Client actor/UUID/proof/metad
 injection rejected. Password goes only to first creation; never journaled,
 returned, logged or used to reset an existing password.
 
+First head 5843da6 failed isolated 39293002239 before writes: internal Request URL
+admission gave anonymous 403. A local production Next probe reproduced it. Pinned
+Origin plus HTTP Host fixes that path: anonymous 401, wrong Origin 403; wrong Host
+and normalized URL cases added to regression tests. Require new-head full CI.
+
 Disabled by default and structurally restricted to exact local backend 55321 and
 loopback HTTP origin. Process-only local service credential; never .env.local or
 public variables. Hosted configuration stays unavailable even with flag set.

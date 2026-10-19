@@ -68,3 +68,15 @@ T08–T10 consume frozen, authorized aggregates only. T09 cannot equate Lock wit
 district acceptance. T12–T14 need verified sender/device/participant evidence.
 T16 stays deferred. A technical workaround can remove an access or integration
 obstacle; it cannot manufacture source authority or observations.
+
+## First integration finding and correction
+
+At 5843da6, isolated run 39293002239 stopped before account creation: anonymous
+HTTP was 403 instead of 401. A local production Next server with synthetic keys
+reproduced `request-not-permitted`. Admission used the framework's reconstructed
+Request URL. Replacing that comparison with pinned browser Origin plus HTTP Host
+produced the expected anonymous 401; wrong Origin remained 403. A regression
+also rejects wrong Host and accepts the normalized internal-URL case only through
+authentication. No credential, role, cross-school or hosted gate was relaxed.
+The local probe verifies transport admission only; fresh isolated CI still must
+verify actual Auth creation, receipts and the full school workflow.

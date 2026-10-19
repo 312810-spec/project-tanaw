@@ -78,3 +78,9 @@ test('request cancellation during an ignored-abort reservation does not start la
   const waiting=handleProvisioning(request,f.deps);await started;controller.abort();
   const result=await waiting;assert.equal(result.status,202);await clean(result);release();await new Promise(resolve=>setImmediate(resolve));assert.ok(!f.calls.includes('claim')&&!f.calls.includes('create')&&!f.calls.includes('finish'));
 });
+test('pinned Origin and Host survive a normalized internal URL; a mismatched Host is denied',async()=>{
+  const f=fixture();f.deps.authorize=async()=> 'unauthenticated';
+  const normalized=new Request('http://localhost:3000/api/accounts/provision',{method:'POST',headers:{host:'127.0.0.1:3000',origin,'content-type':'application/json'},body:JSON.stringify(f.c)});
+  assert.equal((await handleProvisioning(normalized,f.deps)).status,401);
+  const g=fixture();const denied=await handleProvisioning(req(g.c,{host:'attacker.invalid'}),g.deps);assert.equal(denied.status,403);assert.deepEqual(g.calls,[]);
+});
