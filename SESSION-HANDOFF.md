@@ -1,74 +1,60 @@
 # TANAW — active checkpoint
 
-20 October 2026. Repo `312810-spec/project-tanaw`; baseline main
-`9d45bd48ef5e52135e50d86d81ac74f89e93776b` (PR #51 merged). Branch
-`forge/local-provisioning-http-20261020`. Inspect current PR/head/CI before
-continuing. Engineering decisions, publishing and verified integration are
-authorized. Hosted mutation/deployment/actual-use gates remain separate.
-Keep projects isolated and preserve unrelated work.
+20 October 2026. Repo 312810-spec/project-tanaw, baseline main
+`e40ee53943718095858f2d3b666401ceca8e7a0b` (PR #52). Active branch
+`forge/provisioning-workspace-20261020`. Inspect actual HEAD/PR/CI before
+continuing. Publishing and verified merges are authorized; hosted changes,
+deployment and actual-use activation remain separate. No unrelated work exists.
 
-## Decision and current bounded work
+## Selected outcome and evidence
 
-Owner delegates consequential choices using FORGE and a scoring mechanism.
-Read `docs/workaround-decisions-2026-10-20.md`: impact 30%, dependency unlock
-25%, evidence 20%, feasibility 15%, reversibility 10%; ordinal 1–5. Provisioning
-HTTP boundary scored 90, source intake 84, renewed research 79, private staging
-73. These are prioritization judgments, not correctness/approval grades. Hard
-authority/privacy/actual-use gates override scores. Re-score on new evidence.
+Owner delegates choices using FORGE weighted priority: impact30%, unlock25%,
+evidence20%, feasibility15%, reversibility10%. Ordinal 1–5; hard source/privacy/
+actual-use gates override any score. See docs/workaround-decisions-2026-10-20.md.
+Local creation/recovery UI scores90; source intake84; production onboarding68.
+Select the local journey, not unverified credential delivery.
 
-Selected boundary reuses trusted SQL/recovery rather than parallel role grants.
-New POST `/api/accounts/provision`: origin/type/body/concurrency admission →
-fresh cookie identity/active school SMEA role → immutable reservation → private
-worker claim → bounded exact-UUID Auth recovery → fenced finish → reread receipt.
-Status POST reads current authorized journal only. Client actor/UUID/proof/metadata
-injection rejected. Password goes only to first creation; never journaled,
-returned, logged or used to reset an existing password.
+PR #52 head030cbbb passed domain39294346243 (189 Node/40 Python), public
+browser39294346411 and isolated39294346328. Actual Next route completed one
+attributed membership, denied wrong origin/school/actor, reconciled duplicates
+and preserved the original password. Merged e40ee53. Earlier failed admission
+probe and correction remain in the decision record and PR description.
+PR #51 bounded Auth recovery and #50 claim concurrency are merged. PR #49
+synthetic editable aggregate exports remain unofficial. PR #48 own-submission
+SMEA review preserves mandatory independent Head review.
 
-First head 5843da6 failed isolated 39293002239 before writes: internal Request URL
-admission gave anonymous 403. A local production Next probe reproduced it. Pinned
-Origin plus HTTP Host fixes that path: anonymous 401, wrong Origin 403; wrong Host
-and normalized URL cases added to regression tests. Require new-head full CI.
+## Current UI increment / frozen acceptance
 
-Disabled by default and structurally restricted to exact local backend 55321 and
-loopback HTTP origin. Process-only local service credential; never .env.local or
-public variables. Hosted configuration stays unavailable even with flag set.
-Development email auto-confirm is only synthetic sign-in, not identity/email
-ownership or credential delivery. Coordinator UI/secure handoff remain pending.
+AccountProvisioning is rendered only in coordinator School access. Capability
+GET controls availability; server still rechecks fresh identity and school role.
+Review before creation; persist only request ID in sessionStorage under actor+
+school before sending. Storage denial/offline means no send. Password clears on
+dispatch and is never in browser recovery storage, URLs or downloaded notes.
+Submitted details freeze. Pending/lost/mismatched replies cannot enable a new ID.
+Explicit retry uses the same in-memory command and password re-entry. Reload
+restores only the ID for status checks; pending after reload requires coordinator
+reconciliation, not reconstructed credentials. Only matching200 complete receipt
+allows explicit next request. Completion is not delivery/ownership or school-use
+approval. Workspace account components are keyed by actor+school.
 
-Local HTTP tests cover admission, unknown fields, wrong scope/actor/bindings,
-busy/expired claims, uncertain finish/status recovery, private error output,
-revocation, transport limits/cancel, process concurrency and false receipt denial.
-Actual Next/Auth integration cases added to authenticated browser fixture:
-anonymous/teacher/origin/cross-school/actor rejection; duplicate HTTP completion;
-one attributed membership; status and immutable replay; original password retained.
-Default public browser checks assert unavailable. Require fresh same-head CI;
-Docker is absent locally and no live pass may be inferred from unit tests.
+Browser script adds real creation/audit, response dropped after commit, reload/
+status recovery, storage denial/offline zero writes, mismatched/202/403/404/409
+feedback, explicit same-ID retry, password clearing and responsive keyboard checks.
+Require fresh final-head domain, build, public and isolated SQL/Auth/browser CI
+before merging, then sync main. Generated CI renders need internal inspection;
+do not deliver screenshots. Do not infer a live pass from source/unit tests.
 
-## Verified carryovers
+## Pending / blocked / untested
 
-PR #51 df33eb2 passed domain 39280900148 (176 Node / 40 Python), public 39280900165
-and isolated 39280900249. Prior queue resolved. Shared total deadline and abort
-forwarding composed with real Auth, lost-response and kill/restart checks.
-PR #50 f9db28c passed actual claim contention/late-write/lost-response/real expiry;
-its 10 s probe was query-canceled, then 3 s probe preserved strict 42501 and
-zero-write/successor checks. References: bounded-auth-recovery.md and
-provisioning-claim-races.md.
+Use docs/remaining-tasks.md as sole ledger. Secure credential handoff, invitation/
+first-login policy, initial coordinator, reviewed production budgets/quotas and
+real partitions remain T11 gates. Hosted creation remains structurally disabled;
+local process-only service credentials never go to .env.local/public/commits.
+T01–T07 applicable source/formula/mapping/calendar/retention remain gates.
+T08–T10 governed aggregates/official output/native-app checks remain. T12 sender,
+T13 physical Android/TalkBack and T14 designated actual pilot need real evidence.
+T16 live AI stays deferred. Do not infer approvals, participants, records or source
+authority. Missing differs from zero; Lock differs from district acceptance.
 
-PR #49 synthetic editable exports retain native cells/tables and version
-references, with all renders checked; official bindings and native Microsoft
-edit/save/reopen remain gated. PR #48 SMEA exact own-submission review and empty
-form version feedback passed; independent Head remains mandatory.
-
-## Continuation / acceptance limits
-
-Inspect current local-HTTP PR and CI; repair failures and integrate only with
-unchanged-head domain, build, SQL/Auth/concurrency and authenticated/public-browser
-checks. Then sync main. Decisions/criteria are in the scoring record; use
-`docs/remaining-tasks.md` as sole ledger. Never mark the whole app complete.
-
-T11 production timeout/renewal/quota policy, secure onboarding and initial
-coordinator remain. Pending is uncertain, not canceled/absent/rolled back.
-T01–T07 source/formula/mapping/calendar/retention gates persist; T08–T10 need
-authorized governed results and official output bindings. T12 sender setup,
-T13 physical Android/TalkBack and T14 designated actual pilot remain external
-observations/inputs. Live AI stays deferred; Drive is development reference.
+Exact next action: inspect current branch checks; fix only evidenced failures;
+merge only unchanged-head complete verification and update PR with receipts.

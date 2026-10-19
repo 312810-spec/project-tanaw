@@ -113,6 +113,106 @@ try {
   assert.equal(newAccess.error, null);assert.deepEqual(newAccess.data, [{ school_id: school, roles: ['teacher'], subject_ids: ['math'] }]);
   await provisionedLogin.auth.signOut();
   console.log('PASS local-only provisioning HTTP: cookie coordinator, origin/cross-school/actor denial, duplicate receipt, one attributed membership, status recovery and unchanged original password');
+
+  // Exercise the rendered coordinator journey against real isolated Auth/SQL.
+  const accountPage = handoverCoordinator.page;
+  await accountPage.getByRole('navigation', { name: 'Workspace tasks' }).getByRole('button', { name: 'School access', exact: true }).click();
+  let creation = accountPage.getByRole('region', { name: 'Create a local test account' });
+  const createButton = () => creation.getByRole('button', { name: 'Review and create test account', exact: true });
+  await createButton().waitFor();
+  await accountPage.waitForFunction(() => !document.querySelector('input[name="email"]').disabled && !document.querySelector('input[name="email"]').closest('fieldset').disabled);
+  const uiEmail = randomUUID() + '@fixture.invalid', uiPassword = randomUUID() + randomUUID();
+  await creation.getByLabel('New account email').fill(uiEmail);
+  await creation.getByLabel('New account subject identifiers').fill('math');
+  await creation.getByLabel('Reason for creating account').fill('Synthetic UI recovery creation');
+  await creation.getByLabel('Initial test password', { exact: true }).fill(uiPassword);
+  let uiWrites = 0, uiRequestId;
+  await accountPage.route('**/api/accounts/provision', async route => {
+    if (route.request().method() !== 'POST') return route.continue();
+    const body = route.request().postDataJSON();
+    if (body.action !== 'provision') return route.continue();
+    uiWrites++; uiRequestId = body.requestId;
+    const response = await route.fetch();
+    assert.equal(response.status(), 200, 'Real account creation completes before the synthetic response loss');
+    await route.abort('failed');
+  });
+  await accountPage.evaluate(() => {
+    window.tanawSavedSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key, value) { if (key.startsWith('tanaw-provision-request:')) throw Error('Synthetic storage denial'); return window.tanawSavedSetItem.call(this, key, value); };
+  });
+  await createButton().click();
+  await creation.getByText('The recovery request ID could not be saved. Nothing was sent. Allow session storage and try again.', { exact: true }).waitFor();
+  assert.equal(uiWrites, 0, 'Storage denial must prevent any write');
+  await accountPage.evaluate(() => { Storage.prototype.setItem = window.tanawSavedSetItem; delete window.tanawSavedSetItem; });
+  await accountPage.context().setOffline(true);
+  await createButton().click();
+  await creation.getByText('Connect before creating an account. Nothing was sent.', { exact: true }).waitFor();
+  assert.equal(uiWrites, 0, 'Offline admission must prevent creation');
+  await accountPage.context().setOffline(false);
+  await createButton().focus(); await accountPage.keyboard.press('Enter');
+  await creation.getByText('Connection interrupted. Creation may have continued. Check this request’s status before retrying.', { exact: true }).waitFor();
+  assert.equal(uiWrites, 1);
+  assert.equal(await creation.getByLabel('Initial test password', { exact: true }).inputValue(), '');
+  assert.equal(await createButton().isDisabled(), true, 'Uncertain request freezes details');
+  assert.equal(await creation.getByRole('button', { name: 'Prepare another test account' }).count(), 0);
+  assert.equal(await creation.getByRole('status').evaluate(el => el === document.activeElement), true, 'Result focus supports keyboard recovery');
+  const provisionStorageKey = `tanaw-provision-request:${users.smeaCoordinator.id}:${school}`;
+  const localRecovery = await accountPage.evaluate(key => ({ id: sessionStorage.getItem(key), all: Object.entries(sessionStorage).filter(([k]) => k.startsWith('tanaw-provision-request:')), local: Object.entries(localStorage).filter(([k]) => k.startsWith('tanaw-provision-request:')) }), provisionStorageKey);
+  assert.equal(localRecovery.id, uiRequestId);assert.deepEqual(localRecovery.all, [[provisionStorageKey, uiRequestId]]);assert.deepEqual(localRecovery.local, []);
+  const uiJournal = await admin.from('tanaw_provisioning_requests').select('*').eq('id', uiRequestId).single();
+  assert.equal(uiJournal.error, null);assert.ok(uiJournal.data.completed_at);assert.equal(JSON.stringify(uiJournal.data).includes(uiPassword), false);
+  const uiEvents = await admin.from('tanaw_membership_events').select('actor_id').eq('target_user_id', uiJournal.data.reserved_user_id);
+  assert.equal(uiEvents.data.length, 1);assert.equal(uiEvents.data[0].actor_id, users.smeaCoordinator.id);
+  await accountPage.unroute('**/api/accounts/provision');
+  for (const [statusCode, code, text, receiptId] of [
+    [200, 'account-complete', 'Account status is unavailable.', randomUUID()],
+    [202, 'account-pending', 'Account outcome is pending.', uiRequestId],
+    [403, 'provisioning-access-denied', 'Current access does not permit this request.', uiRequestId],
+    [404, 'request-unavailable', 'No accessible receipt was found.', uiRequestId],
+    [409, 'account-request-conflict', 'The request conflicts with a stored request or identity.', uiRequestId],
+  ]) {
+    await accountPage.route('**/api/accounts/provision', route => route.fulfill({ status: statusCode, contentType: 'application/json', body: JSON.stringify({ code, localOnly: true, requestId: receiptId }) }));
+    await creation.getByRole('button', { name: 'Check account request status' }).click();
+    await creation.getByRole('status').filter({ hasText: text }).waitFor();
+    assert.equal(await creation.getByRole('button', { name: 'Prepare another test account' }).count(), 0);
+    await accountPage.unroute('**/api/accounts/provision');
+  }
+  await accountPage.reload();
+  await accountPage.getByRole('navigation', { name: 'Workspace tasks' }).getByRole('button', { name: 'School access', exact: true }).click();
+  creation = accountPage.getByRole('region', { name: 'Create a local test account' });
+  await creation.getByText(uiRequestId, { exact: true }).waitFor();
+  assert.equal(await creation.getByLabel('New account email').inputValue(), '');
+  assert.equal(await creation.getByLabel('Initial test password', { exact: true }).inputValue(), '');
+  assert.equal(await creation.getByText('Retry the same request after checking status', { exact: true }).count(), 0, 'Reload offers status only, not an invented command');
+  await creation.getByRole('button', { name: 'Check account request status' }).click();
+  await creation.getByRole('status').filter({ hasText: 'Account creation confirmed.' }).waitFor();
+  assert.equal(uiWrites, 1, 'Recovery must not issue a second creation');
+  for (const width of [390, 768, 1440]) {
+    await accountPage.setViewportSize({ width, height: 1000 });
+    assert.equal(await accountPage.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false, 'Creation and long recovery ID fit the viewport');
+  }
+  await accountPage.screenshot({ path: output + '/account-provision-recovery.png', fullPage: true });
+  await creation.getByRole('button', { name: 'Prepare another test account' }).click();
+  assert.equal(await accountPage.evaluate(key => sessionStorage.getItem(key), provisionStorageKey), null);
+  await creation.getByLabel('New account email').fill(randomUUID() + '@fixture.invalid');
+  await creation.getByLabel('Reason for creating account').fill('Synthetic UI explicit retry');
+  await creation.getByLabel('Initial test password', { exact: true }).fill(randomUUID() + randomUUID());
+  let retryId;
+  await accountPage.route('**/api/accounts/provision', route => {
+    const body = route.request().postDataJSON(); retryId = body.requestId;
+    return route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({ code: 'account-pending', localOnly: true, requestId: retryId }) });
+  });
+  await createButton().click();
+  await creation.getByRole('status').filter({ hasText: 'Account outcome is pending.' }).waitFor();
+  await accountPage.unroute('**/api/accounts/provision');
+  await creation.getByText('Retry the same request after checking status', { exact: true }).click();
+  await creation.getByLabel('Re-enter initial test password').fill(randomUUID() + randomUUID());
+  await creation.getByRole('button', { name: 'Retry this account request', exact: true }).click();
+  await creation.getByRole('status').filter({ hasText: 'Account creation confirmed.' }).waitFor();
+  assert.equal((await admin.from('tanaw_provisioning_requests').select('completed_at').eq('id', retryId).single()).data.completed_at !== null, true, 'Explicit retry uses the same request ID');
+  assert.equal(await creation.getByLabel('Initial test password', { exact: true }).inputValue(), '');
+  console.log('PASS coordinator creation UI: real account/audit, lost response/reload/status, immutable pending request, storage denial/offline zero writes, exact receipt checks, explicit retry, password clearing, scoped ID-only recovery, keyboard and responsive layout');
+
   for (const target of [users.smeaCoordinator.id, users.teacher.id]) {
     await handoverCoordinator.ui.getByLabel('Assigned submission').selectOption({ index: 1 });
     if (!await handoverCoordinator.ui.getByLabel('New assigned account').isVisible()) await handoverCoordinator.ui.getByText('Hand over an unsubmitted assignment', { exact: true }).click();
@@ -122,6 +222,7 @@ try {
     await handoverCoordinator.ui.getByText('Action recorded with its history.', { exact: true }).waitFor();
   }
   const teacher = await login('teacher');
+  assert.equal(await teacher.page.getByRole('region', { name: 'Create a local test account' }).count(), 0, 'Teacher has no creation interface');
   const deniedProvision = await teacher.page.context().request.post(provisionUrl, { ...provisionOptions, data: { ...provisionBody, requestId: randomUUID(), email: randomUUID() + '@fixture.invalid' } });
   assert.equal(deniedProvision.status(), 403, 'Teacher cannot create accounts');
   await teacher.ui.getByLabel('Assigned submission').selectOption({ index: 1 });

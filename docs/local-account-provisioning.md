@@ -317,3 +317,29 @@ technical budgets and scored decision are in
 `workaround-decisions-2026-10-20.md`. No renewal, provider cancellation guarantee,
 distributed quota, production endpoint activation or hosted mutation is claimed.
 Fresh same-head CI must execute the real Next route tests before a live pass claim.
+
+
+## Local coordinator workspace continuation
+
+School access includes local synthetic creation and receipt checks. Availability
+comes from the server capability endpoint; it never overrides the structural
+loopback guard. Existing member management remains separate and usable when
+creation is unavailable. Review explicitly names email, roles, subjects and
+reason. Current cookie identity and SQL remain the authorization boundary.
+
+Before creation, persist only the request UUID in sessionStorage under
+`tanaw-provision-request:<actor>:<school>`. If storage fails, no write is sent.
+No credential, email, assignment or reason is stored by this component. Password
+DOM is cleared on dispatch. After an uncertain reply, details remain frozen and
+an explicit retry reuses the identical in-memory command, with password re-entry;
+existing account passwords are not reset. Reload restores only the ID and offers
+status checks. If that result stays pending, reconcile with the coordinator:
+there is deliberately no invented payload reconstruction or replacement account.
+A confirmed receipt permits an explicit new request and removal of the old ID.
+
+This is not secure production onboarding, invitation delivery, ownership
+verification or first-login password rotation. Those remain gated. Synthetic
+browser tests must exercise lost response after real creation, status on reload,
+storage denial/offline zero writes, mismatched receipt denial, immutable pending
+states, explicit same-ID retry and separate role/school recovery keys. Physical
+Android/TalkBack and real partitions remain unobserved.
