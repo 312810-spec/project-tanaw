@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { createClient } from '@supabase/supabase-js';
-import { reconcileReservedAuth } from '../app/lib/provisioning-auth-recovery.ts';
+import { reconcileReservedAuthBounded } from '../app/lib/bounded-auth-recovery.ts';
 
 const uuid = value => typeof value === 'string' && /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(value);
 let holder;
@@ -30,7 +30,9 @@ try {
   assert.ok(publicKey && privateKey);
   const options = { auth: { persistSession: false, autoRefreshToken: false } };
   const caller = createClient(url, publicKey, { ...options, global: { headers: { Authorization: 'Bearer ' + request.token } } });
-  const admin = createClient(url, privateKey, options);
+  const admin = signal => createClient(url, privateKey, { ...options, global: {
+    fetch: (input, init) => fetch(input, { ...init, signal }),
+  } });
   const identity = await caller.auth.getUser(request.token);
   assert.equal(identity.error, null);
 
@@ -58,21 +60,21 @@ try {
     assert.equal(stored.data.school_id, request.school);
     if (!stored.data.completed_at) {
       let responseLossInjected = false;
-      const recovered = await reconcileReservedAuth({ userId: reserved.data, email: stored.data.email,
+      const recovered = await reconcileReservedAuthBounded({ userId: reserved.data, email: stored.data.email,
         requestId: request.id, schoolId: request.school }, {
-        async ownsRequest() {
+        async ownsRequest(signal) {
           if (holder.exitCode !== null) return false;
-          const current = await caller.from('tanaw_provisioning_requests').select('actor_id,reserved_user_id').eq('id', request.id).maybeSingle();
+          const current = await caller.from('tanaw_provisioning_requests').select('actor_id,reserved_user_id').eq('id', request.id).maybeSingle().abortSignal(signal);
           return !current.error && current.data?.actor_id === identity.data.user.id
             && current.data?.reserved_user_id === reserved.data && holder.exitCode === null;
         },
-        async lookup(id) {
-          const found = await admin.auth.admin.getUserById(id);
+        async lookup(id, signal) {
+          const found = await admin(signal).auth.admin.getUserById(id);
           if (found.error) return { status: found.error.status === 404 ? 'missing' : 'unavailable' };
           return found.data.user ? { status: 'found', user: found.data.user } : { status: 'unavailable' };
         },
-        async create() {
-          const created = await admin.auth.admin.createUser({ id: reserved.data, email: stored.data.email,
+        async create(signal) {
+          const created = await admin(signal).auth.admin.createUser({ id: reserved.data, email: stored.data.email,
             password: randomUUID() + randomUUID(), email_confirm: true,
             app_metadata: { tanaw_provision_request_id: request.id, tanaw_provision_school_id: request.school } });
           if (created.error) throw new Error('fixture-create-uncertain');
@@ -81,7 +83,7 @@ try {
             throw new Error('fixture-create-response-lost');
           }
         },
-      });
+      }, { timeoutMs: 5000 });
       assert.equal(recovered.status, 'verified'); assert.equal(recovered.userId, reserved.data);
       if (request.loseCreateResponse === true) assert.equal(responseLossInjected, true);
       if (request.pauseAfterAuth === true) {
