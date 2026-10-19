@@ -1,0 +1,19 @@
+{
+  "schema": "tanaw-synthetic-export-package-check-v1",
+  "status": "pass",
+  "xlsxNumericAndFormulaCells": true,
+  "nativePptxTables": 2,
+  "pdfPages": 1,
+  "aggregateValues": [
+    5,
+    0
+  ],
+  "privateFixtureTextAbsent": true,
+  "targetApplicationEditSaveReopen": "not run",
+  "files": {
+    "tanaw-synthetic-results.xlsx": "7c47b62329aaa58ccedd8ee0eb9b907c4e6495f1452a5ef2469296c0705481b0",
+    "tanaw-synthetic-results.pptx": "19a4fa391dcfbacc62c2d3883ccff879e2d7475b2d8b64bb5e8304b5aa05df44",
+    "tanaw-synthetic-results.pdf": "20130c7efc6025dab6e44c18cbdd79231efca6a28f68bd9322a464951c33ed4e",
+    "tanaw-synthetic-model.json": "c3df54c858b8e0f619181cb0edaa0182d9e390252fb966dbb46ed72858b18851"
+  }
+}
