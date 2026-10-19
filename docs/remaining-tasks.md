@@ -1,6 +1,6 @@
 # TANAW — canonical remaining-task ledger
 
-20 October 2026. Baseline main `9d45bd48ef5e52135e50d86d81ac74f89e93776b` (PR #51 merged).
+20 October 2026. Baseline main `e40ee53943718095858f2d3b666401ceca8e7a0b` (PR #52 merged).
 READY = bounded synthetic/local development; GATED = activation awaits evidence;
 BLOCKED = external input required; PARTIAL never means operationally done.
 
@@ -16,7 +16,7 @@ BLOCKED = external input required; PARTIAL never means operationally done.
 | T08 | Governed results/charts — PARTIAL synthetic | Frozen headcount/pooled-percentage diagnostic tested; reviewed contracts/populations, server projection persistence and aggregate-only chart/district access remain. |
 | T09 | District acceptance — GATED | T08 and required reviews; existing acceptance gate stays closed. |
 | T10 | Editable Excel/PPT/PDF — PARTIAL synthetic | [Aggregate-only prototypes](synthetic-export-prototype.md) generated, native cells/tables and all renders checked. Official template bindings, governed totals, runtime authorization and target-application edit/save/reopen remain. |
-| T11 | Account bootstrap/provisioning — PARTIAL local HTTP capability | Claim races and bounded recovery merged in PRs #50–#51. [Scored workaround](workaround-decisions-2026-10-20.md) selects disabled-by-default, loopback-only coordinator HTTP provisioning/status; require current-head real-route/Auth CI. Coordinator UX, secure credential handoff, reviewed production budgets/quotas, initial coordinator and real partitions remain. |
+| T11 | Account bootstrap/provisioning — PARTIAL local HTTP capability | Claim races and bounded recovery merged in PRs #50–#51. [Scored workaround](workaround-decisions-2026-10-20.md) selects disabled-by-default, loopback-only coordinator HTTP provisioning/status; PR #52 real-route/Auth CI passed at 030cbbb. Coordinator creation/recovery UI is implemented on the continuation branch and requires current-head browser/storage checks before integration. Secure credential handoff, reviewed production budgets/quotas, initial coordinator and real partitions remain. |
 | T12 | Production recovery email — BLOCKED live setup | Authorized sender/domain/credentials, trusted callback and observed recipient flow. |
 | T13 | Android/TalkBack — PENDING observations | Physical touch/focus/assistive/interruption checks; CI viewports do not replace them. |
 | T14 | TNHS pilot/rollout — BLOCKED actual use | Designated participants, confirmed records, authorized environment and observed workflow/recovery. |

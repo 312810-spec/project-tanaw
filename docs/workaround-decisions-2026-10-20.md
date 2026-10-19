@@ -80,3 +80,48 @@ also rejects wrong Host and accepts the normalized internal-URL case only throug
 authentication. No credential, role, cross-school or hosted gate was relaxed.
 The local probe verifies transport admission only; fresh isolated CI still must
 verify actual Auth creation, receipts and the full school workflow.
+
+## Continuation — coordinator workspace (20 October)
+
+Baseline main e40ee53: PR #52 final head 030cbbb passed domain 39294346243,
+public browser 39294346411 and isolated SQL/Auth/browser 39294346328. The actual
+HTTP route completed one attributed membership and preserved the first password.
+
+Using the same weights, scoped coordinator creation/recovery UI scores
+5/4/5/4/4 = 90, source intake remains 84 and new production onboarding is
+5/4/2/2/2 = 68. Select the local UI; production credential delivery cannot be
+substituted by an unverified password message. No expert consultation is claimed;
+this is architecture/risk analysis against the actual implementation.
+
+Frozen acceptance before edits:
+- Coordinator School access exposes local synthetic creation only when the server
+  capability is available; existing account management remains usable otherwise.
+- Review email, roles, exact subjects and reason before creation. Server remains
+  authority; no actor/UUID/proof/metadata is accepted from form fields.
+- Store only a request ID under actor+school in session storage before sending.
+  No email, password, role, subject or reason persists in browser storage/URLs.
+  If storage is denied, do not send; show a recovery instruction.
+- Pending/lost/malformed/timed-out replies keep the same ID and immutable command.
+  No automatic creation retry or new account request while unresolved. Explicit
+  same-command retry requires password re-entry; reload offers status-only
+  reconciliation without reconstructing a credential or payload.
+- Only matching 200 account-complete receipts confirm completion; 202, 404,
+  conflict, denied, offline and unavailable remain distinct. Completion is not
+  credential delivery, email ownership or readiness for school use.
+- Clear password DOM on dispatch, preserve nonsecret in-memory details, abort
+  stale/unmounted work and isolate actor/school state. Clear stored ID only by
+  explicit new-request action after verified completion.
+- Browser checks exercise actual creation, lost response/reload/status, denial,
+  storage failure, no credential persistence and narrow-screen keyboard use.
+  Full unchanged-head CI is required before merge; physical-device acceptance
+  remains separate. No hosted settings/schema/identity/credential delivery changes.
+
+
+First workspace run at 2b470ef: new creation/recovery scenarios passed, including
+real Auth, audit and loss after commit. The subsequent pre-existing handover test
+timed out because the added scenario left School access selected. Restore the
+Submissions and review entry state before handover; retain all assertions. Internal
+render inspection also removed empty disabled creation fields after reload (no
+retained payload exists), separated adjacent actions/cards, and added a mobile
+render plus unavailable-capability/existing-management check. Require fresh
+unchanged-head complete CI; a partial passing scenario is not a complete run.
