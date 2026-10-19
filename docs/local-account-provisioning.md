@@ -288,3 +288,32 @@ fetch calls with a 5000 ms total budget. Domain stalls are simulated; fresh
 unchanged-head isolated CI must verify real Auth composition before claiming pass.
 See [bounded recovery acceptance and limits](bounded-auth-recovery.md). Production
 budget/lease renewal policy and true provider/network cancellation remain open.
+
+## Local HTTP boundary — 20 October 2026
+
+PR #51 final df33eb2 passed domain 39280900148 (176 Node / 40 Python), public
+39280900165 and isolated 39280900249 before integration as 9d45bd4. Runner queue
+is resolved; bounded recovery composed with actual Auth and kill/restart checks.
+
+`/api/accounts/provision` adds a cookie-authenticated POST boundary for existing
+active school SMEA Coordinators. GET exposes only capability availability.
+POST action `provision` accepts immutable school/request/email/role/subject/reason
+fields and a first-creation password; action `status` accepts school/request only.
+No client actor, reserved UUID, epoch, token or app metadata is accepted.
+Successful finish is reread from the actor-scoped durable journal before response.
+Credentials/proofs never appear in responses; errors are static codes.
+
+Activation requires explicit local flag, exact `http://127.0.0.1:55321` backend,
+loopback HTTP app origin, public key and process-only local service credential.
+Hosted URLs are structurally rejected even with the flag. Do not store a service
+credential in .env.local, a public variable or committed files. Isolated CI
+injects it only into its ephemeral app process. Default capability is unavailable.
+
+This development adapter auto-confirms synthetic Auth email to exercise sign-in.
+It does not establish human/email ownership or deliver a credential. Production
+needs an approved secure onboarding/handoff and separately authorized environment;
+the coordinator form and initial coordinator setup remain pending. The local
+technical budgets and scored decision are in
+`workaround-decisions-2026-10-20.md`. No renewal, provider cancellation guarantee,
+distributed quota, production endpoint activation or hosted mutation is claimed.
+Fresh same-head CI must execute the real Next route tests before a live pass claim.

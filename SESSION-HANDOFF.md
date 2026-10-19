@@ -1,65 +1,69 @@
 # TANAW — active checkpoint
 
-19 October 2026. Repo `312810-spec/project-tanaw`; baseline main
-`3d2014964899afc85cd5f020a91bde6cf60e1fab` (PR #50 merged). Branch
-`forge/bounded-auth-recovery-20261019`. Inspect live refs/PR/current-head CI
-before continuing. Scoped implementation, publishing and verified integration
-are authorized. Hosted mutations/deployment/actual-use gates remain separate.
-Preserve project isolation and unrelated work.
+20 October 2026. Repo `312810-spec/project-tanaw`; baseline main
+`9d45bd48ef5e52135e50d86d81ac74f89e93776b` (PR #51 merged). Branch
+`forge/local-provisioning-http-20261020`. Inspect current PR/head/CI before
+continuing. Engineering decisions, publishing and verified integration are
+authorized. Hosted mutation/deployment/actual-use gates remain separate.
+Keep projects isolated and preserve unrelated work.
 
-## Current bounded work
+## Decision and current bounded work
 
-T11 bounded provider-recovery foundation. The original pure recovery seam
-expects bounded adapters; a never-settling synthetic ownership callback leaves
-it suspended at a 30 ms observation boundary. This is a caller-contract gap,
-not a live Auth outage or production defect claim.
+Owner delegates consequential choices using FORGE and a scoring mechanism.
+Read `docs/workaround-decisions-2026-10-20.md`: impact 30%, dependency unlock
+25%, evidence 20%, feasibility 15%, reversibility 10%; ordinal 1–5. Provisioning
+HTTP boundary scored 90, source intake 84, renewed research 79, private staging
+73. These are prioritization judgments, not correctness/approval grades. Hard
+authority/privacy/actual-use gates override scores. Re-score on new evidence.
 
-New `reconcileReservedAuthBounded` supplies one explicit total timeout and
-shared AbortSignal, optional parent cancellation, monotonic deadline checks
-before stages and before returning identity. Deadline/cancellation returns
-pending without identity, aborts the signal and prevents subsequent callbacks.
-No timeout reset, retry scheduler, lease renewal or membership grant. An already
-running provider that ignores cancellation can still write; later authorized
-recovery must use the same reserved UUID.
+Selected boundary reuses trusted SQL/recovery rather than parallel role grants.
+New POST `/api/accounts/provision`: origin/type/body/concurrency admission →
+fresh cookie identity/active school SMEA role → immutable reservation → private
+worker claim → bounded exact-UUID Auth recovery → fenced finish → reread receipt.
+Status POST reads current authorized journal only. Client actor/UUID/proof/metadata
+injection rejected. Password goes only to first creation; never journaled,
+returned, logged or used to reset an existing password.
 
-Eight new tests cover stalled ownership/lookup/create/final read, parent abort,
-late write/rejection and later recovery, shared budget, delayed timer delivery,
-invalid options and original identity/ownership/private-error semantics. Local
-176 domain / 40 Python tests, lint/typecheck/baseline passed. Docker is absent;
-stack SKIP is not PASS. Initial build hit the stale Turbopack persistence cache;
-clean production build passed after moving that generated cache aside.
+Disabled by default and structurally restricted to exact local backend 55321 and
+loopback HTTP origin. Process-only local service credential; never .env.local or
+public variables. Hosted configuration stays unavailable even with flag set.
+Development email auto-confirm is only synthetic sign-in, not identity/email
+ownership or credential delivery. Coordinator UI/secure handoff remain pending.
 
-The synthetic subprocess uses an explicit 5000 ms budget and forwards cancellation
-to actual ownership HTTP and Auth fetch calls. Fresh unchanged-head isolated
-CI must verify composition with create-response loss, kill/restart, one receipt
-and existing claim/expiry/browser checks. See `docs/bounded-auth-recovery.md`.
-No production worker, endpoint, credential, schema/grant or hosted change.
+Local HTTP tests cover admission, unknown fields, wrong scope/actor/bindings,
+busy/expired claims, uncertain finish/status recovery, private error output,
+revocation, transport limits/cancel, process concurrency and false receipt denial.
+Actual Next/Auth integration cases added to authenticated browser fixture:
+anonymous/teacher/origin/cross-school/actor rejection; duplicate HTTP completion;
+one attributed membership; status and immutable replay; original password retained.
+Default public browser checks assert unavailable. Require fresh same-head CI;
+Docker is absent locally and no live pass may be inferred from unit tests.
 
-## Prior verified outcomes
+## Verified carryovers
 
-PR #50 final head `f9db28cb71c5e462da857599f2a46a7112762224` passed isolated
-39271897474, domain 39271897298 and public browser 39271897050. Initial 10-second
-expiry test was query-canceled (57014); a 3-second synthetic lease preserved
-observed target wait, real clock expiry, strict 42501, zero-write and successor
-recovery assertions. Contending first/successor claims, stale late-Auth denial,
-fixed-UUID reconciliation and discarded duplicate-finish response with one
-attributed membership passed. Source: `docs/provisioning-claim-races.md`.
+PR #51 df33eb2 passed domain 39280900148 (176 Node / 40 Python), public 39280900165
+and isolated 39280900249. Prior queue resolved. Shared total deadline and abort
+forwarding composed with real Auth, lost-response and kill/restart checks.
+PR #50 f9db28c passed actual claim contention/late-write/lost-response/real expiry;
+its 10 s probe was query-canceled, then 3 s probe preserved strict 42501 and
+zero-write/successor checks. References: bounded-auth-recovery.md and
+provisioning-claim-races.md.
 
-PR #49 synthetic editable XLSX/native PPTX/fixed PDF passed value, edit/restore,
-package and render checks; hashes in
-`docs/receipts/synthetic-export-2026-10-19.json`. Native Microsoft edit/save/reopen
-and official bindings remain pending. PR #48 fixed exact own-submission SMEA
-review and empty-form version feedback; independent Head remains required.
+PR #49 synthetic editable exports retain native cells/tables and version
+references, with all renders checked; official bindings and native Microsoft
+edit/save/reopen remain gated. PR #48 SMEA exact own-submission review and empty
+form version feedback passed; independent Head remains mandatory.
 
-## Continuation and limits
+## Continuation / acceptance limits
 
-Inspect the bounded-recovery PR/head and CI; repair failures and integrate only
-after required gates pass. If merged, sync main. Use `docs/remaining-tasks.md`
-as the sole task ledger. T11 reviewed budget/ownership/provider execution policy,
-renewal, endpoints/onboarding, initial coordinator, real partitions and orphan
-disposition remain. Pending never proves an external write was canceled or absent.
+Inspect current local-HTTP PR and CI; repair failures and integrate only with
+unchanged-head domain, build, SQL/Auth/concurrency and authenticated/public-browser
+checks. Then sync main. Decisions/criteria are in the scoring record; use
+`docs/remaining-tasks.md` as sole ledger. Never mark the whole app complete.
 
-T01–T07 source/policy/mapping/calendar gates, T08 governed persistence/access,
-T09 district acceptance, T10 official exports, T12 recovery delivery, T13 physical
-Android/TalkBack and T14 actual pilot remain. Live AI is deferred. Drive is a
-development reference. Do not call the whole app or production rollout complete.
+T11 production timeout/renewal/quota policy, secure onboarding and initial
+coordinator remain. Pending is uncertain, not canceled/absent/rolled back.
+T01–T07 source/formula/mapping/calendar/retention gates persist; T08–T10 need
+authorized governed results and official output bindings. T12 sender setup,
+T13 physical Android/TalkBack and T14 designated actual pilot remain external
+observations/inputs. Live AI stays deferred; Drive is development reference.

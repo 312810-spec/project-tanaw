@@ -58,6 +58,10 @@ try {
     }
     const callback = await page.request.get(origin + '/auth/callback?next=https://other.invalid', { maxRedirects: 0 });
     const unavailableUpload = await page.request.post(origin + '/api/ecr/preview', { data: 'synthetic' });
+    const unavailableProvision = await page.request.post(origin + '/api/accounts/provision', { data: 'synthetic' });
+    assert.equal(unavailableProvision.status(), 503, 'Account provisioning stays disabled by default');
+    const provisionCapability = await page.request.get(origin + '/api/accounts/provision');
+    assert.deepEqual(await provisionCapability.json(), { available: false, localOnly: true });
     assert.equal(unavailableUpload.status(), 503, 'Unconfigured file preview stays unavailable');
     assert.equal((await unavailableUpload.json()).canImport, false);
     const capability = await page.request.get(origin + '/api/ecr/preview');
