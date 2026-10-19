@@ -1,6 +1,6 @@
 # TANAW — canonical remaining-task ledger
 
-19 October 2026. Baseline main `6bcea137a492c27715f7ad9d3065f05debdb7966` (PRs #35–#47 merged).
+19 October 2026. Baseline main `c23dad4758f03994eda3366de793d4f8c502ec27` (PR #48 merged).
 READY = bounded synthetic/local development; GATED = activation awaits evidence;
 BLOCKED = external input required; PARTIAL never means operationally done.
 
@@ -15,12 +15,12 @@ BLOCKED = external input required; PARTIAL never means operationally done.
 | T07 | Calendar provisioning — GATED | Applicable amendments/local reconciliation, Term 3 inconsistency; preserve assigned deadlines. |
 | T08 | Governed results/charts — PARTIAL synthetic | Frozen headcount/pooled-percentage diagnostic tested; reviewed contracts/populations, server projection persistence and aggregate-only chart/district access remain. |
 | T09 | District acceptance — GATED | T08 and required reviews; existing acceptance gate stays closed. |
-| T10 | Editable Excel/PPT/PDF — READY synthetic | Approved template bindings, governed totals, editability and render review. |
+| T10 | Editable Excel/PPT/PDF — PARTIAL synthetic | [Aggregate-only prototypes](synthetic-export-prototype.md) generated, native cells/tables and all renders checked. Official template bindings, governed totals, runtime authorization and target-application edit/save/reopen remain. |
 | T11 | Account bootstrap/provisioning — PARTIAL database foundation | [Auth recovery and durable journal](local-account-provisioning.md); real-Auth/RPC contention, restart and uncertain-write reconciliation; server-only claim/epoch controls; claim-specific races/partitions, endpoint/onboarding and initial coordinator remain. |
 | T12 | Production recovery email — BLOCKED live setup | Authorized sender/domain/credentials, trusted callback and observed recipient flow. |
 | T13 | Android/TalkBack — PENDING observations | Physical touch/focus/assistive/interruption checks; CI viewports do not replace them. |
 | T14 | TNHS pilot/rollout — BLOCKED actual use | Designated participants, confirmed records, authorized environment and observed workflow/recovery. |
-| T15 | Carryover reconciliation — PARTIAL | Own-submission SMEA exception and empty-form feedback tested at a1d974c (PR #48); SQL/Auth/browser and desktop/mobile renders verified. Check final-head ACL assertion/merge receipts in PR #48. Draft/reviewed online-send paths traced; interruption, memo/logo provenance and family scope remain. |
+| T15 | Carryover reconciliation — PARTIAL | Own-submission SMEA exception and empty-form feedback merged in PR #48; final-head a78666d SQL/Auth/browser, ACL and domain CI passed. Draft/reviewed online-send paths traced; interruption, memo/logo provenance and family scope remain. |
 | T16 | Live AI — DEFERRED | Verified reporting first; separate bounded activation. |
 
 ## Carryover evidence

@@ -1,52 +1,61 @@
 # TANAW — active checkpoint
 
-19 October 2026 (Manila). Repo `312810-spec/project-tanaw`; baseline main
-`6bcea137a492c27715f7ad9d3065f05debdb7966` (PR #47). Branch
-`forge/coordinator-own-review-20261018`, PR #48. Check live refs/PR/CI before
-continuing; latest receipts are in the PR. Scoped implementation, publishing and
-verified integration are authorized. Hosted mutation/deployment/actual-use gates
-remain. Preserve unrelated work and keep schools/projects isolated.
+19 October 2026. Repo `312810-spec/project-tanaw`; baseline main
+`c23dad4758f03994eda3366de793d4f8c502ec27` (PR #48 merged). Current branch
+`forge/synthetic-editable-exports-20261019`. Check live refs/PR/CI before
+continuing. Scoped implementation, publishing and verified integration are
+authorized. Hosted mutation/deployment/actual-use gates remain. Keep projects
+isolated; preserve unrelated work.
 
-## Outcome and completed evidence
+## Current bounded outcome
 
-Whole-app update, one evidenced journey at a time. Own manual submission → exact
-SMEA self-review → school packet → school review → independent Head → Lock is
-implemented. Decision 22 previously existed only at packet level; the policy probe
-returned wrongRole and RPC/UI/schema rejected submission self-review. Repair uses
-trusted same-school active role/author identity and stores actor/version/self flag.
-Other authors still need assigned independent subject review. Head independence,
-locked history, source values and closed district acceptance remain.
+T10 synthetic export prototype starts from original locked synthetic packet
+manifest, exact evidence versions and revision-bound contracts. The pure seam
+recomputes results, rejects missing/overlapping/mixed snapshots, releases no
+partial rows and exports only aggregate values with packet/contract/partition
+references. Publication and district acceptance remain false. No endpoint,
+database grant, runtime route or official reporting activation was added.
 
-Render review found false stale-draft feedback after cleared fields and concurrent
-correction. Empty readable forms now follow the current version; actual unsent
-work stays pinned and protected. Browser tests prove retained zero/source/reason,
-explicit discard, stale-review rejection and receipt-loss reconciliation.
+Development builders produced editable XLSX and native-table PPTX plus a fixed
+PDF reading copy. Example: 1/2 plus 0/18 pools to 1/20 = 5.00%; an independent
+recorded count remains numeric zero. No actual records or official indicators.
+Excel edit/blank/zero-denominator/restore behavior checked, output OOXML/native
+tables and PDF text checked, all sheet/slide/page renders internally reviewed.
+First font and repeated slide-warning render issues repaired. Hashes are in
+`docs/receipts/synthetic-export-2026-10-19.json`. No native Microsoft application
+edit/save/reopen claim. Builders use the bundled authoring engine only in an OS
+temporary directory; it is not a web-app dependency. See
+`docs/synthetic-export-prototype.md` for acceptance and reproduction.
 
-At `a1d974c209daa94db41cc5923d2d98837392b91a`, all CI passed: domain 39238821288
-(162 domain / 40 Python), public 39238821411, isolated 39238821322 (build, real
-SQL/Auth/concurrency/recovery and authenticated browser). Internal 1440px/390px
-own-review renders inspected; 320px overflow and keyboard activation asserted.
-First CI failed on a test UUID, corrected without authorization changes. Final
-checkpoint adds explicit anonymous-RPC/direct-write ACL assertions and docs only;
-require current-head CI before integration. Contract/results/coverage:
+Local checks: 168 domain tests and 40 Python tests passed, lint/typecheck and
+baseline passed; production build passed after moving stale generated cache
+aside. Docker is absent: baseline stack SKIP and direct stack command unavailable
+are not PASS. Require unchanged-head isolated SQL/Auth/browser CI before merge.
+
+## Previous verified journey
+
+PR #48 fixed decision 22 at submission level: trusted active same-school SMEA
+can self-review their exact own submission; actor/version/self flag recorded.
+Independent Head remains required. Empty cleared forms follow readable source
+versions; actual drafts retain zero/source/reason and explicit reconciliation.
+Final head `a78666d29cc6252f5f6ebfb94fec567af0d363d4` passed domain 39239473468,
+public browser 39239473419 and isolated 39239473337, including anonymous RPC and
+direct-write ACL checks. Earlier implementation renders inspected at desktop
+and 390px; 320px overflow and keyboard assertions passed. Source:
 `docs/web-app-assurance-2026-10-18.md`.
 
-## Limits and remaining work
+## Next gates and exact continuation
 
-Docker/PostgreSQL unavailable locally; stack SKIP is not PASS. Standard
-Playwright 1.56.1 installer now succeeds via its built-in fallback; local public
-mobile/desktop smoke and render inspection passed with required TANAW_APP_ORIGIN.
-No browser restriction bypass. Physical Android/TalkBack and actual pilot untested.
-Read AGENTS/CLAUDE, operating rules, confirmed decisions and canonical ledger
-`docs/remaining-tasks.md`. Source/calculation/roster/template/calendar gates
-T01–T07 persist. T08 governed results/persistence and T09 acceptance remain gated.
-T10 synthetic editable exports remain independent pending work. T11 production
-endpoint/onboarding/claim races, T12 recovery delivery, T13 devices and T14 pilot
-still need evidence/inputs. Drive is development reference; live AI deferred.
+Inspect the current export PR/head and CI; fix failures and integrate only after
+required checks pass. If merged, sync main. T10 remains PARTIAL: obtain approved
+template/dictionary/population bindings and committed authorized result
+projections before runtime export. Native application verification is pending.
+Use `docs/remaining-tasks.md` as the sole task ledger; do not call the whole app
+complete. Read AGENTS/CLAUDE/operating rules and confirmed decisions as needed.
 
-## Exact next action
-
-Inspect PR #48 current head, CI and merge state. If open, repair any failure and
-integrate only after current required gates pass. If merged, sync main and begin
-T10 synthetic export acceptance/bindings from the frozen diagnostic, keeping it
-clearly prototype and aggregate-only. No full-app or production-ready claim.
+T01–T07 source/policy/mapping/calendar gates persist; T08 persistence and governed
+result access, T09 district acceptance, T11 production provisioning/claim races,
+T12 recovery delivery, T13 physical Android/TalkBack and T14 actual pilot remain.
+Drive is development reference and live AI is deferred. Approved templates do
+not prove formulas or authorize rewriting locked history. Do not request the
+same publication permission again; hosted deployment is separately protected.

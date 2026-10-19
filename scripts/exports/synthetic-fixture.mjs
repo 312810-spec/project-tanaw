@@ -1,0 +1,10 @@
+/** Entirely invented data. Never use this fixture as an official dictionary. */
+const id = n => '00000000-0000-4000-8000-' + String(n).padStart(12, '0');
+export function syntheticExportFixture() {
+  const definitions = [10, 11, 12].map(n => ({id:id(n), label:'Synthetic measure '+n, unit:'count', sourceTitle:'Synthetic dictionary', sourceLocator:'fixture:dictionary', sourceId:'synthetic-source', schoolYear:'Fixture', period:'Synthetic period', formula:'synthetic-explicit-count', numerator:'synthetic count', denominator:'synthetic population', rounding:'synthetic-count'}));
+  const sizes = [2,18];
+  const partition = {id:id(4), revision:1, contributions:sizes.map((size,i)=>({slot:id(20+i),populationKeys:Array.from({length:size},(_,n)=>id(1000+1000*i+n))}))};
+  const packet = {id:id(5),school_id:id(2),cycle_id:id(3),version:1,locked_at:'2026-01-01T00:00:00Z',completeness:'complete',missing:[],manifest:sizes.map((_,i)=>({slot:id(20+i),submission:id(30+i),version:1,requiredIndicators:definitions.map(d=>d.id),requirementsRevision:1,coverageComplete:true,definitions:structuredClone(definitions)}))};
+  const evidence = sizes.map((size,i)=>({submission_id:id(30+i),version:1,author_id:'PRIVATE_SYNTHETIC_SOURCE',reason:'PRIVATE_SYNTHETIC_SOURCE',evidence:{kind:'manualIndicators',entries:definitions.map((d,j)=>({definitionId:d.id,value:j===0?(i===0?1:0):j===1?size:0,sourceTitle:'PRIVATE_SYNTHETIC_SOURCE',sourceLocator:'PRIVATE_SYNTHETIC_SOURCE'}))}}));
+  return ['pooled-count','recorded-zero'].map((binding,i)=>({binding,contract:{schema:'tanaw-frozen-result-contract-v1',purpose:'synthetic',id:id(i===0?1:6),revision:1,schoolId:id(2),cycleId:id(3),schoolYear:'Fixture',period:'Synthetic period',method:i===0?'populationPercentage':'countSum',decimals:i===0?2:0,rounding:'halfUp',numeratorDefinition:structuredClone(definitions[i===0?0:2]),denominatorDefinition:i===0?structuredClone(definitions[1]):null,partition:structuredClone(partition)},packet:structuredClone(packet),evidence:structuredClone(evidence)}));
+}
