@@ -91,7 +91,7 @@ jobs:
       - name: Verify parallel synthetic import sessions and disconnect rollback
         run: python scripts/verify_import_parallel.py
       - name: Verify isolated Auth provisioning and membership recovery
-        run: node scripts/verify_local_provisioning.mjs
+        run: node --experimental-strip-types scripts/verify_local_provisioning.mjs
       - name: Run baseline checks against local stack
         run: npm run verify
       - name: Install isolated authenticated browser tooling
