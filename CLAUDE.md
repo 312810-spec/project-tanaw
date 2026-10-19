@@ -2,6 +2,15 @@
 
 # Project TANAW
 
+## Engineering prioritization — owner instruction, 20 October 2026
+
+For consequential engineering choices, use FORGE and a documented weighted
+decision score. State criteria/weights, evidence, alternatives, hard gates and
+recheck triggers. Scores are prioritization judgments, not correctness evidence
+or permission to invent official sources, approvals or actual-use observations.
+The owner delegates routine implementation choices; proceed within the authorized
+scope. Current scoring/selection: `docs/workaround-decisions-2026-10-20.md`.
+
 > Current implementation reference: `docs/confirmed-decisions-2026-10-08.md` governs the review sequence: Submit → Subject review → School review → Independent School Head review → Explicit SMEA Coordinator Lock → District review. Earlier phase descriptions below are historical; district acceptance is separate from Lock and awaits governed result content. Autonomous UX repair and branch publishing are authorized in the current task; hosted changes and deployment still require separate authorization.
 
 West 1 District MEA Platform.

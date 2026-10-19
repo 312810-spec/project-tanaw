@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readdir, readFile } from 'node:fs/promises';
 import { createClient } from '@supabase/supabase-js';
 import { projectFrozenResult } from '../app/lib/frozen-results.ts';
 const require = createRequire(import.meta.url);
@@ -38,9 +38,12 @@ const seed = spawnSync('docker', ['exec', '-i', 'supabase_db_project-tanaw', 'ps
 assert.equal(seed.status, 0, 'Synthetic local workflow setup must succeed');
 const build = spawnSync('npm', ['run', 'build'], { env: { ...process.env, NEXT_PUBLIC_SUPABASE_URL: url, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publicKey }, stdio: 'inherit' });
 assert.equal(build.status, 0, 'Configured local preview must build');
+for (const name of await readdir('.next/static', { recursive: true })) {
+  if (/\.(js|map)$/.test(name)) assert.equal((await readFile('.next/static/' + name, 'utf8')).includes(privateKey), false, 'Privileged key must not appear in browser bundles');
+}
 const python = spawnSync('python3', ['-c', 'import sys; print(sys.executable)'], { encoding: 'utf8' });
 assert.equal(python.status, 0, 'Isolated preview worker needs an installed Python');
-const server = spawn('npm', ['run', 'start', '--', '--hostname', '127.0.0.1', '--port', '3000'], { detached: true, stdio: 'ignore', env: { ...process.env, TANAW_APP_ORIGIN: 'http://127.0.0.1:3000', TANAW_ECR_PREVIEW_ENABLED: '1', TANAW_ECR_PYTHON: python.stdout.trim() } });
+const server = spawn('npm', ['run', 'start', '--', '--hostname', '127.0.0.1', '--port', '3000'], { detached: true, stdio: 'ignore', env: { ...process.env, TANAW_APP_ORIGIN: 'http://127.0.0.1:3000', TANAW_ECR_PREVIEW_ENABLED: '1', TANAW_ECR_PYTHON: python.stdout.trim(), TANAW_LOCAL_PROVISIONING_ENABLED: '1', TANAW_LOCAL_PROVISIONING_SERVICE_KEY: privateKey } });
 const origin = 'http://127.0.0.1:3000';
 let browser;
 const pages = [];
@@ -72,6 +75,44 @@ try {
     return { page, ui };
   }
   const handoverCoordinator = await login('smeaCoordinator');
+  const provisionUrl = origin + '/api/accounts/provision';
+  const provisionBody = { action: 'provision', schoolId: school, requestId: randomUUID(), email: randomUUID() + '@fixture.invalid', roles: ['teacher'], subjectIds: ['math'], reason: 'Synthetic HTTP account creation', password: randomUUID() + randomUUID() };
+  const provisionOptions = { headers: { origin, 'content-type': 'application/json' }, data: provisionBody };
+  const anonProvision = await fetch(provisionUrl, { method: 'POST', headers: provisionOptions.headers, body: JSON.stringify(provisionBody) });
+  assert.equal(anonProvision.status, 401, 'Anonymous HTTP caller cannot provision');
+  const badOrigin = await handoverCoordinator.page.context().request.post(provisionUrl, { ...provisionOptions, headers: { ...provisionOptions.headers, origin: 'https://attacker.invalid' } });
+  assert.equal(badOrigin.status(), 403, 'Origin check precedes privileged work');
+  const crossSchool = await handoverCoordinator.page.context().request.post(provisionUrl, { ...provisionOptions, data: { ...provisionBody, requestId: randomUUID(), schoolId: randomUUID() } });
+  assert.equal(crossSchool.status(), 403, 'Coordinator cannot select an unauthorized school');
+  const injected = await handoverCoordinator.page.context().request.post(provisionUrl, { ...provisionOptions, data: { ...provisionBody, actorId: users.smeaCoordinator.id } });
+  assert.equal(injected.status(), 400, 'Client actor injection rejected');
+  const duplicates = await Promise.all([1, 2].map(() => handoverCoordinator.page.context().request.post(provisionUrl, provisionOptions)));
+  for (const response of duplicates) {
+    assert.ok([200, 202].includes(response.status()), 'Duplicate HTTP requests must complete or remain pending');
+    assert.equal(response.headers()['cache-control'], 'no-store, private');
+    const payload = await response.text();
+    assert.ok(!payload.includes(provisionBody.password), 'Password never returned');
+    assert.doesNotMatch(payload, /token|epoch|reserved_user|app_metadata|actor_id/);
+  }
+  const storedProvision = await admin.from('tanaw_provisioning_requests').select('*').eq('id', provisionBody.requestId).single();
+  assert.equal(storedProvision.error, null);
+  assert.equal(JSON.stringify(storedProvision.data).includes(provisionBody.password), false, 'Initial password must not be journaled');
+  assert.ok(storedProvision.data.completed_at, 'One duplicate must commit the durable receipt');
+  const countEvents = await admin.from('tanaw_membership_events').select('actor_id').eq('target_user_id', storedProvision.data.reserved_user_id);
+  assert.equal(countEvents.error, null);assert.equal(countEvents.data.length, 1);assert.equal(countEvents.data[0].actor_id, users.smeaCoordinator.id);
+  const checked = await handoverCoordinator.page.context().request.post(provisionUrl, { ...provisionOptions, data: { action: 'status', schoolId: school, requestId: provisionBody.requestId } });
+  assert.equal(checked.status(), 200);assert.equal((await checked.json()).code, 'account-complete');
+  const changedReplay = await handoverCoordinator.page.context().request.post(provisionUrl, { ...provisionOptions, data: { ...provisionBody, reason: 'Changed synthetic reason' } });
+  assert.equal(changedReplay.status(), 409, 'Immutable request payload cannot be repurposed');
+  const replayPassword = randomUUID() + randomUUID();
+  const exactReplay = await handoverCoordinator.page.context().request.post(provisionUrl, { ...provisionOptions, data: { ...provisionBody, password: replayPassword } });
+  assert.equal(exactReplay.status(), 200, 'Completed receipt recovered without resetting password');
+  const provisionedLogin = createClient(url, publicKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  assert.equal((await provisionedLogin.auth.signInWithPassword({ email: provisionBody.email, password: provisionBody.password })).error, null, 'Original initial password still authenticates');
+  const newAccess = await provisionedLogin.from('tanaw_memberships').select('school_id,roles,subject_ids').eq('user_id', storedProvision.data.reserved_user_id);
+  assert.equal(newAccess.error, null);assert.deepEqual(newAccess.data, [{ school_id: school, roles: ['teacher'], subject_ids: ['math'] }]);
+  await provisionedLogin.auth.signOut();
+  console.log('PASS local-only provisioning HTTP: cookie coordinator, origin/cross-school/actor denial, duplicate receipt, one attributed membership, status recovery and unchanged original password');
   for (const target of [users.smeaCoordinator.id, users.teacher.id]) {
     await handoverCoordinator.ui.getByLabel('Assigned submission').selectOption({ index: 1 });
     if (!await handoverCoordinator.ui.getByLabel('New assigned account').isVisible()) await handoverCoordinator.ui.getByText('Hand over an unsubmitted assignment', { exact: true }).click();
@@ -81,6 +122,8 @@ try {
     await handoverCoordinator.ui.getByText('Action recorded with its history.', { exact: true }).waitFor();
   }
   const teacher = await login('teacher');
+  const deniedProvision = await teacher.page.context().request.post(provisionUrl, { ...provisionOptions, data: { ...provisionBody, requestId: randomUUID(), email: randomUUID() + '@fixture.invalid' } });
+  assert.equal(deniedProvision.status(), 403, 'Teacher cannot create accounts');
   await teacher.ui.getByLabel('Assigned submission').selectOption({ index: 1 });
   const uploadSlot = await admin.from('tanaw_submission_slots').select('id').eq('cycle_id', cycle).eq('author_id', users.teacher.id).single();
   assert.equal(uploadSlot.error, null);

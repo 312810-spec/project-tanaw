@@ -13,7 +13,7 @@ import { cookies } from "next/headers";
  * session cookies the request carries. Authorization is enforced by Row Level
  * Security on the local stack.
  */
-export async function createSupabaseServerClient() {
+export async function createSupabaseServerClient(signal?: AbortSignal) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
@@ -33,6 +33,7 @@ export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
 
   return createServerClient(supabaseUrl, supabaseKey, {
+    ...(signal ? { global: { fetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, { ...init, signal }) } } : {}),
     cookies: {
       getAll() {
         return cookieStore.getAll();
