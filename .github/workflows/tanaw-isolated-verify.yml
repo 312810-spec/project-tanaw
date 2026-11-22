@@ -3,6 +3,7 @@ name: TANAW isolated verification
 on:
   push:
     branches:
+      - main
       - verify/remote-runner-workaround
   workflow_dispatch:
   pull_request:
@@ -34,6 +35,8 @@ jobs:
           python-version: '3.13'
       - name: Install locked dependencies
         run: npm ci
+      - name: Check dependencies for high and critical advisories
+        run: npm audit --audit-level=high
       - name: Verify repository baseline
         run: npm run verify
       - name: Verify SMEA evidence semantics

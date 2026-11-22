@@ -3,9 +3,19 @@ import { spawn } from "node:child_process";
 import { isAbsolute, join } from "node:path";
 
 export async function runCoPreviewWorker(bytes: Uint8Array, term: string, python: string, signal: AbortSignal): Promise<unknown> {
-  if (!isAbsolute(python) || !["TERM 1", "TERM 2", "TERM 3"].includes(term) || bytes.byteLength > 32 * 1024 * 1024 || signal.aborted) throw new Error("preview-unavailable");
+  if (!["TERM 1", "TERM 2", "TERM 3"].includes(term) || bytes.byteLength > 32 * 1024 * 1024) throw new Error("preview-unavailable");
+  return runWorker(bytes, term, python, signal);
+}
+
+export async function checkCoPreviewWorker(python: string, signal: AbortSignal): Promise<boolean> {
+  const result = await runWorker(undefined, "--check", python, signal);
+  return !!result && typeof result === "object" && "ready" in result && result.ready === true;
+}
+
+async function runWorker(bytes: Uint8Array | undefined, argument: string, python: string, signal: AbortSignal): Promise<unknown> {
+  if (!isAbsolute(python) || signal.aborted) throw new Error("preview-unavailable");
   return new Promise((resolve, reject) => {
-    const child = spawn(python, ["-I", "-B", join(process.cwd(), "scripts/ecr_co_worker.py"), term], {
+    const child = spawn(python, ["-I", "-B", join(process.cwd(), "scripts/ecr_co_worker.py"), argument], {
       shell: false, stdio: ["pipe", "pipe", "ignore"],
       env: { NODE_ENV: process.env.NODE_ENV ?? "production", PATH: process.env.PATH ?? "", PYTHONDONTWRITEBYTECODE: "1", PYTHONIOENCODING: "utf-8" },
     });

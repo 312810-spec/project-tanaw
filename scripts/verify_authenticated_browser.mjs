@@ -3,19 +3,54 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 import { mkdir, readdir, readFile } from 'node:fs/promises';
 import { createClient } from '@supabase/supabase-js';
 import { projectFrozenResult } from '../app/lib/frozen-results.ts';
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.TANAW_PLAYWRIGHT_MODULE || 'playwright');
-const statusProcess = spawnSync('npx', ['--no-install', 'supabase', 'status', '--output', 'json'], { encoding: 'utf8' });
-assert.equal(statusProcess.status, 0, 'Local status must be available');
-const config = JSON.parse(statusProcess.stdout);
+const windows = process.platform === 'win32';
+const nextCli = require.resolve('next/dist/bin/next');
+const usePublishedDatabase = process.argv.includes('--status-stdin');
+function localStatus() {
+  if (usePublishedDatabase) return readFileSync(0, 'utf8');
+  const result = spawnSync(process.execPath, ['node_modules/supabase/dist/supabase.js', 'status', '--output', 'json'], {
+    encoding: 'utf8', timeout: 20_000,
+  });
+  assert.equal(result.status, 0, 'Local status must be available. When Docker access is limited, pipe local CLI status to --status-stdin.');
+  return result.stdout;
+}
+let config;
+try { config = JSON.parse(localStatus()); }
+catch { throw new Error('Could not read local Supabase status. Use the CLI output from the isolated TANAW stack.'); }
 const url = config.API_URL ?? config.api_url;
-assert.equal(url, 'http://127.0.0.1:55321', 'Synthetic setup must target the isolated local stack only');
+assert.ok(url === 'http://127.0.0.1:55321', 'Synthetic setup must target the isolated local stack only');
 const publicKey = config.PUBLISHABLE_KEY ?? config.ANON_KEY ?? config.anon_key;
 const privateKey = config.SECRET_KEY ?? config.SERVICE_ROLE_KEY ?? config.service_role_key;
 assert.ok(publicKey && privateKey, 'Local-only keys must be available');
+let dbUrl = null;
+if (usePublishedDatabase) {
+  try { dbUrl = new URL(config.DB_URL ?? config.db_url); }
+  catch { throw new Error('Local status must include a valid database URL.'); }
+}
+if (dbUrl) {
+  assert.ok(['postgres:', 'postgresql:'].includes(dbUrl.protocol) &&
+    dbUrl.hostname === '127.0.0.1' && dbUrl.port === '55322' &&
+    dbUrl.pathname === '/postgres' && !dbUrl.search && !dbUrl.hash, 'Native SQL must target the isolated TANAW database.');
+}
+function seedSql(input) {
+  if (!dbUrl) return spawnSync('docker', [
+    'exec', '-i', 'supabase_db_project-tanaw', 'psql', '-U', 'postgres', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1',
+  ], { input, encoding: 'utf8', timeout: 30_000 });
+  return spawnSync(process.env.TANAW_BROWSER_PSQL || 'psql', [
+    '-X', '-w', '-h', dbUrl.hostname, '-p', dbUrl.port, '-U', decodeURIComponent(dbUrl.username), '-d', 'postgres', '-v', 'ON_ERROR_STOP=1',
+  ], {
+    input, encoding: 'utf8', timeout: 30_000,
+    env: { ...process.env, PGPASSWORD: decodeURIComponent(dbUrl.password), PGCONNECT_TIMEOUT: '5' },
+  });
+}
+const databaseCheck = seedSql("do $$ begin if public.tanaw_release_ready() is distinct from true then raise exception 'Candidate migrations required'; end if; end $$;");
+assert.equal(databaseCheck.status, 0, 'The isolated database must be reachable and migrated before creating fixtures.');
 const admin = createClient(url, privateKey, { auth: { persistSession: false, autoRefreshToken: false } });
 const run = randomUUID();
 const users = {};
@@ -30,20 +65,21 @@ const school = randomUUID(), block = randomUUID(), cycle = randomUUID(), definit
 const q = (value) => "'" + String(value).replaceAll("'", "''") + "'";
 let sql = `insert into public.tanaw_schools(id,name) values(${q(school)},'Synthetic browser school');\n`;
 for (const [role, user] of Object.entries(users)) sql += `insert into public.tanaw_memberships(school_id,user_id,roles,subject_ids) values(${q(school)},${q(user.id)},array[${q(role)}],array['math']);\n`;
-sql += `insert into public.tanaw_instructional_blocks(id,school_year,label,end_date,source_order,source_url,verified_at) values(${q(block)},'Fixture','Synthetic block',current_date-1,'SYNTHETIC','https://fixture.invalid/calendar',now());\n`;
+sql += `insert into public.tanaw_instructional_blocks(id,school_year,label,end_date,source_order,source_url,verified_at) values(${q(block)},'Fixture','Term 1',current_date-1,'SYNTHETIC','https://fixture.invalid/calendar',now());\n`;
 sql += `insert into public.tanaw_reporting_cycles(id,school_id,instructional_block_id,deadline_at,created_by) values(${q(cycle)},${q(school)},${q(block)},now()+interval '1 day',${q(users.smeaCoordinator.id)});\n`;
-sql += `insert into public.smea_indicator_definitions(id,school_id,indicator_code,label,unit,school_year,reporting_period,definition_status,source_id,source_title,source_locator,formula_expression,numerator_definition,denominator_definition,rounding_rule) values(${q(definition)},${q(school)},'FIXTURE','Synthetic manual indicator','count','Fixture','Synthetic block','verified','fixture','Synthetic source','https://fixture.invalid/indicator','fixture expression','fixture numerator','fixture denominator','fixture rounding');\n`;
+sql += `insert into public.smea_indicator_definitions(id,school_id,indicator_code,label,unit,school_year,reporting_period,definition_status,source_id,source_title,source_locator,formula_expression,numerator_definition,denominator_definition,rounding_rule) values(${q(definition)},${q(school)},'FIXTURE','Synthetic manual indicator','count','Fixture','Term 1','verified','fixture','Synthetic source','https://fixture.invalid/indicator','fixture expression','fixture numerator','fixture denominator','fixture rounding');\n`;
 sql += `begin; set local role authenticated; select set_config('request.jwt.claim.sub',${q(users.smeaCoordinator.id)},true); select public.tanaw_assign_submission(${q(cycle)},${q(users.teacher.id)},'math','Synthetic class A','Synthetic browser assignment'); select public.tanaw_set_slot_requirements((select id from public.tanaw_submissions where slot_id in (select id from public.tanaw_submission_slots where cycle_id=${q(cycle)})),0,array[${q(definition)}::uuid],'Synthetic browser requirements'); commit;`;
-const seed = spawnSync('docker', ['exec', '-i', 'supabase_db_project-tanaw', 'psql', '-U', 'postgres', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1'], { input: sql, encoding: 'utf8' });
+const seed = seedSql(sql);
 assert.equal(seed.status, 0, 'Synthetic local workflow setup must succeed');
-const build = spawnSync('npm', ['run', 'build'], { env: { ...process.env, NEXT_PUBLIC_SUPABASE_URL: url, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publicKey }, stdio: 'inherit' });
+const appEnv = { ...process.env, NEXT_PUBLIC_SUPABASE_URL: url, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publicKey };
+const build = spawnSync(process.execPath, [nextCli, 'build'], { env: appEnv, stdio: 'inherit' });
 assert.equal(build.status, 0, 'Configured local preview must build');
 for (const name of await readdir('.next/static', { recursive: true })) {
   if (/\.(js|map)$/.test(name)) assert.equal((await readFile('.next/static/' + name, 'utf8')).includes(privateKey), false, 'Privileged key must not appear in browser bundles');
 }
-const python = spawnSync('python3', ['-c', 'import sys; print(sys.executable)'], { encoding: 'utf8' });
+const python = spawnSync(windows ? 'python' : 'python3', ['-c', 'import sys; print(sys.executable)'], { encoding: 'utf8' });
 assert.equal(python.status, 0, 'Isolated preview worker needs an installed Python');
-const server = spawn('npm', ['run', 'start', '--', '--hostname', '127.0.0.1', '--port', '3000'], { detached: true, stdio: 'ignore', env: { ...process.env, TANAW_APP_ORIGIN: 'http://127.0.0.1:3000', TANAW_ECR_PREVIEW_ENABLED: '1', TANAW_ECR_PYTHON: python.stdout.trim(), TANAW_LOCAL_PROVISIONING_ENABLED: '1', TANAW_LOCAL_PROVISIONING_SERVICE_KEY: privateKey } });
+const server = spawn(process.execPath, [nextCli, 'start', '--hostname', '127.0.0.1', '--port', '3000'], { detached: !windows, stdio: 'ignore', env: { ...appEnv, TANAW_APP_ORIGIN: 'http://127.0.0.1:3000', TANAW_ECR_PREVIEW_ENABLED: '1', TANAW_ECR_PYTHON: python.stdout.trim(), TANAW_LOCAL_PROVISIONING_ENABLED: '1', TANAW_LOCAL_PROVISIONING_SERVICE_KEY: privateKey } });
 const origin = 'http://127.0.0.1:3000';
 let browser;
 const pages = [];
@@ -53,7 +89,10 @@ try {
   let ready = false;
   for (let attempt = 0; attempt < 150; attempt++) { try { if ((await fetch(origin)).ok) { ready = true; break; } } catch {} await new Promise((resolve) => setTimeout(resolve, 200)); }
   assert.ok(ready, 'Production server must start');
-  browser = await chromium.launch();
+  const readiness = await fetch(origin + '/api/supabase-health');
+  assert.equal(readiness.status, 200, 'Migrated database and enabled preview worker must be ready');
+  assert.deepEqual(await readiness.json(), { ready: true });
+  browser = await chromium.launch({ executablePath: process.env.TANAW_CHROMIUM_EXECUTABLE || undefined });
   async function login(role) {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
     const page = await context.newPage();
@@ -244,6 +283,9 @@ try {
   const uploadOptions = { headers: { origin, 'content-type': 'application/octet-stream' }, data: 'PRIVATE_SYNTHETIC_UNREGISTERED_WORKBOOK' };
   const anonymousUpload = await fetch(uploadUrl, { method: 'POST', headers: uploadOptions.headers, body: uploadOptions.data });
   assert.equal(anonymousUpload.status, 401);
+  const wrongTerm = await teacher.page.context().request.post(uploadUrl.replace('TERM%201', 'TERM%202'), uploadOptions);
+  assert.equal(wrongTerm.status(), 409, 'Server rejects a workbook term that conflicts with the verified assignment');
+  assert.equal((await wrongTerm.json()).code, 'reporting-period-mismatch');
   const ownUpload = await teacher.page.context().request.post(uploadUrl, uploadOptions);
   assert.equal(ownUpload.status(), 422, 'Authorized file reaches actual registered-source Python gate');
   assert.equal(ownUpload.headers()['cache-control'], 'no-store, private');
@@ -484,8 +526,20 @@ try {
   await head.ui.getByRole('button', { name: 'Load packet history', exact: true }).click();
   await head.ui.getByLabel('Historical packet', { exact: false }).selectOption({ index: 1 });
   await head.ui.getByText('Exact historical evidence loaded. Inspection does not change or approve this packet.', { exact: true }).waitFor();
+  const periodList = (target) => target.pathname === '/rest/v1/tanaw_instructional_blocks' && target.searchParams.get('select') === 'id,school_year,label';
+  const hidePeriodLabels = (route) => route.fulfill({ json: [] });
+  await coordinator.page.route(periodList, hidePeriodLabels);
   await coordinator.ui.getByRole('button', { name: 'Refresh workflow' }).click();
   await coordinator.ui.getByRole('button', { name: 'Lock this school packet' }).click();
+  await coordinator.ui.getByText('The reporting period or packet could not be verified. Refresh the workflow before locking.', { exact: true }).waitFor();
+  const unlockedPacket = await admin.from('tanaw_school_packets').select('locked_at').eq('cycle_id', cycle).single();
+  assert.equal(unlockedPacket.error, null);
+  assert.equal(unlockedPacket.data.locked_at, null);
+  await coordinator.page.unroute(periodList, hidePeriodLabels);
+  await coordinator.ui.getByRole('button', { name: 'Refresh workflow' }).click();
+  const lockConfirmation = coordinator.page.waitForEvent('dialog').then((dialog) => dialog.message());
+  await coordinator.ui.getByRole('button', { name: 'Lock this school packet' }).click();
+  assert.match(await lockConfirmation, /Fixture · Term 1 · packet version 1/);
   await coordinator.ui.getByText('Locked · complete', { exact: true }).waitFor();
   await coordinator.page.screenshot({ path: output + '/coordinator-locked.png', fullPage: true });
   // Synthetic real database shapes: exact locked manifest + RLS-authorized historical RPC.
@@ -494,7 +548,7 @@ try {
   const frozenEvidence = await otherCoordinator.rpc('tanaw_packet_evidence', { target_packet: frozenPacket.data.id });
   assert.equal(frozenEvidence.error, null); assert.equal(frozenEvidence.data.length, 1);
   const snapshotDefinition = frozenPacket.data.manifest[0].definitions.find((item) => item.id === definition);
-  const resultContract = { schema: 'tanaw-frozen-result-contract-v1', purpose: 'synthetic', id: randomUUID(), revision: 1, schoolId: school, cycleId: cycle, schoolYear: 'Fixture', period: 'Synthetic block', method: 'countSum', decimals: 0, rounding: 'halfUp', numeratorDefinition: snapshotDefinition, denominatorDefinition: null, partition: { id: randomUUID(), revision: 1, contributions: [{ slot: uploadSlot.data.id, populationKeys: [] }] } };
+  const resultContract = { schema: 'tanaw-frozen-result-contract-v1', purpose: 'synthetic', id: randomUUID(), revision: 1, schoolId: school, cycleId: cycle, schoolYear: 'Fixture', period: 'Term 1', method: 'countSum', decimals: 0, rounding: 'halfUp', numeratorDefinition: snapshotDefinition, denominatorDefinition: null, partition: { id: randomUUID(), revision: 1, contributions: [{ slot: uploadSlot.data.id, populationKeys: [] }] } };
   const frozenResult = projectFrozenResult(resultContract, frozenPacket.data, frozenEvidence.data);
   assert.deepEqual(frozenResult.issues, []);
   assert.equal(frozenResult.status, 'readyDiagnosticOnly'); assert.equal(frozenResult.result.value, 0);
@@ -507,6 +561,12 @@ try {
   await district.ui.getByLabel('Review comments').fill('Synthetic governed result projection pending');
   await district.ui.getByRole('button', { name: 'Record district decision' }).click();
   await district.ui.getByText('Action recorded with its history.', { exact: true }).waitFor();
+  await district.ui.getByLabel('Review comments').fill('Synthetic follow-up return');
+  await district.ui.getByRole('button', { name: 'Record district decision' }).click();
+  await district.ui.getByText('Action recorded with its history.', { exact: true }).waitFor();
+  await district.ui.getByText('Synthetic follow-up return').waitFor();
+  await district.ui.getByRole('button', { name: 'Load older decisions' }).click();
+  await district.ui.getByText('Synthetic governed result projection pending').waitFor();
   await district.page.screenshot({ path: output + '/district-aggregate.png', fullPage: true });
   const districtClient = createClient(url, publicKey, { auth: { persistSession: false } });
   assert.equal((await districtClient.auth.signInWithPassword(users.districtCoordinator)).error, null);
@@ -518,7 +578,7 @@ try {
   // Separate synthetic cycle: coordinator's own submission must not require an
   // alternate Subject Coordinator. Existing teacher-cycle checks above stay intact.
   const ownBlock = randomUUID(), ownCycle = randomUUID(), ownDefinition = randomUUID();
-  const ownSeed = spawnSync('docker', ['exec', '-i', 'supabase_db_project-tanaw', 'psql', '-U', 'postgres', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1'], { encoding: 'utf8', input: `
+  const ownSeed = seedSql(`
     insert into public.tanaw_instructional_blocks(id,school_year,label,end_date,source_order,source_url,verified_at)
       values(${q(ownBlock)},'Fixture','Synthetic self-review block',current_date-1,'SYNTHETIC','https://fixture.invalid/calendar',now());
     insert into public.tanaw_reporting_cycles(id,school_id,instructional_block_id,deadline_at,created_by)
@@ -529,7 +589,7 @@ try {
     begin; set local role authenticated; select set_config('request.jwt.claim.sub',${q(users.smeaCoordinator.id)},true);
     select public.tanaw_assign_submission(${q(ownCycle)},${q(users.smeaCoordinator.id)},'math','Synthetic coordinator class','Synthetic own assignment');
     select public.tanaw_set_slot_requirements((select id from public.tanaw_submissions where slot_id in (select id from public.tanaw_submission_slots where cycle_id=${q(ownCycle)})),0,array[${q(ownDefinition)}::uuid],'Synthetic own requirements'); commit;
-  ` });
+  `);
   assert.equal(ownSeed.status, 0, 'Separate own-review cycle must seed');
   const ownSlot = await admin.from('tanaw_submission_slots').select('id').eq('cycle_id', ownCycle).single();
   assert.equal(ownSlot.error, null);
@@ -577,6 +637,7 @@ try {
   await coordinator.page.waitForFunction(() => [...document.querySelectorAll('button')].some(button => button.textContent === 'Record coordinator self-review of this version' && !button.disabled));
   await ownButton.focus(); await coordinator.page.keyboard.press('Enter');
   await coordinator.ui.getByText('The action could not be verified. Refresh to check its history before retrying; keep your unsent work open.', { exact: true }).waitFor();
+  assert.equal(await ownButton.isDisabled(), true, 'An uncertain write pauses actions until refresh');
   await coordinator.page.unroute('**/rest/v1/rpc/tanaw_review_submission');
   await coordinator.ui.getByRole('button', { name: 'Refresh workflow', exact: true }).click();
   await coordinator.ui.getByText('SMEA Coordinator self-review is recorded for this submission version.', { exact: false }).waitFor();
@@ -691,5 +752,10 @@ try {
   throw error;
 } finally {
   if (browser) await browser.close();
-  if (server.pid) { try { process.kill(-server.pid, 'SIGTERM'); } catch {} }
+  if (server.pid) {
+    try {
+      if (windows) server.kill();
+      else process.kill(-server.pid, 'SIGTERM');
+    } catch {}
+  }
 }

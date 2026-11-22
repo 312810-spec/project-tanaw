@@ -1,8 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { handleEcrUpload, readBoundedEcrBody, ECR_UPLOAD_LIMIT } from "../app/lib/ecr-upload.ts";
-import { runCoPreviewWorker } from "../app/lib/ecr-worker.ts";
+import { checkCoPreviewWorker, runCoPreviewWorker } from "../app/lib/ecr-worker.ts";
 import { spawnSync } from "node:child_process";
+
+function pythonExecutable() {
+  const command = process.platform === "win32" ? "python" : "python3";
+  const result = spawnSync(command, ["-c", "import sys; print(sys.executable)"], { encoding: "utf8" });
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
+  return result.stdout.trim();
+}
 
 const origin = "http://localhost:3000", submission = "11111111-1111-4111-8111-111111111111";
 const request = (options = {}) => new Request(`${origin}/api/ecr/preview?submission=${submission}&term=TERM%201`, {
@@ -42,6 +50,20 @@ test("handover/revocation while parsing withholds the summary", async () => {
   let count = 0;
   await checked(request(), dependencies({ authorize: async () => ++count === 1 ? "allowed" : "denied" }), 403, "preview-access-denied");
 });
+test("a reporting term conflict rejects before upload and after a concurrent change", async () => {
+  const input = request();
+  await checked(input, dependencies({
+    authorize: async (id, term) => {
+      assert.equal(id, submission);
+      assert.equal(term, "TERM 1");
+      return "term-mismatch";
+    },
+    preview: async () => assert.fail("parser must not run"),
+  }), 409, "reporting-period-mismatch");
+  assert.equal(input.bodyUsed, false);
+  let count = 0;
+  await checked(request(), dependencies({ authorize: async () => ++count === 1 ? "allowed" : "term-mismatch" }), 409, "reporting-period-mismatch");
+});
 test("wrong target/term/duplicate parameters cannot reach parser", async () => {
   for (const query of ["submission=bad&term=TERM%201", `submission=${submission}&term=TERM%204`, `submission=${submission}&term=TERM%201&term=TERM%202`]) {
     const input = new Request(`${origin}/api/ecr/preview?${query}`, { method: "POST", headers: { origin, "content-type": "application/octet-stream" }, body: "synthetic" });
@@ -66,12 +88,25 @@ test("empty and stalled streams fail without waiting indefinitely", async () => 
   const body = new ReadableStream({});
   await assert.rejects(readBoundedEcrBody(request({ body, duplex: "half" }), 4, 5), /^Error: upload-timeout$/);
 });
+test("upload timeout releases the reader even if source cleanup never settles", { timeout: 1000 }, async () => {
+  let cancelled = false;
+  const body = new ReadableStream({
+    cancel() {
+      cancelled = true;
+      return new Promise(() => {});
+    },
+  });
+  const input = request({ body, duplex: "half" });
+  await assert.rejects(readBoundedEcrBody(input, 4, 5), /^Error: upload-timeout$/);
+  assert.equal(cancelled, true);
+  assert.equal(input.body.locked, false);
+});
 test("disconnect cancels a stalled body and worker without echoing input", async () => {
   const controller = new AbortController();
   const reading = readBoundedEcrBody(request({ body: new ReadableStream({}), duplex: "half", signal: controller.signal }), 4, 1000);
   controller.abort();
   await assert.rejects(reading, /upload-interrupted/);
-  const python = spawnSync("python3", ["-c", "import sys; print(sys.executable)"], { encoding: "utf8" }).stdout.trim();
+  const python = pythonExecutable();
   const workerController = new AbortController();
   const running = runCoPreviewWorker(new Uint8Array(), "TERM 1", python, workerController.signal);
   workerController.abort();
@@ -96,10 +131,11 @@ test("per-process concurrency bounds pending buffers/workers and releases slots"
   await checked(request(), dependencies(), 200, "recognized-diagnostic-only");
 });
 test("real isolated Python worker rejects unregistered input without echoing private bytes", async () => {
-  const executable = spawnSync("python3", ["-c", "import sys; print(sys.executable)"], { encoding: "utf8" });
-  assert.equal(executable.status, 0);
-  const result = await runCoPreviewWorker(new TextEncoder().encode("PRIVATE_SYNTHETIC_NOT_ZIP"), "TERM 1", executable.stdout.trim(), new AbortController().signal);
+  const result = await runCoPreviewWorker(new TextEncoder().encode("PRIVATE_SYNTHETIC_NOT_ZIP"), "TERM 1", pythonExecutable(), new AbortController().signal);
   assert.deepEqual(result, { ok: false, code: "workbook-rejected" });
+});
+test("worker readiness loads the packaged registry without a workbook", async () => {
+  assert.equal(await checkCoPreviewWorker(pythonExecutable(), AbortSignal.timeout(3000)), true);
 });
 test("bridge rejects nonabsolute executable, unsupported term and aborted request", async () => {
   await assert.rejects(runCoPreviewWorker(new Uint8Array(), "TERM 1", "python3", new AbortController().signal), /preview-unavailable/);

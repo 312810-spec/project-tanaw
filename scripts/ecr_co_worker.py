@@ -11,13 +11,16 @@ from lib.ecr_fingerprint import MAX_BYTES  # noqa: E402
 
 def main():
     try:
-        if len(sys.argv) != 2 or sys.argv[1] not in ("TERM 1", "TERM 2", "TERM 3"):
+        if len(sys.argv) != 2 or sys.argv[1] not in ("TERM 1", "TERM 2", "TERM 3", "--check"):
             raise ValueError()
-        data = sys.stdin.buffer.read(MAX_BYTES + 1)
         registry = json.loads((Path(__file__).resolve().parents[1] / "docs/ecr/source-registry.json").read_text())
         sources = [source for source in registry["sources"] if source["family"] == "co-core"]
         if len(sources) != 1:
             raise ValueError()
+        if sys.argv[1] == "--check":
+            print(json.dumps({"ok": True, "ready": True}))
+            return 0
+        data = sys.stdin.buffer.read(MAX_BYTES + 1)
         result = extract_co_diagnostic(data, sys.argv[1], sources[0])
         # Never send identities, scores, raw rows or arbitrary archive errors to stdout.
         occupied = [row for row in result["rows"] if row["learnerName"] or any(

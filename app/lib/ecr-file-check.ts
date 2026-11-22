@@ -15,6 +15,7 @@ export function parseFileCheckResult(value: unknown, term: string): FileCheckRes
 }
 export function fileCheckFailure(status: number): string {
   if (status === 401 || status === 403) return "Your assignment access could not be verified. Refresh school access before trying again.";
+  if (status === 409) return "The workbook term differs from this assignment’s reporting term. Check the selected term and try again.";
   if (status === 413) return "This file is too large for this server. Choose a smaller supported workbook.";
   if (status === 422) return "This workbook could not pass the file check. Verify its approved template and try again.";
   if (status === 429) return "File checks are busy. Keep your file selected and try again shortly.";

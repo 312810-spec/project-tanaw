@@ -65,6 +65,9 @@ try {
     assert.equal(unavailableUpload.status(), 503, 'Unconfigured file preview stays unavailable');
     assert.equal((await unavailableUpload.json()).canImport, false);
     const capability = await page.request.get(origin + '/api/ecr/preview');
+    const readiness = await page.request.get(origin + '/api/supabase-health');
+    assert.equal(readiness.status(), 503);
+    assert.deepEqual(await readiness.json(), { ready: false });
     assert.equal(capability.status(), 200);
     assert.deepEqual(await capability.json(), { available: false });
     assert.equal(capability.headers()['cache-control'], 'no-store, private');
