@@ -17,7 +17,7 @@ concurrency:
 jobs:
   browser:
     name: Desktop and mobile browser smoke
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
       TANAW_APP_ORIGIN: http://127.0.0.1:3000
