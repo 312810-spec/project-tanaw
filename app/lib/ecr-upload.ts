@@ -1,10 +1,10 @@
 /** Raw-file transport and privacy contract. No persistence or import acceptance. */
 export const ECR_UPLOAD_LIMIT = 32 * 1024 * 1024;
-type Access = "allowed" | "unauthenticated" | "denied";
+type Access = "allowed" | "unauthenticated" | "denied" | "term-mismatch";
 type Dependencies = {
   enabled: boolean;
   origin: string | undefined;
-  authorize: (submission: string) => Promise<Access>;
+  authorize: (submission: string, term: string, signal: AbortSignal) => Promise<Access>;
   preview: (data: Uint8Array, term: string, signal: AbortSignal) => Promise<unknown>;
 };
 let activeUploads = 0;
@@ -16,17 +16,18 @@ const response = (code: string, status: number, detail: Record<string, unknown> 
 export async function readBoundedEcrBody(request: Request, limit = ECR_UPLOAD_LIMIT, timeoutMs = 30_000): Promise<Uint8Array> {
   if (!request.body) throw new Error("empty-upload");
   const reader = request.body.getReader(), chunks: Uint8Array[] = [];
-  let size = 0, timedOut = false;
-  const timer = setTimeout(() => { timedOut = true; void reader.cancel().catch(() => {}); }, timeoutMs);
-  const abort = () => { void reader.cancel().catch(() => {}); };
+  let size = 0, complete = false;
+  let rejectBoundary!: (error: Error) => void;
+  const boundary = new Promise<never>((_, reject) => { rejectBoundary = reject; });
+  const timer = setTimeout(() => rejectBoundary(new Error("upload-timeout")), timeoutMs);
+  const abort = () => rejectBoundary(new Error("upload-interrupted"));
   request.signal.addEventListener("abort", abort, { once: true });
-  try {
+  async function readBody() {
     while (true) {
       if (request.signal.aborted) throw new Error("upload-interrupted");
       const chunk = await reader.read();
-      if (timedOut) throw new Error("upload-timeout");
       if (request.signal.aborted) throw new Error("upload-interrupted");
-      if (chunk.done) break;
+      if (chunk.done) { complete = true; break; }
       size += chunk.value.byteLength;
       if (size > limit) throw new Error("upload-too-large");
       chunks.push(chunk.value);
@@ -36,7 +37,15 @@ export async function readBoundedEcrBody(request: Request, limit = ECR_UPLOAD_LI
     let offset = 0;
     for (const chunk of chunks) { result.set(chunk, offset); offset += chunk.byteLength; }
     return result;
-  } finally { clearTimeout(timer); request.signal.removeEventListener("abort", abort); await reader.cancel().catch(() => {}); reader.releaseLock(); }
+  }
+  try {
+    return await Promise.race([readBody(), boundary]);
+  } finally {
+    clearTimeout(timer);
+    request.signal.removeEventListener("abort", abort);
+    if (!complete) void reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
 }
 
 export async function handleEcrUpload(request: Request, dependencies: Dependencies): Promise<Response> {
@@ -47,8 +56,10 @@ export async function handleEcrUpload(request: Request, dependencies: Dependenci
   if (!["application/octet-stream", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"].includes(request.headers.get("content-type") ?? "") || (request.headers.get("content-encoding") ?? "identity") !== "identity") return response("unsupported-upload-type", 415);
   const length = request.headers.get("content-length");
   if (length !== null && (!/^\d+$/.test(length) || Number(length) > ECR_UPLOAD_LIMIT)) return response("upload-too-large", 413);
+  const authorize = () => dependencies.authorize(submission, term, AbortSignal.any([request.signal, AbortSignal.timeout(5000)]));
   try {
-    const access = await dependencies.authorize(submission);
+    const access = await authorize();
+    if (access === "term-mismatch") return response("reporting-period-mismatch", 409);
     if (access !== "allowed") return response("preview-access-denied", access === "unauthenticated" ? 401 : 403);
   } catch { return response("preview-unavailable", 503); }
   if (activeUploads >= 2) return response("preview-busy", 429);
@@ -57,7 +68,9 @@ export async function handleEcrUpload(request: Request, dependencies: Dependenci
     const bytes = await readBoundedEcrBody(request);
     const result = await dependencies.preview(bytes, term, request.signal);
     // A revoked account or handed-over assignment cannot receive even a summary.
-    if (await dependencies.authorize(submission) !== "allowed") return response("preview-access-denied", 403);
+    const access = await authorize();
+    if (access === "term-mismatch") return response("reporting-period-mismatch", 409);
+    if (access !== "allowed") return response("preview-access-denied", 403);
     if (!object(result)) return response("preview-unavailable", 503);
     if (result.ok === false && result.code === "workbook-rejected") return response("workbook-rejected", 422);
     if (result.ok !== true || result.term !== term || typeof result.sourceHash !== "string" || !/^[a-f0-9]{64}$/.test(result.sourceHash) || result.rowSlots !== 100 || !Number.isInteger(result.occupiedRows) || !Number.isInteger(result.excludedBlankRows) || Number(result.occupiedRows) < 0 || Number(result.excludedBlankRows) < 0 || Number(result.occupiedRows) + Number(result.excludedBlankRows) !== 100) return response("preview-unavailable", 503);

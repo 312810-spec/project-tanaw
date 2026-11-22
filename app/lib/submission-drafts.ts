@@ -5,6 +5,18 @@ export const emptyDraft: EvidenceDraft = { definition: "", value: "", sourceTitl
 export function draftKey(scope: DraftScope): string {
   return "tanaw:manual-draft:" + JSON.stringify([scope.actorId, scope.schoolId, scope.submissionId]);
 }
+/** Preserve a draft that changed since this form last read or saved it. */
+export function updateWorkingDraft(
+  storage: Pick<Storage, "getItem" | "setItem" | "removeItem">,
+  key: string,
+  expected: string | null | undefined,
+  next: string | null,
+): boolean {
+  if (storage.getItem(key) !== expected) return false;
+  if (next === null) storage.removeItem(key);
+  else storage.setItem(key, next);
+  return true;
+}
 // Never overwrite an unreadable draft or an earlier recovery copy.
 export function preserveUnreadableDraft(storage: Pick<Storage, "getItem" | "setItem">, key: string, raw: string): string {
   const recoveryKey = key + ":unreadable";

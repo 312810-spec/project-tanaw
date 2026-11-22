@@ -1,8 +1,15 @@
 -- Synthetic adversarial end-to-end checks, rolled back. No actual records.
 begin;
+set local role anon;
+do $$ begin
+ if public.tanaw_release_ready() is distinct from true then raise exception 'Release migration contract missing'; end if;
+end $$;
+reset role;
 -- Review authority must stay on the trusted RPC, including after the exception.
 do $$ begin
  if has_function_privilege('anon','public.tanaw_review_submission(uuid,integer)','EXECUTE')
+  or has_function_privilege('anon','public.tanaw_workflow_snapshot(uuid,boolean)','EXECUTE')
+  or has_function_privilege('anon','public.tanaw_packet_evidence_snapshot(uuid)','EXECUTE')
   or has_table_privilege('authenticated','public.tanaw_submission_reviews','INSERT,UPDATE,DELETE') then
   raise exception 'Submission review RPC/table privileges broadened'; end if;
 end $$;
@@ -182,6 +189,15 @@ do $$ begin
  if (select evidence#>>'{entries,0,value}' from public.tanaw_submission_versions where submission_id=(select id from fixture_targets where label='teacherSubmission') and version=1)<>'0' then raise exception 'Original evidence changed'; end if;
  if exists(select 1 from public.tanaw_amendment_rounds where closed_at is null) then raise exception 'Amendment not closed'; end if;
 end $$;
+select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000001',true);
+do $$
+declare snapshot jsonb := public.tanaw_workflow_snapshot('44000000-0000-0000-0000-000000000001',true);
+begin
+ if jsonb_array_length(snapshot->'slots') is distinct from 1
+  or exists(select 1 from jsonb_array_elements(snapshot->'slots') s where s->>'author_id'<>auth.uid()::text) then
+  raise exception 'Teacher snapshot did not narrow to the active author';
+ end if;
+end $$;
 select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000005',true);
 do $$ begin
  if (select count(*) from public.tanaw_submission_versions)<>0 or (select count(*) from public.tanaw_school_packets)<>0 then raise exception 'District raw access'; end if;
@@ -215,7 +231,17 @@ update public.tanaw_submissions set current_version=1102 where id=(select id fro
 update public.smea_indicator_definitions set label='Synthetic changed current label' where id='45000000-0000-0000-0000-000000000001';
 set local role authenticated;
 select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000004',true);
-do $$ begin
+do $$
+declare snapshot jsonb := public.tanaw_workflow_snapshot('44000000-0000-0000-0000-000000000001',false);
+begin
+ if snapshot is null or jsonb_array_length(snapshot->'evidence')<>3 then raise exception 'Workflow snapshot lost current or exact packet evidence'; end if;
+ if not exists(select 1 from jsonb_array_elements(snapshot->'submissions') s where (s->>'current_version')::integer=1102
+  and exists(select 1 from jsonb_array_elements(snapshot->'evidence') e where e->>'submission_id'=s->>'id' and e->>'version'=s->>'current_version')) then
+  raise exception 'Workflow snapshot does not pair the current submission and evidence';
+ end if;
+ if jsonb_array_length(public.tanaw_packet_evidence_snapshot((select id from fixture_targets where label='packet1'))) is distinct from 1 then
+  raise exception 'Historical snapshot did not return its exact evidence';
+ end if;
  if (select count(*) from public.tanaw_workflow_evidence('44000000-0000-0000-0000-000000000001'))<>3 then raise exception 'Focused read returned history or lost exact snapshot'; end if;
  if (select count(*) from public.tanaw_packet_evidence((select id from fixture_targets where label='packet1')))<>1 then raise exception 'Original historical packet evidence lost'; end if;
  if not exists(select 1 from public.tanaw_workflow_evidence('44000000-0000-0000-0000-000000000001') where version=1102) then raise exception 'Current evidence inaccessible after long history'; end if;
@@ -224,6 +250,14 @@ do $$ begin
  if not exists(select 1 from public.tanaw_workflow_people('42000000-0000-0000-0000-000000000001') where label='workflow-teacher@fixture.invalid') then raise exception 'Authorized staff label missing'; end if;
 end $$;
 select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000005',true);
+do $$
+declare snapshot jsonb := public.tanaw_workflow_snapshot('44000000-0000-0000-0000-000000000001',false);
+begin
+ if snapshot is distinct from '{"slots":[],"submissions":[],"reviews":[],"evidence":[],"packets":[]}'::jsonb
+  or public.tanaw_packet_evidence_snapshot((select id from fixture_targets where label='packet1')) is distinct from '[]'::jsonb then
+  raise exception 'District snapshot source leak';
+ end if;
+end $$;
 select pg_temp.must_deny($s$select public.tanaw_workflow_people('42000000-0000-0000-0000-000000000001')$s$,'42501');
 do $$ begin if (select count(*) from public.tanaw_workflow_evidence('44000000-0000-0000-0000-000000000001'))<>0 or (select count(*) from public.tanaw_packet_evidence((select id from fixture_targets where label='packet1')))<>0 then raise exception 'District focused source leak'; end if; end $$;
 select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000007',true);
@@ -231,4 +265,81 @@ select pg_temp.must_deny($s$select public.tanaw_workflow_people('42000000-0000-0
 do $$ begin if (select count(*) from public.tanaw_workflow_evidence('44000000-0000-0000-0000-000000000001'))<>0 then raise exception 'Foreign-school focused source leak'; end if; end $$;
 
 reset role;
+savepoint snapshot_scale;
+insert into public.tanaw_submission_slots(cycle_id,school_id,author_id,subject_id,scope_label,created_by)
+ select '44000000-0000-0000-0000-000000000001','42000000-0000-0000-0000-000000000001',
+ '41000000-0000-0000-0000-000000000006','math','Synthetic scale '||n,'41000000-0000-0000-0000-000000000003'
+ from generate_series(1,1205) n;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000004',true);
+do $$ begin
+ if jsonb_array_length(public.tanaw_workflow_snapshot('44000000-0000-0000-0000-000000000001',false)->'slots')
+  is distinct from (select count(*)::integer from public.tanaw_submission_slots where cycle_id='44000000-0000-0000-0000-000000000001') then
+  raise exception 'Large snapshot omitted a slot';
+ end if;
+end $$;
+reset role;
+insert into public.tanaw_submission_slots(cycle_id,school_id,author_id,subject_id,scope_label,created_by)
+ select '44000000-0000-0000-0000-000000000001','42000000-0000-0000-0000-000000000001',
+ '41000000-0000-0000-0000-000000000006','math','Synthetic scale '||n,'41000000-0000-0000-0000-000000000003'
+ from generate_series(1206,5001) n;
+set local role authenticated;
+select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000004',true);
+do $$ begin
+ if public.tanaw_workflow_snapshot('44000000-0000-0000-0000-000000000001',false) is not null then
+  raise exception 'Oversized snapshot returned partial data';
+ end if;
+end $$;
+rollback to savepoint snapshot_scale;
+savepoint district_page_scale;
+insert into public.tanaw_school_packets(cycle_id,school_id,version,prepared_by,manifest,missing,locked_at,completeness)
+ select cycle_id,school_id,n,prepared_by,'[]','[]',locked_at,'complete'
+ from public.tanaw_school_packets,generate_series(10,39) n
+ where id=(select id from fixture_targets where label='packet1');
+insert into public.tanaw_district_decisions(packet_id,reviewer_id,action,comment)
+ values((select id from fixture_targets where label='packet2'),
+ '41000000-0000-0000-0000-000000000005','return','Synthetic decision outside the shared history limit');
+insert into public.tanaw_district_decisions(packet_id,reviewer_id,action,comment)
+ select id,'41000000-0000-0000-0000-000000000005','return','Synthetic history '||n
+ from public.tanaw_school_packets,generate_series(1,1001) n
+ where id=(select id from fixture_targets where label='packet1');
+set local role authenticated;
+select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000005',true);
+do $$
+declare
+ school constant uuid := '42000000-0000-0000-0000-000000000001';
+ earlier uuid := (select id from fixture_targets where label='packet1');
+ other uuid := (select id from fixture_targets where label='packet2');
+ cursor_packet record;
+ latest record;
+begin
+ select p.* into cursor_packet from public.tanaw_district_packet_page(school) p
+ order by p.locked_at desc,p.packet_id desc offset 24 limit 1;
+ if (select count(*) from public.tanaw_district_packet_page(school))<>26
+  or (select count(*) from public.tanaw_district_packet_page(school,cursor_packet.locked_at,cursor_packet.packet_id))
+    is distinct from (select count(*)-25 from public.tanaw_district_packets(school)) then
+  raise exception 'District packet paging lost records sharing a Lock timestamp';
+ end if;
+ select d.id,d.decision_revision into latest from public.tanaw_district_decisions d
+ where d.packet_id=earlier order by d.decision_revision desc limit 1;
+ if (select count(*) from public.tanaw_district_decision_page(earlier,latest.decision_revision))<>21
+  or (select count(*) from public.tanaw_district_decision_page(earlier,2))>1 then
+  raise exception 'District decision cursor did not bound history';
+ end if;
+ if not exists(select 1 from (
+  select * from public.tanaw_district_packet_page(school)
+  union all
+  select * from public.tanaw_district_packet_page(school,cursor_packet.locked_at,cursor_packet.packet_id)
+ ) p where p.packet_id=other and p.latest_decision->>'comment'='Synthetic decision outside the shared history limit') then
+  raise exception 'District packet summary missed its independent latest decision';
+ end if;
+end $$;
+select set_config('request.jwt.claim.sub','41000000-0000-0000-0000-000000000007',true);
+select pg_temp.must_deny($s$select public.tanaw_district_packet_page('42000000-0000-0000-0000-000000000001')$s$,'42501');
+do $$ begin
+ if exists(select 1 from public.tanaw_district_decision_page((select id from fixture_targets where label='packet1'),9223372036854775807)) then
+  raise exception 'Foreign school can read district decision history';
+ end if;
+end $$;
+rollback to savepoint district_page_scale;
 rollback;

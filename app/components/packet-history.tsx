@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createSupabaseBrowserClient } from "@/utils/supabase/client";
-import { readPages } from "@/app/lib/read-pages";
 
 type Packet = { id: string; version: number; locked_at: string | null; completeness: string | null; created_at: string; manifest: { submission: string; version: number; definitions?: { id: string; label: string; unit: string }[] }[] };
 type Evidence = { submission_id: string; version: number; evidence: { entries: { definitionId: string; value: number; sourceTitle: string; sourceLocator: string }[] }; reason: string; created_at: string };
@@ -40,8 +39,10 @@ export function PacketHistory({ cycleId }: { cycleId: string }) {
     if (!packet) return;
     setBusy(true); setMessage("Verifying the selected historical snapshot…");
     try {
-      const rows = await readPages<Evidence>((from, to) => createSupabaseBrowserClient().rpc("tanaw_packet_evidence", { target_packet: packet.id }, { count: "exact" }).range(from, to));
+      const result = await createSupabaseBrowserClient().rpc("tanaw_packet_evidence_snapshot", { target_packet: packet.id });
       if (request !== generation.current) return;
+      if (result.error || !Array.isArray(result.data)) throw new Error("Packet evidence unavailable");
+      const rows: Evidence[] = result.data;
       setEvidence(rows); setMessage("Exact historical evidence loaded. Inspection does not change or approve this packet.");
     } catch { if (request === generation.current) setMessage("Historical evidence could not be verified. Retry inspection; no record was changed."); }
     finally { if (request === generation.current) setBusy(false); }

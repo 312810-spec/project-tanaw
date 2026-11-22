@@ -4,12 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { createSupabaseBrowserClient } from "@/utils/supabase/client";
 
 import { PacketHistory } from "@/app/components/packet-history";
+import { DistrictDecisionHistory, type DistrictDecision } from "@/app/components/district-decision-history";
 import { IndicatorRequirements } from "@/app/components/indicator-requirements";
 import { ManualEvidenceForm } from "@/app/components/manual-evidence-form";
 import { EcrFileCheck } from "@/app/components/ecr-file-check";
 import { RosterSourceDeclaration } from "@/app/components/roster-source-declaration";
 import { confirmLeavingWork, clearFormDirty } from "@/app/components/unsaved-work";
-import { readPages } from "@/app/lib/read-pages";
 import { indicatorCoverage, workflowError } from "@/app/lib/workflow-ux";
 import { workflowReminders } from "@/app/lib/workflow-reminders";
 import type { EvidenceDraft } from "@/app/lib/submission-drafts";
@@ -28,7 +28,9 @@ type Feedback = { packet_version: number; action: string; comment: string; creat
 type Round = { id: string; deadline_at: string; reason: string; closed_at: string | null };
 type Snapshot = Version & { submission_id: string };
 type Packet = { amendment_round_id: string | null; prepared_by: string; manifest: ManifestItem[]; id: string; version: number; locked_at: string | null; completeness: string | null; missing: { slotId: string; reason: string }[] };
-type DistrictPacket = { cycle_id: string; packet_id: string; version: number; completeness: string; submission_count: number; missing_count: number };
+type DistrictPacket = { cycle_id: string; packet_id: string; version: number; locked_at: string; completeness: string; submission_count: number; missing_count: number; period_label: string | null; latest_decision: DistrictDecision | null };
+const districtPageSize = 25;
+type WorkflowSnapshot = { slots: Slot[]; submissions: Submission[]; reviews: SubmissionReview[]; evidence: Snapshot[]; packets: Packet[] };
 const inputStyle = "w-full min-w-0 rounded-lg border border-foreground/20 bg-background p-3 text-sm";
 function currentTime() { return Date.now(); }
 const buttonStyle = "rounded-lg border border-brand px-4 py-2 text-sm text-brand disabled:opacity-50";
@@ -43,7 +45,7 @@ export function SchoolWorkflow({ schoolId, role, actorId, schoolName, accessVeri
   const [historyBusy, setHistoryBusy] = useState(false);
   const generation = useRef(0);
   const districtRequests = useRef<Record<string, string>>({});
-  const [districtDecisions, setDistrictDecisions] = useState<{ id: string; packet_id: string; action: string; comment: string; created_at: string }[]>([]);
+  const [moreDistrictPackets, setMoreDistrictPackets] = useState(false);
   const invalidate = useCallback(() => { generation.current++; }, []);
   const [now, setNow] = useState<number>(NaN);
   const [reviews, setReviews] = useState<SubmissionReview[]>([]);
@@ -77,42 +79,39 @@ export function SchoolWorkflow({ schoolId, role, actorId, schoolName, accessVeri
   const latestPacketId = packets[0]?.id;
   useEffect(() => { let cancelled = false; queueMicrotask(() => { if (!cancelled) setAcknowledge(false); }); return () => { cancelled = true; }; }, [latestPacketId]);
   const [missingReasons, setMissingReasons] = useState<Record<string, string>>({});
-  const load = useCallback(async () => {
+  const load = useCallback(async (before?: DistrictPacket) => {
     const request = ++generation.current;
     setRefreshing(true); setStale(true);
     setStatus("Refreshing school workflow… Actions are paused until verification finishes.");
     try {
       const client = createSupabaseBrowserClient();
       if (role === "districtCoordinator") {
-        const result = await client.rpc("tanaw_district_packets", { target_school: schoolId });
+        const result = await client.rpc("tanaw_district_packet_page", {
+          target_school: schoolId,
+          before_lock: before?.locked_at ?? null,
+          before_packet: before?.packet_id ?? null,
+        });
         if (request !== generation.current) return;
         if (result.error) throw result.error;
-        const ids = (result.data ?? []).map((packet: DistrictPacket) => packet.packet_id);
-        const history = ids.length ? await client.from("tanaw_district_decisions").select("id,packet_id,action,comment,created_at").in("packet_id", ids).order("decision_revision", { ascending: false }).limit(1000) : { data: [], error: null };
-        if (request !== generation.current) return;
-        if (history.error) throw history.error;
-        const cycleIds = [...new Set((result.data ?? []).map((packet: DistrictPacket) => packet.cycle_id))];
-        const context = cycleIds.length ? await client.from("tanaw_reporting_cycles").select("id,instructional_block_id").in("id", cycleIds) : { data: [], error: null };
-        const blocks = context.data?.length ? await client.from("tanaw_instructional_blocks").select("id,school_year,label").in("id", context.data.map((cycle) => cycle.instructional_block_id)) : { data: [], error: null };
-        if (request !== generation.current) return;
-        if (context.error || blocks.error) throw new Error("Packet period unavailable");
-        setCycleLabels(Object.fromEntries((context.data ?? []).map((cycle) => { const block = blocks.data?.find((block) => block.id === cycle.instructional_block_id); return [cycle.id, block ? block.school_year + " · " + block.label : cycle.id]; })));
-        setDistrictDecisions(history.data ?? []);
-        setDistrict(result.data ?? []); setReady(true); setStale(false); setStatus("Locked packet status loaded. Learner records are restricted to the school."); return true;
+        const page: DistrictPacket[] = result.data ?? [];
+        const packets = page.slice(0, districtPageSize);
+        setMoreDistrictPackets(page.length > districtPageSize);
+        setDistrict((previous) => before ? [...previous, ...packets] : packets);
+        setReady(true); setStale(false); setStatus("Locked packet status loaded. Learner records are restricted to the school."); return true;
       }
       const identities = await client.rpc("tanaw_workflow_people", { target_school: schoolId });
       if (request !== generation.current) return;
       if (identities.error) throw identities.error;
       setPeople(Object.fromEntries((identities.data ?? []).map((person: { user_id: string; label: string }) => [person.user_id, person.label])));
       if (role === "smeaCoordinator") {
-        const directory = await client.rpc("tanaw_member_directory", { target_school: schoolId });
+        const directory = await client.rpc("tanaw_member_directory", { target_school: schoolId }, { count: "exact" });
         if (request !== generation.current) return;
-        if (directory.error) throw new Error("Assigned accounts unavailable");
+        if (directory.error || directory.count !== directory.data?.length) throw new Error("Assigned accounts unavailable");
         setAssignees((directory.data ?? []).filter((member: Assignee) => member.active && member.roles.some((assignedRole) => ["teacher", "smeaCoordinator"].includes(assignedRole))));
       }
-      const cycleResult = await client.from("tanaw_reporting_cycles").select("id,instructional_block_id,deadline_at,locked_at").eq("school_id", schoolId).order("deadline_at", { ascending: false });
+      const cycleResult = await client.from("tanaw_reporting_cycles").select("id,instructional_block_id,deadline_at,locked_at", { count: "exact" }).eq("school_id", schoolId).order("deadline_at", { ascending: false }).order("id");
       if (request !== generation.current) return;
-      if (cycleResult.error) throw cycleResult.error;
+      if (cycleResult.error || cycleResult.count !== cycleResult.data?.length) throw new Error("Reporting cycles unavailable");
       const list: Cycle[] = cycleResult.data ?? [];
       setCycles(list);
       const labels = list.length ? await client.from("tanaw_instructional_blocks").select("id,school_year,label").in("id", list.map((entry) => entry.instructional_block_id)) : { data: [], error: null };
@@ -123,35 +122,33 @@ export function SchoolWorkflow({ schoolId, role, actorId, schoolName, accessVeri
       if (!selected) { setReady(true); setStale(false); setStatus("The coordinator has not created a reporting cycle yet."); return true; }
       const calendar = await client.from("tanaw_instructional_blocks").select("school_year,label").eq("id", list.find((cycle) => cycle.id === selected)!.instructional_block_id).single();
       if (calendar.error || !calendar.data) throw new Error("Verified calendar reference unavailable");
-      const [slotResult, definitionResult, packetResult] = await Promise.all([
-        readPages<Slot>((from, to) => client.from("tanaw_submission_slots").select("id,author_id,subject_id,scope_label,required_indicator_ids,requirements_revision", { count: "exact" }).eq("cycle_id", selected).order("id").range(from, to)),
-        client.from("smea_indicator_definitions").select("id,label,unit,source_title,source_locator,source_id,school_year,reporting_period,numerator_definition,denominator_definition,formula_expression,rounding_rule").eq("school_id", schoolId).eq("definition_status", "verified").eq("school_year", calendar.data.school_year).eq("reporting_period", calendar.data.label),
-        client.from("tanaw_school_packets").select("id,version,locked_at,completeness,missing,manifest,prepared_by,amendment_round_id").eq("cycle_id", selected).order("version", { ascending: false }).limit(20),
+      const [snapshotResult, definitionResult] = await Promise.all([
+        client.rpc("tanaw_workflow_snapshot", { target_cycle: selected, own_slots_only: role === "teacher" }),
+        client.from("smea_indicator_definitions").select("id,label,unit,source_title,source_locator,source_id,school_year,reporting_period,numerator_definition,denominator_definition,formula_expression,rounding_rule", { count: "exact" }).eq("school_id", schoolId).eq("definition_status", "verified").eq("school_year", calendar.data.school_year).eq("reporting_period", calendar.data.label),
       ]);
       if (request !== generation.current) return;
-      if (definitionResult.error || packetResult.error) throw new Error("Workflow access could not be verified");
-      const visibleSlots: Slot[] = slotResult.filter((slot) => role !== "teacher" || slot.author_id === actorId);
-      setSlots(visibleSlots); setDefinitions(definitionResult.data ?? []); setPackets(packetResult.data ?? []); setReportingYear(calendar.data.school_year);
-      const submissionRows = visibleSlots.length ? await readPages<Submission>((from, to) => client.from("tanaw_submissions").select("id,slot_id,current_version,extension_until,extension_reason", { count: "exact" }).in("slot_id", visibleSlots.map((slot) => slot.id)).order("id").range(from, to)) : [];
-      if (request !== generation.current) return;
-      const reviewRows = submissionRows.length ? await readPages<SubmissionReview>((from, to) => client.from("tanaw_submission_reviews").select("submission_id,version,reviewer_id,self_review", { count: "exact" }).in("submission_id", submissionRows.map((submission) => submission.id)).order("submission_id").order("version").range(from, to)) : [];
-      if (request !== generation.current) return;
-      const packetIds = (packetResult.data ?? []).map((packet) => packet.id);
+      if (snapshotResult.error || definitionResult.error || definitionResult.count !== definitionResult.data?.length) throw new Error("Workflow access could not be verified");
+      if (snapshotResult.data === null) {
+        setStatus("This cycle exceeds the workflow read limit. Actions are paused. Ask your coordinator to review its scope.");
+        return false;
+      }
+      const snapshot: WorkflowSnapshot = snapshotResult.data;
+      const packetIds = snapshot.packets.map((packet) => packet.id);
 
-      const [packetReviewResult, roundResult, feedbackResult, snapshotResult] = await Promise.all([
+      const [packetReviewResult, roundResult, feedbackResult] = await Promise.all([
         packetIds.length ? client.from("tanaw_packet_reviews").select("packet_id,stage,reviewer_id,self_review,acknowledged_missing,created_at").in("packet_id", packetIds) : { data: [], error: null },
-        client.from("tanaw_amendment_rounds").select("id,deadline_at,reason,closed_at").eq("cycle_id", selected).order("created_at", { ascending: false }).limit(20),
+        client.from("tanaw_amendment_rounds").select("id,deadline_at,reason,closed_at").eq("cycle_id", selected).is("closed_at", null),
         client.rpc("tanaw_school_feedback", { target_cycle: selected }),
-        readPages<Snapshot>((from, to) => client.rpc("tanaw_workflow_evidence", { target_cycle: selected }, { count: "exact" }).range(from, to)),
       ]);
       if (request !== generation.current) return;
       if (packetReviewResult.error || roundResult.error || feedbackResult.error) throw new Error("Packet review details unavailable");
-      setPacketReviews(packetReviewResult.data ?? []); setRounds(roundResult.data ?? []); setFeedback(feedbackResult.data ?? []); setSnapshots(snapshotResult);
-      setReviews(reviewRows); setNow(Date.now());
-      setSubmissions(submissionRows); setHistoryRevision((revision) => revision + 1); setReady(true); setStale(false); setStatus("School workflow loaded."); return true;
+      setSlots(snapshot.slots); setDefinitions(definitionResult.data ?? []); setPackets(snapshot.packets); setReportingYear(calendar.data.school_year);
+      setPacketReviews(packetReviewResult.data ?? []); setRounds(roundResult.data ?? []); setFeedback(feedbackResult.data ?? []); setSnapshots(snapshot.evidence);
+      setReviews(snapshot.reviews); setNow(Date.now());
+      setSubmissions(snapshot.submissions); setHistoryRevision((revision) => revision + 1); setReady(true); setStale(false); setStatus("School workflow loaded."); return true;
     } catch { if (request === generation.current) setStatus("Workflow refresh failed. Previously loaded information may be out of date; actions are paused. Retry refresh."); return false; }
     finally { if (request === generation.current) setRefreshing(false); }
-  }, [schoolId, role, actorId, cycleId]);
+  }, [schoolId, role, cycleId]);
   useEffect(() => { let cancelled = false; queueMicrotask(() => { if (!cancelled) { setSubmissionId(""); setMissingReasons({}); setAcknowledge(false); void load(); } }); return () => { cancelled = true; invalidate(); }; }, [load, invalidate]);
   useEffect(() => {
     let cancelled = false;
@@ -189,7 +186,16 @@ export function SchoolWorkflow({ schoolId, role, actorId, schoolName, accessVeri
   async function action(name: string, args: Record<string, unknown>) {
     if (!ready || busy || refreshing || stale || !accessVerified) return false;
     if (!navigator.onLine) { setStatus("Connect to the internet for submission and review actions."); return false; }
-    if (name === "tanaw_lock_packet" && !window.confirm(`Lock ${schoolName ?? schoolId} · ${cycle ? cycleLabels[cycle.instructional_block_id] : cycleId} · packet version ${latest?.version} (${args.target_packet})?\nCompleteness: ${latest?.missing.length ? "Incomplete" : "Complete"}. This records an explicit school Lock. Corrections require an amendment and new reviews. District acceptance remains a separate decision.`)) return false;
+    if (name === "tanaw_lock_packet") {
+      const periodLabel = cycle && cycleLabels[cycle.instructional_block_id]?.trim();
+      if (!periodLabel || !latest || latest.id !== args.target_packet || !lockReady) {
+        setStatus("The reporting period or packet could not be verified. Refresh the workflow before locking.");
+        statusRef.current?.focus();
+        return false;
+      }
+      const schoolLabel = schoolName?.trim() || schoolId;
+      if (!window.confirm(`Lock ${schoolLabel} · ${periodLabel} · packet version ${latest.version} (${latest.id})?\nCompleteness: ${latest.missing.length ? "Incomplete" : "Complete"}. This records an explicit school Lock. Corrections require an amendment and new reviews. District acceptance remains a separate decision.`)) return false;
+    }
     if (name === "tanaw_district_review_request") {
       if (!["accept", "return"].includes(String(args.decision))) { setStatus("Choose a district decision before recording it."); return false; }
       if (args.decision === "return" && !String(args.review_comment).trim()) { setStatus("Explain what the school needs to correct before returning this packet."); return false; }
@@ -205,11 +211,22 @@ export function SchoolWorkflow({ schoolId, role, actorId, schoolName, accessVeri
     const request = generation.current;
     setBusy(true); setStatus("Recording action…");
     try {
-      const { error } = await createSupabaseBrowserClient().rpc(name, args);
+      const { error, status: responseStatus } = await createSupabaseBrowserClient().rpc(name, args);
       if (request !== generation.current) return false;
-      if (error) { setStatus(workflowError(error.code, error.message)); statusRef.current?.focus(); return false; }
+      if (error) {
+        if (responseStatus === 0 || responseStatus >= 500 || error.code === "40001") setStale(true);
+        setStatus(workflowError(error.code, error.message));
+        statusRef.current?.focus();
+        return false;
+      }
       const refreshed = await load(); setStatus(refreshed ? "Action recorded with its history." : "Action recorded, but the view could not be refreshed. Retry refresh before taking another action."); return true;
-    } catch { if (request === generation.current) setStatus("Connection interrupted. Refresh to check whether the action was recorded before retrying."); return false; }
+    } catch {
+      if (request === generation.current) {
+        setStale(true);
+        setStatus("Connection interrupted. Refresh to check whether the action was recorded before retrying.");
+      }
+      return false;
+    }
     finally { setBusy(false); }
   }
   async function submitManual(form: EvidenceDraft) {
@@ -265,16 +282,37 @@ export function SchoolWorkflow({ schoolId, role, actorId, schoolName, accessVeri
     {ready && role === "districtCoordinator" && <>
       {district.length === 0 && <p className="text-sm">No locked school packets are available.</p>}
       {district.map((packet) => <article key={packet.packet_id} className="space-y-3 border-t border-foreground/10 pt-4">
-        <h3 className="font-medium">Packet version {packet.version} · {packet.completeness}</h3><p className="text-sm font-medium">{cycleLabels[packet.cycle_id] ?? packet.cycle_id}</p>
+        <h3 className="font-medium">Packet version {packet.version} · {packet.completeness}</h3><p className="text-sm font-medium">{packet.period_label ?? packet.cycle_id}</p>
         <p className="text-sm">Process counts only. Governed indicator results are not connected; acceptance is unavailable. Return the packet with a practical correction request if needed.</p>
         <p className="text-sm">{packet.submission_count} assignment(s) not listed as missing · {packet.missing_count} missing/incomplete assignment(s)</p>
-        {districtDecisions.filter((entry) => entry.packet_id === packet.packet_id).map((entry) => <p key={entry.id} className="break-words text-sm">Recorded {entry.action} · {new Date(entry.created_at).toLocaleString("en-PH", { timeZone: "Asia/Manila" })}<br />{entry.comment}</p>)}
-        <form aria-describedby="workflow-feedback" className="space-y-3" onSubmit={(event) => { event.preventDefault(); const formElement = event.currentTarget; const form = new FormData(formElement); void action("tanaw_district_review_request", { target_packet: packet.packet_id, decision: String(form.get("decision")), review_comment: String(form.get("comment")), request_id: districtRequests.current[JSON.stringify([packet.packet_id, form.get("decision"), form.get("comment")])] ??= crypto.randomUUID(), expected_decision_id: districtDecisions.find((entry) => entry.packet_id === packet.packet_id)?.id ?? null }).then((saved) => { if (saved) clearFormDirty(formElement); }); }}>
+        {packet.latest_decision && <DistrictDecisionHistory key={packet.latest_decision.id} packetId={packet.packet_id} latest={packet.latest_decision} />}
+        <form aria-describedby="workflow-feedback" className="space-y-3" onSubmit={(event) => {
+          event.preventDefault();
+          const formElement = event.currentTarget;
+          const form = new FormData(formElement);
+          const decision = String(form.get("decision"));
+          const comment = String(form.get("comment"));
+          const expectedDecision = packet.latest_decision?.id ?? null;
+          const requestKey = JSON.stringify([packet.packet_id, expectedDecision, decision, comment]);
+          void action("tanaw_district_review_request", {
+            target_packet: packet.packet_id,
+            decision,
+            review_comment: comment,
+            request_id: districtRequests.current[requestKey] ??= crypto.randomUUID(),
+            expected_decision_id: expectedDecision,
+          }).then((saved) => {
+            if (saved) {
+              delete districtRequests.current[requestKey];
+              clearFormDirty(formElement);
+            }
+          });
+        }}>
           <div className="space-y-1"><label htmlFor={"district-decision-" + packet.packet_id} className="block text-sm">Decision</label><select id={"district-decision-" + packet.packet_id} name="decision" required defaultValue="" className={inputStyle} disabled={serverPaused}><option value="" disabled>Choose a decision</option><option value="accept" disabled>Accept — governed results not connected</option><option value="return">Return with comments</option></select></div>
           <label className="block text-sm">Review comments<textarea name="comment" required className={inputStyle} maxLength={2000} disabled={serverPaused} /></label>
           <button className={buttonStyle} disabled={serverPaused}>Record district decision</button>
         </form>
       </article>)}
+      {moreDistrictPackets && <button type="button" className={buttonStyle} disabled={serverPaused} onClick={() => void load(district.at(-1))}>Load older packets</button>}
     </>}
     {ready && cycleId && role !== "districtCoordinator" && <>
       {role === "schoolHead" && packetPanel}

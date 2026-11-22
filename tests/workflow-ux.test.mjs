@@ -15,3 +15,8 @@ test('conflicts and uncertain writes provide reconciliation before retry', () =>
   assert.match(workflowError('23505'), /already exists.*recorded result/);
   assert.match(workflowError(undefined), /check its history before retrying/);
 });
+test('business errors identify recovery and unknown SQL messages are not exposed', () => {
+  assert.match(workflowError('42501', 'Deadline closed'), /cutoff.*extension/);
+  assert.match(workflowError('42501', 'Independent Head review required'), /independent School Head/);
+  assert.doesNotMatch(workflowError('22023', 'private internal table secret'), /private|internal table|secret/);
+});

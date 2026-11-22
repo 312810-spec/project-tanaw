@@ -3,6 +3,7 @@ name: TANAW isolated verification
 on:
   push:
     branches:
+      - main
       - verify/remote-runner-workaround
   workflow_dispatch:
   pull_request:
@@ -19,7 +20,7 @@ concurrency:
 jobs:
   baseline:
     name: Baseline and production build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -34,6 +35,8 @@ jobs:
           python-version: '3.13'
       - name: Install locked dependencies
         run: npm ci
+      - name: Check dependencies for high and critical advisories
+        run: npm audit --audit-level=high
       - name: Verify repository baseline
         run: npm run verify
       - name: Verify SMEA evidence semantics
@@ -53,7 +56,7 @@ jobs:
 
   local-supabase:
     name: Local Supabase smoke check (isolated)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4

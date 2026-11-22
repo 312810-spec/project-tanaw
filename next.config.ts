@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/ecr/preview": ["./scripts/ecr_co_worker.py", "./scripts/lib/*.py", "./docs/ecr/source-registry.json"],
+    "/api/supabase-health": ["./scripts/ecr_co_worker.py", "./scripts/lib/*.py", "./docs/ecr/source-registry.json"],
   },
   async headers() {
     return [{ source: "/sw.js", headers: [

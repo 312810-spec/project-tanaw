@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { clearFormDirty } from "@/app/components/unsaved-work";
-import { decodeDraft, draftKey, emptyDraft, preserveUnreadableDraft, type DraftScope, type EvidenceDraft } from "@/app/lib/submission-drafts";
+import { decodeDraft, draftKey, emptyDraft, preserveUnreadableDraft, updateWorkingDraft, type DraftScope, type EvidenceDraft } from "@/app/lib/submission-drafts";
 
 const input = "w-full min-w-0 rounded-lg border border-foreground/20 bg-background p-3 text-sm";
 export function ManualEvidenceForm({ scope, version, definitions, recordedEntries = [], canSubmit = true, eligibility, busy, onSubmit }: {
@@ -17,6 +17,8 @@ export function ManualEvidenceForm({ scope, version, definitions, recordedEntrie
   const [unreadable, setUnreadable] = useState<string | null>(null);
   const [recovery, setRecovery] = useState<string | null>(null);
   const [message, setMessage] = useState("Checking saved draft…");
+  const savedRaw = useRef<string | null | undefined>(undefined);
+  const [storageConflict, setStorageConflict] = useState(false);
   const key = draftKey(scope);
   useEffect(() => {
     let cancelled = false;
@@ -24,6 +26,7 @@ export function ManualEvidenceForm({ scope, version, definitions, recordedEntrie
       if (cancelled) return;
       try {
         const raw = localStorage.getItem(key);
+        savedRaw.current = raw;
         const saved = decodeDraft(raw, scope);
         if (saved) { setFields(saved.fields); setDraftVersion(saved.sourceVersion); setMessage("Device draft restored. Review it before submitting."); }
         else { setUnreadable(raw); setMessage(raw ? "This device draft cannot be read. Editing is paused to protect the original." : "Drafts save on this device as you type."); }
@@ -43,8 +46,21 @@ export function ManualEvidenceForm({ scope, version, definitions, recordedEntrie
   }, [loaded, unreadable, fields, draftVersion, version]);
   function persist(next: EvidenceDraft, sourceVersion: number) {
     if (unreadable !== null) return;
-    try { localStorage.setItem(key, JSON.stringify({ schema: 1, scope, sourceVersion, fields: next })); setMessage(navigator.onLine ? "Device draft saved. Submission requires your review." : "Offline draft saved. Submit after reconnecting and refreshing access."); }
-    catch { setMessage("Device save failed. Unsent edits remain in this open page."); }
+    try {
+      const raw = JSON.stringify({ schema: 1, scope, sourceVersion, fields: next });
+      if (!updateWorkingDraft(localStorage, key, savedRaw.current, raw)) {
+        setStorageConflict(true);
+        setMessage("The saved draft changed in another tab. Your edits remain in this open page.");
+        return;
+      }
+      savedRaw.current = raw;
+      setStorageConflict(false);
+      setMessage(navigator.onLine ? "Device draft saved. Submission requires your review." : "Offline draft saved. Submit after reconnecting and refreshing access.");
+    }
+    catch {
+      setStorageConflict(true);
+      setMessage("Device save failed. Unsent edits remain in this open page.");
+    }
   }
   function change(field: keyof EvidenceDraft, value: string) {
     setErrors((old) => ({ ...old, [field]: undefined }));
@@ -65,9 +81,18 @@ export function ManualEvidenceForm({ scope, version, definitions, recordedEntrie
     const first = Object.keys(invalid)[0];
     if (first) { setMessage("Check the highlighted fields. Your draft is retained."); formElement.querySelector<HTMLElement>('[name="' + first + '"]')?.focus(); return; }
     if (!navigator.onLine) { persist(fields, draftVersion); return; }
+    const submittedDraft = savedRaw.current;
     if (await onSubmit(fields)) {
       clearFormDirty(formElement); setFields(emptyDraft); setDraftVersion(version + 1);
-      try { localStorage.removeItem(key); setMessage("Submission recorded; working device draft cleared. The retained recovery copy, if any, remains available."); } catch { setMessage("Submission recorded; the device draft could not be cleared."); }
+      setStorageConflict(false);
+      try {
+        if (!updateWorkingDraft(localStorage, key, submittedDraft, null)) {
+          setMessage("Submission recorded. The saved draft has changed and remains on this device.");
+          return;
+        }
+        savedRaw.current = null;
+        setMessage("Submission recorded; working device draft cleared. The retained recovery copy, if any, remains available.");
+      } catch { setMessage("Submission recorded; the device draft could not be cleared."); }
     }
   }
   function chooseIndicator(id: string) {
@@ -78,13 +103,14 @@ export function ManualEvidenceForm({ scope, version, definitions, recordedEntrie
     setFields(next); persist(next, draftVersion);
   }
   const original = recordedEntries.find((entry) => entry.definitionId === fields.definition);
-  function download(raw: string) {
+  function download(raw: string, filename = "TANAW-unreadable-draft.txt") {
     const url = URL.createObjectURL(new Blob([raw], { type: "text/plain;charset=utf-8" }));
-    const link = document.createElement("a"); link.href = url; link.download = "TANAW-unreadable-draft.txt"; link.click(); URL.revokeObjectURL(url);
+    const link = document.createElement("a"); link.href = url; link.download = filename; link.click(); URL.revokeObjectURL(url);
   }
   return <form onSubmit={submit} className="space-y-3">
     <p className="text-sm text-foreground/65">Manual entry is for indicators without a class-record spreadsheet source. Class-record submission remains unavailable while approved computations are being verified.</p>
     <p id="manual-draft-status" role="status" aria-live="polite" className="text-sm">{message}</p>
+    {storageConflict && <button type="button" className="text-sm underline" onClick={() => download(JSON.stringify({ schema: 1, scope, sourceVersion: draftVersion, fields }, null, 2), "TANAW-unsent-draft.json")}>Download unsent draft from this tab</button>}
     {unreadable !== null && <div className="space-y-3 rounded-lg border border-foreground/30 p-3 text-sm"><p>Download the original for recovery. Starting a new draft requires a verified retained copy; no submission will be sent automatically.</p><button type="button" className="underline" onClick={() => download(unreadable)}>Download unreadable original</button><button type="button" className="ml-3 underline" disabled={busy} onClick={() => {
       try { preserveUnreadableDraft(localStorage, key, unreadable); setRecovery(unreadable); setUnreadable(null); setFields(emptyDraft); setDraftVersion(version); setMessage("Original retained separately on this device. You can prepare a new draft."); }
       catch { setMessage("Could not retain a recovery copy. The original remains protected; download it before contacting support."); }
@@ -104,7 +130,17 @@ export function ManualEvidenceForm({ scope, version, definitions, recordedEntrie
     </fieldset>
     <button type="button" className="text-sm underline" disabled={busy || !loaded || unreadable !== null} onClick={() => {
       if (!window.confirm("Discard this working device draft? Submitted versions and retained recovery copies are unchanged.")) return;
-      try { localStorage.removeItem(key); setFields(emptyDraft); setDraftVersion(version); setErrors({}); setMessage("Working device draft discarded. Submitted evidence and retained recovery copies are unchanged."); }
+      try {
+        if (!updateWorkingDraft(localStorage, key, savedRaw.current, null)) {
+          setStorageConflict(true);
+          setMessage("The saved draft changed in another tab. Its copy and your unsent edits were kept.");
+          return;
+        }
+        savedRaw.current = null;
+        setStorageConflict(false);
+        setFields(emptyDraft); setDraftVersion(version); setErrors({});
+        setMessage("Working device draft discarded. Submitted evidence and retained recovery copies are unchanged.");
+      }
       catch { setMessage("The device draft could not be removed. Keep this page open and check storage access."); }
     }}>Discard working device draft</button>
   </form>;
